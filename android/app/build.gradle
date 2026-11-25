@@ -1,0 +1,67 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+android {
+    namespace 'com.local.agremote'
+    compileSdk 37
+
+    defaultConfig {
+        applicationId 'com.gxgloveyoimiya.agremote'
+        minSdk 29
+        targetSdk 37
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // 签名：密钥和密码在仓库外。按顺序找：环境变量 SIGN_PROPS → gradle 属性 signProps → 仓库上两级的 _toolchain。
+    // 文件内容是 storeFile / storePassword / keyAlias / keyPassword 四行；都找不到就用 Android 自带的 debug 密钥签名。
+    def ksPath = System.getenv('SIGN_PROPS') ?: findProperty('signProps') ?: "${rootDir}/../../../_toolchain/GXGLoveYoimiya.keystore.properties"
+    def ksFile = file(ksPath)
+    def ksProps = new Properties()
+    if (ksFile.exists()) ksFile.withInputStream { ksProps.load(it) }
+    else logger.warn("没有签名配置 ${ksFile}，使用 debug 密钥签名")
+    signingConfigs {
+        if (ksFile.exists()) {
+            gxg {
+                storeFile file(ksProps['storeFile'])
+                storePassword ksProps['storePassword']
+                keyAlias ksProps['keyAlias']
+                keyPassword ksProps['keyPassword']
+            }
+        }
+    }
+    def signing = ksFile.exists() ? signingConfigs.gxg : signingConfigs.debug
+    buildTypes {
+        debug { signingConfig signing }
+        release {
+            signingConfig signing
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildFeatures { compose true }
+}
+
+dependencies {
+    implementation platform('androidx.compose:compose-bom:2026.09.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.activity:activity-compose:1.12.4'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.11.0'
+    implementation 'androidx.core:core-ktx:1.19.0'
+    implementation 'androidx.webkit:webkit:1.13.0'
+    implementation 'com.squareup.okhttp3:okhttp:5.5.0'
+    implementation 'com.caverock:androidsvg-aar:1.4'
+    implementation 'io.noties.markwon:core:4.6.2'
+    implementation 'io.noties.markwon:ext-strikethrough:4.6.2'
+    implementation 'io.noties.markwon:ext-tables:4.6.2'
+}

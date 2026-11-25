@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 后半段悬浮轨道（位于星芒后方，在右上方卫星点前留白断开） -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="-42">
+        <path
+            android:pathData="M26.75,50.31 A29,10.8 0 0,1 67.61,44.46"
+            android:strokeWidth="3.4"
+            android:strokeLineCap="round">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="25"
+                    android:startY="54"
+                    android:endX="83"
+                    android:endY="54">
+                    <item android:offset="0.0" android:color="#FF2563EB" />
+                    <item android:offset="0.55" android:color="#FF3B82F6" />
+                    <item android:offset="1.0" android:color="#FF6366F1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+
+    <!-- 居中反重力四角星芒（蓝 → 青蓝 → 靛紫柔和渐变） -->
+    <path
+        android:pathData="M54,31 C55.2,45.5 62.5,52.8 77,54 C62.5,55.2 55.2,62.5 54,77 C52.8,62.5 45.5,55.2 31,54 C45.5,52.8 52.8,45.5 54,31 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="31"
+                android:startY="31"
+                android:endX="77"
+                android:endY="77">
+                <item android:offset="0.0" android:color="#FF2563EB" />
+                <item android:offset="0.45" android:color="#FF38BDF8" />
+                <item android:offset="0.80" android:color="#FF6366F1" />
+                <item android:offset="1.0" android:color="#FF8B5CF6" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 前半段悬浮轨道（白色负空间描边 + 渐变主弧线） + 右上卫星圆点 -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="-42">
+        <!-- 白色负空间隔离，营造前弧线绕过星芒前方的立体纵深 -->
+        <path
+            android:pathData="M82.01,56.80 A29,10.8 0 0,1 25.44,55.88"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="7.4"
+            android:strokeLineCap="round" />
+        <!-- 前半段渐变轨道 -->
+        <path
+            android:pathData="M81.58,50.66 A29,10.8 0 1,1 26.75,50.31"
+            android:strokeWidth="3.5"
+            android:strokeLineCap="round">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="25"
+                    android:startY="64"
+                    android:endX="83"
+                    android:endY="48">
+                    <item android:offset="0.0" android:color="#FF2563EB" />
+                    <item android:offset="0.45" android:color="#FF22D3EE" />
+                    <item android:offset="0.82" android:color="#FF6366F1" />
+                    <item android:offset="1.0" android:color="#FF8B5CF6" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- 右上角悬浮卫星圆点 -->
+        <path
+            android:pathData="M73.12,47.06 A3.1,3.1 0 1,0 79.32,47.06 A3.1,3.1 0 1,0 73.12,47.06 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="73"
+                    android:startY="44"
+                    android:endX="79"
+                    android:endY="50">
+                    <item android:offset="0.0" android:color="#FF3B82F6" />
+                    <item android:offset="1.0" android:color="#FF7C3AED" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+</vector>

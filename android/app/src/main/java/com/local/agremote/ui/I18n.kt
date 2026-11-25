@@ -1,0 +1,531 @@
+package com.local.agremote.ui
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import java.util.Locale
+
+data class AppLanguage(val code: String, val label: String)
+
+/**
+ * 支持的语言列表：
+ * 跟随系统，随后严格按「简体中文 → 繁體中文(台灣) → 繁體中文(香港) → 日本語 → English」顺序，
+ * 其余常用语言排在其后。
+ */
+val APP_LANGUAGES = listOf(
+    AppLanguage("system", "跟随系统"),
+    AppLanguage("zh-CN", "简体中文"),
+    AppLanguage("zh-TW", "繁體中文(台灣)"),
+    AppLanguage("zh-HK", "繁體中文(香港)"),
+    AppLanguage("ja", "日本語"),
+    AppLanguage("en", "English"),
+    AppLanguage("ko", "한국어"),
+    AppLanguage("es", "Español"),
+    AppLanguage("fr", "Français"),
+    AppLanguage("de", "Deutsch"),
+    AppLanguage("ru", "Русский"),
+    AppLanguage("pt", "Português"),
+)
+
+val LocalAppLang = staticCompositionLocalOf { "zh-CN" }
+
+fun resolveAppLang(code: String): String {
+    if (code != "system" && code.isNotBlank()) return code
+    val loc = Locale.getDefault()
+    val lang = loc.language.lowercase(Locale.ROOT)
+    val country = loc.country.uppercase(Locale.ROOT)
+    val script = loc.script.lowercase(Locale.ROOT)
+    return when (lang) {
+        "zh" -> when {
+            country == "HK" || country == "MO" -> "zh-HK"
+            country == "TW" || script == "hant" -> "zh-TW"
+            else -> "zh-CN"
+        }
+        "ja" -> "ja"
+        "ko" -> "ko"
+        "es" -> "es"
+        "fr" -> "fr"
+        "de" -> "de"
+        "ru" -> "ru"
+        "pt" -> "pt"
+        else -> "en"
+    }
+}
+
+fun appLanguageDisplayName(code: String, currentLang: String): String {
+    if (code == "system") {
+        val resolved = resolveAppLang("system")
+        val resolvedLabel = APP_LANGUAGES.find { it.code == resolved }?.label ?: resolved
+        return "${I18n.t(currentLang, "跟随系统")} ($resolvedLabel)"
+    }
+    return APP_LANGUAGES.find { it.code == code }?.label ?: code
+}
+
+@Composable
+fun tr(zhCn: String): String = I18n.t(LocalAppLang.current, zhCn)
+
+@Composable
+fun tr(zhCn: String, vararg args: Any): String {
+    val lang = LocalAppLang.current
+    var s = I18n.t(lang, zhCn)
+    args.forEachIndexed { idx, a -> s = s.replace("{$idx}", a.toString()) }
+    return I18n.tightenCjk(lang, s)
+}
+
+object I18n {
+    @Volatile var currentLang: String = "zh-CN"
+
+    private val cjkToLatin = Regex("([\\u4E00-\\u9FFF\\u3040-\\u30FF]) ([A-Za-z0-9])")
+    private val latinToCjk = Regex("([A-Za-z0-9]) ([\\u4E00-\\u9FFF\\u3040-\\u30FF])")
+
+    fun tightenCjk(lang: String, s: String): String {
+        if (!lang.startsWith("zh") && lang != "ja") return s
+        return s.replace(cjkToLatin, "$1$2").replace(latinToCjk, "$1$2")
+    }
+
+    fun t(lang: String, key: String): String {
+        val raw = if (lang == "zh-CN") (if (key == "系统") "跟随系统" else key) else (
+            tables[lang]?.get(key)
+                ?: (if (lang == "zh-HK") tables["zh-TW"]?.get(key) else null)
+                ?: tables["en"]?.get(key)
+                ?: key
+            )
+        return tightenCjk(lang, raw)
+    }
+
+    fun t(key: String): String = t(currentLang, key)
+
+    /** 自动翻译各类 Toast 通知（支持整句匹配及「前缀：详情」格式）。 */
+    fun translateToast(raw: String): String {
+        if (currentLang == "zh-CN" || raw.isBlank()) return raw
+        val exact = tables[currentLang]?.get(raw)
+            ?: (if (currentLang == "zh-HK") tables["zh-TW"]?.get(raw) else null)
+            ?: tables["en"]?.get(raw)
+        if (exact != null) return exact
+        val sep = raw.indexOf('：').takeIf { it > 0 } ?: raw.indexOf(':').takeIf { it > 0 } ?: -1
+        if (sep > 0) {
+            val prefix = raw.substring(0, sep)
+            val rest = raw.substring(sep + 1).trimStart()
+            val trPrefix = t(currentLang, prefix)
+            if (trPrefix != prefix) {
+                val punc = if (currentLang.startsWith("zh") || currentLang == "ja") "：" else ": "
+                return "$trPrefix$punc$rest"
+            }
+        }
+        return raw
+    }
+
+    private val zhTW = mapOf(
+        // 通用
+        "返回" to "返回", "刷新" to "重新整理", "关闭" to "關閉", "取消" to "取消", "确定" to "確定",
+        "保存" to "儲存", "删除" to "刪除", "编辑" to "編輯", "复制" to "複製", "分享" to "分享", "重试" to "重試", "没有可以打开这个链接的应用" to "沒有可以開啟這個連結的應用程式",
+        "跳过" to "略過", "运行" to "執行", "确认" to "確認", "拒绝" to "拒絕", "查看全部" to "檢視全部",
+        "读取中…" to "讀取中…", "新建" to "新增", "搜索" to "搜尋", "完成" to "完成", "创建" to "建立",
+        "全部" to "全部", "更多" to "更多", "清空" to "清除", "复原" to "重設",
+        // 连接与时间状态
+        "已连接" to "已連線", "连接中…" to "連線中…", "无法连接" to "無法連線",
+        "电脑在线，但 Antigravity 没开" to "電腦在線，但未開啟 Antigravity",
+        "运行中" to "執行中", "正在停止" to "正在停止", "空闲" to "閒置",
+        "刚刚" to "剛剛", "分钟前" to "分鐘前", "小时前" to "小時前", "天前" to "天前",
+        "昨天" to "昨天", "马上" to "即將", "分钟后" to "分鐘後", "小时" to "小時", "天后" to "天後",
+        // 设置页
+        "设置" to "設定", "额度" to "額度", "语言" to "語言", "跟随系统" to "跟隨系統", "系统" to "跟隨系統",
+        "选择语言" to "選擇語言", "外观与主题" to "外觀與主題", "主题风格" to "主題風格",
+        "深色模式" to "深色模式", "浅色" to "淺色", "深色" to "深色", "配色方案" to "配色方案",
+        "自定义配色" to "自訂配色", "自定义颜色" to "自訂顏色", "自由调色" to "自由調色", "收回调色" to "收合調色",
+        "动态色调 · 柔和圆润" to "動態色調 · 柔和圓潤", "纯净极简 · HyperOS" to "純淨極簡 · HyperOS",
+        "早上好" to "早安", "中午好" to "午安", "下午好" to "午安", "晚上好" to "晚安",
+        "正在停止…" to "正在停止…", "正在运行…" to "正在執行…", "正在发送…" to "正在傳送…",
+        "输入或长按说话" to "輸入或長按說話", "与{0}对话" to "與 {0} 對話",
+        "回复{0}" to "回覆 {0}", "回复{0}或长按说话" to "回覆 {0} 或長按說話",
+        "消息推送" to "訊息推播", "后台推送" to "背景推播",
+        "App 不在前台时，agent 完成或需要你确认会发通知" to "App 不在前景時，agent 完成或需要你確認會發送通知",
+        "为了锁屏后也能收到，请在系统设置里把本 App 的省电策略设为“无限制”，并允许自启动。" to "為確保鎖定螢幕後仍能收到通知，請在系統設定中將本 App 省電策略設為「無限制」並允許自動啟動。",
+        "打开应用设置" to "開啟應用程式設定",
+        "连接" to "連線", "取消配对" to "取消配對", "设备名称" to "裝置名稱", "添加设备" to "新增裝置", "编辑设备" to "編輯裝置", "配对码" to "配對碼",
+        "链接打开方式" to "連結開啟方式", "是否打开链接" to "是否開啟連結", "每次询问" to "每次詢問",
+        "通过默认浏览器" to "透過預設瀏覽器", "通过内置浏览器" to "透過內建瀏覽器", "选择打开应用" to "選擇開啟應用程式", "记住本次决定" to "記住本次決定", "已归档的对话" to "已封存的對話",
+        "没有归档的对话" to "沒有已封存的對話", "取消归档" to "取消封存", "恢复" to "還原",
+        "在线" to "在線", "离线" to "離線", "连接中" to "連線中", "重置" to "重設",
+        "已开启" to "已開啟", "已关闭" to "已關閉",
+        // 抽屉与对话菜单
+        "新对话" to "新對話", "新建对话" to "新增對話", "自定义扩展" to "自訂擴充功能", "命令面板" to "命令面板",
+        "自动化" to "自動化", "置顶" to "釘選", "取消置顶" to "取消釘選", "重命名" to "重新命名",
+        "归档" to "封存", "移动到项目" to "移至專案", "标为未读" to "標為未讀", "删除对话" to "刪除對話",
+        "搜索对话…" to "搜尋對話…", "项目" to "專案", "对话" to "對話", "新建项目" to "新增專案",
+        "历史会话" to "歷史對話", "还没有项目" to "尚無專案", "还没有对话" to "尚無對話",
+        "移出项目" to "移出專案", "新名称" to "新名稱", "确认删除" to "確認刪除",
+        // 聊天页
+        "向 Antigravity 提问…" to "向 Antigravity 提問…", "问点什么…" to "問點什麼…",
+        "内置浏览器" to "內建瀏覽器", "概览" to "概覽", "更多操作" to "更多操作", "对话列表" to "對話清單",
+        "发送" to "傳送", "停止" to "停止", "立刻发送" to "立即傳送", "发送中…" to "傳送中…",
+        "选择模型" to "選擇模型", "允许一次" to "允許一次", "本对话允许" to "本對話允許",
+        "本项目允许" to "本專案允許", "全局允许" to "全域允許", "拒绝并说明" to "拒絕並說明",
+        "思考过程" to "思考過程", "收起思考过程" to "收合思考過程", "思考中" to "思考中", "思考中…" to "思考中…",
+        "个步骤" to "個步驟", "思考强度" to "思考強度", "更多模型" to "更多模型",
+        "已复制" to "已複製", "已复制网址" to "已複製網址", "已复制命令" to "已複製命令", "已复制输出" to "已複製輸出", "已复制日志" to "已複製日誌",
+        "已同步电脑标签页" to "已同步電腦分頁", "发送失败" to "傳送失敗", "操作失败" to "操作失敗", "关闭标签页失败" to "關閉分頁失敗",
+        "已保存" to "已儲存", "已删除" to "已刪除", "已归档" to "已封存", "已置顶" to "已釘選", "已取消置顶" to "已取消釘選",
+        "排队中" to "排隊中", "展开" to "展開", "收起" to "收合",
+        "和电脑上的 Antigravity 对话" to "與電腦上的 Antigravity 對話",
+        // 加号菜单
+        "添加到会话" to "新增至對話", "相机" to "相機", "照片" to "相片", "文件" to "檔案",
+        "权限" to "權限", "权限（和电脑同步）" to "權限（與電腦同步）",
+        "插件" to "外掛", "技能与规则" to "技能與規則", "MCP服务" to "MCP 服務",
+        "默认" to "預設", "请求审核" to "請求審核", "自动" to "自動", "极速模式" to "極速模式",
+        "翻译" to "翻譯", "原文" to "原文", "技能" to "技能", "规则" to "規則",
+        "已启用" to "已啟用", "已停用" to "已停用", "未安装" to "未安裝", "未配置" to "未設定",
+        "暂无技能或规则。" to "暫無技能或規則。", "电脑端暂未配置 MCP 服务。" to "電腦端暫未設定 MCP 服務。",
+        "这里的 MCP 服务开关与电脑端 Antigravity 实时同步。" to "這裡的 MCP 服務開關與電腦端 Antigravity 即時同步。",
+        "技能与规则由 agent 按需自动使用；点一项可插入到输入框中明确指定。" to "技能與規則由 agent 依需求自動使用；點選任一項可插入輸入框明確指定。",
+        "点一个插件，它会作为 @ 标签挂在输入框上方，发送时一起带给 agent（和电脑上 @ 插件一样）。" to "點選外掛後會以 @ 標籤掛在輸入框上方，傳送時一併帶給 agent。",
+        // 自定义扩展 & 自动化 & 命令面板 & 概览 & 浏览器
+        "插件市场" to "外掛市集", "已安装" to "已安裝", "Google 翻译" to "Google 翻譯", "显示原文" to "顯示原文",
+        "安装" to "安裝", "卸载" to "解除安裝", "添加" to "新增", "已添加" to "已新增", "详情" to "詳情", "移除" to "移除", "推荐" to "推薦", "启用" to "啟用", "停用" to "停用", "重启" to "重啟",
+        "新建自动化" to "新增自動化", "电脑实况" to "電腦實況", "网页浏览" to "網頁瀏覽",
+        "鼠标操控" to "滑鼠操控", "直接触控" to "直接觸控", "仅查看" to "僅檢視",
+        "键盘编辑" to "鍵盤編輯", "收起键盘" to "收合鍵盤", "光标大小" to "游標大小", "光标" to "游標",
+        "电脑屏幕" to "電腦螢幕", "全屏" to "全螢幕", "右侧浏览器" to "右側瀏覽器", "实时同步" to "即時同步", "已暂停" to "已暫停",
+        "上滚" to "向上捲動", "下滚" to "向下捲動", "左键" to "左鍵", "右键" to "右鍵", "双击" to "雙擊",
+        "回车" to "Enter", "退格" to "倒退鍵", "全选" to "全選", "撤销" to "復原",
+        "读取电脑已有文字" to "讀取電腦已有文字", "替换写入" to "取代寫入", "写入+回车" to "寫入+Enter", "追加" to "附加",
+        "已同步电脑 Antigravity · 走电脑网络" to "已同步電腦 Antigravity · 透過電腦網路",
+        "电脑 Antigravity 已打开的标签页" to "電腦 Antigravity 已開啟的分頁",
+        "当前对话中的链接" to "目前對話中的連結",
+        "输入网址或搜索（走电脑网络）…" to "輸入網址或搜尋（透過電腦網路）…",
+        "子代理" to "子代理", "后台任务" to "背景工作", "终端" to "終端機", "插件扩展" to "外掛擴充",
+        "配对" to "配對", "连接电脑" to "連線電腦", "搜索对话、命令、模型、插件…" to "搜尋對話、命令、模型、外掛…",
+        // 命令面板
+        "操作" to "操作", "斜杠" to "斜線", "模型/权限" to "模型/權限", "扩展" to "擴充",
+        "快捷操作" to "快捷操作", "最近对话" to "最近對話", "斜杠命令" to "斜線命令",
+        "在项目中新建对话" to "在專案中新增對話", "切换模型" to "切換模型", "权限预设（同步电脑）" to "權限預設（同步電腦）",
+        "开始一个全新的会话" to "開始一個全新的對話", "打开内置浏览器" to "開啟內建瀏覽器",
+        "在应用内浏览网页或本地服务" to "在應用內瀏覽網頁或本機服務", "打开当前对话概览" to "開啟目前對話概覽",
+        "查看产物、文件改动、终端和链接" to "檢視產物、檔案變更、終端機與連結",
+        "停止当前运行" to "停止目前執行", "中断正在执行的 Agent 任务" to "中斷正在執行的Agent任務",
+        "取消置顶当前对话" to "取消釘選目前對話", "置顶当前对话" to "釘選目前對話",
+        "复制当前对话全部内容" to "複製目前對話全部內容", "归档当前对话" to "封存目前對話",
+        "打开自动化" to "開啟自動化", "管理定时运行的后台任务" to "管理排程執行的背景任務",
+        "打开自定义扩展" to "開啟自訂擴充", "插件市场、连接器与扩展状态" to "外掛市集、技能與擴充狀態",
+        "打开设置与额度" to "開啟設定與額度", "额度、外观主题、推送和连接" to "額度、語言、主題、推播與連線",
+        "切换外观模式" to "切換外觀模式", "切换主题风格" to "切換主題風格", "当前" to "目前",
+        "刷新列表与同步状态" to "重新整理清單與同步狀態", "重新拉取电脑端对话、项目与模型" to "重新拉取電腦端對話、專案與模型",
+        "没有匹配项" to "沒有符合的項目", "已归档" to "已封存", "已刷新" to "已重新整理",
+    )
+
+    private val zhHK = zhTW + mapOf(
+        "刷新" to "重新整理", "照片" to "相片", "文件" to "檔案", "插件" to "插件",
+        "插件市场" to "插件市場", "自定义扩展" to "自訂擴充", "鼠标操控" to "滑鼠操控",
+        "后台任务" to "後台任務", "后台推送" to "後台推送", "消息推送" to "訊息推送",
+        "发送" to "發送", "立刻发送" to "即時發送", "发送中…" to "發送中…",
+        "在线" to "在線", "连接" to "連接", "已连接" to "已連接", "连接中…" to "連接中…",
+        "无法连接" to "無法連接", "电脑在线，但 Antigravity 没开" to "電腦在線，但未開 Antigravity",
+        "默认" to "預設", "重置" to "重設", "新建" to "新增", "搜索" to "搜尋",
+        "搜索对话…" to "搜尋對話…", "项目" to "項目", "移动到项目" to "移至項目",
+        "新建项目" to "新增項目", "本项目允许" to "本項目允許", "全局允许" to "全域允許",
+        "取消配对" to "取消配對", "已归档的对话" to "已封存的對話", "没有归档的对话" to "沒有已封存的對話",
+        "Google 翻译" to "Google 翻譯", "插件扩展" to "插件擴充",
+        "早上好" to "早晨", "中午好" to "午安", "下午好" to "午安", "晚上好" to "晚安",
+        "正在发送…" to "正在發送…", "输入或长按说话" to "輸入或長按講嘢",
+    )
+
+    private val ja = mapOf(
+        "返回" to "戻る", "刷新" to "更新", "关闭" to "閉じる", "取消" to "キャンセル", "确定" to "OK",
+        "保存" to "保存", "删除" to "削除", "编辑" to "編集", "复制" to "コピー", "分享" to "共有", "重试" to "再試行", "没有可以打开这个链接的应用" to "このリンクを開けるアプリがありません",
+        "跳过" to "スキップ", "运行" to "実行", "确认" to "確認", "拒绝" to "拒否", "查看全部" to "すべて表示",
+        "读取中…" to "読み込み中…", "新建" to "新規作成", "搜索" to "検索", "完成" to "完了", "创建" to "作成",
+        "全部" to "すべて", "更多" to "その他", "清空" to "クリア", "复原" to "リセット",
+        "已连接" to "接続済み", "连接中…" to "接続中…", "无法连接" to "接続できません",
+        "电脑在线，但 Antigravity 没开" to "PCはオンラインですが Antigravity が未起動です",
+        "运行中" to "実行中", "正在停止" to "停止中", "空闲" to "待機中",
+        "刚刚" to "たった今", "分钟前" to "分前", "小时前" to "時間前", "天前" to "日前",
+        "昨天" to "昨日", "马上" to "まもなく", "分钟后" to "分後", "小时" to "時間", "天后" to "日後",
+        "设置" to "設定", "额度" to "クォータ", "语言" to "言語", "跟随系统" to "システムに従う", "系统" to "システム",
+        "选择语言" to "言語を選択", "外观与主题" to "外観とテーマ", "主题风格" to "スタイル",
+        "深色模式" to "ダークモード", "浅色" to "ライト", "深色" to "ダーク", "配色方案" to "カラー",
+        "自定义配色" to "カスタム", "自定义颜色" to "カスタム", "自由调色" to "カスタム色", "收回调色" to "閉じる",
+        "动态色调 · 柔和圆润" to "動的カラー・丸み", "纯净极简 · HyperOS" to "シンプル・HyperOS",
+        "早上好" to "おはようございます", "中午好" to "こんにちは", "下午好" to "こんにちは", "晚上好" to "こんばんは",
+        "正在停止…" to "停止中…", "正在运行…" to "実行中…", "正在发送…" to "送信中…",
+        "输入或长按说话" to "入力・長押しで音声", "与{0}对话" to "{0}に質問",
+        "回复{0}" to "{0}に返信", "回复{0}或长按说话" to "{0}に返信・長押し音声",
+        "消息推送" to "通知", "后台推送" to "バックグラウンド通知",
+        "App 不在前台时，agent 完成或需要你确认会发通知" to "バックグラウンド時に完了や確認要求を通知します",
+        "为了锁屏后也能收到，请在系统设置里把本 App 的省电策略设为“无限制”，并允许自启动。" to "ロック中も受信するため、システム設定でバッテリー制限を「制限なし」にしてください。",
+        "打开应用设置" to "アプリ設定を開く",
+        "连接" to "接続", "取消配对" to "ペアリング解除", "设备名称" to "デバイス名", "添加设备" to "デバイス追加", "编辑设备" to "デバイス編集", "配对码" to "ペアリングコード",
+        "链接打开方式" to "リンクの開き方", "是否打开链接" to "リンクを開きますか？", "每次询问" to "毎回確認",
+        "通过默认浏览器" to "デフォルトブラウザで開く", "通过内置浏览器" to "内蔵ブラウザで開く", "选择打开应用" to "アプリを選択して開く", "记住本次决定" to "この選択を記憶する", "已归档的对话" to "アーカイブ済み",
+        "没有归档的对话" to "アーカイブされた会話はありません", "取消归档" to "アーカイブ解除", "恢复" to "復元",
+        "在线" to "オンライン", "离线" to "オフライン", "连接中" to "接続中", "重置" to "リセット",
+        "已开启" to "オン", "已关闭" to "オフ",
+        "新对话" to "新しい会話", "新建对话" to "新しい会話", "自定义扩展" to "拡張機能", "命令面板" to "コマンドパレット",
+        "自动化" to "オートメーション", "置顶" to "ピン留め", "取消置顶" to "ピン留め解除", "重命名" to "名前変更",
+        "归档" to "アーカイブ", "移动到项目" to "プロジェクトへ移動", "标为未读" to "未読にする", "删除对话" to "会話を削除",
+        "搜索对话…" to "会話を検索…", "项目" to "プロジェクト", "对话" to "会話", "新建项目" to "新規プロジェクト",
+        "历史会话" to "会話履歴", "还没有项目" to "プロジェクトはまだありません", "还没有对话" to "会話はまだありません",
+        "移出项目" to "プロジェクトから外す", "新名称" to "新しい名前", "确认删除" to "削除の確認",
+        "向 Antigravity 提问…" to "Antigravity に質問…", "问点什么…" to "メッセージを入力…",
+        "内置浏览器" to "内蔵ブラウザ", "概览" to "概要", "更多操作" to "その他", "对话列表" to "会話一覧",
+        "发送" to "送信", "停止" to "停止", "立刻发送" to "今すぐ送信", "发送中…" to "送信中…",
+        "选择模型" to "モデルを選択", "允许一次" to "今回のみ許可", "本对话允许" to "この会話で許可",
+        "本项目允许" to "このプロジェクトで許可", "全局允许" to "常に許可", "拒绝并说明" to "理由を添えて拒否",
+        "思考过程" to "思考プロセス", "收起思考过程" to "思考プロセスを閉じる", "思考中" to "思考中", "思考中…" to "思考中…",
+        "个步骤" to "ステップ", "思考强度" to "思考レベル", "更多模型" to "その他のモデル",
+        "已复制" to "コピーしました", "已复制网址" to "URLをコピーしました", "已复制命令" to "コマンドをコピーしました", "已复制输出" to "出力をコピーしました", "已复制日志" to "ログをコピーしました",
+        "已同步电脑标签页" to "PCのタブを同期しました", "发送失败" to "送信失敗", "操作失败" to "操作失敗", "关闭标签页失败" to "タブを閉じられませんでした",
+        "已保存" to "保存しました", "已删除" to "削除しました", "已归档" to "アーカイブしました", "已置顶" to "ピン留めしました", "已取消置顶" to "ピン留めを解除しました",
+        "排队中" to "待機中", "展开" to "展開", "收起" to "折りたたむ",
+        "和电脑上的 Antigravity 对话" to "PCの Antigravity とチャット",
+        "添加到会话" to "会話に追加", "相机" to "カメラ", "照片" to "写真", "文件" to "ファイル",
+        "权限" to "権限", "权限（和电脑同步）" to "権限（PCと同期）",
+        "插件" to "プラグイン", "技能与规则" to "スキルとルール", "MCP服务" to "MCPサーバー",
+        "默认" to "デフォルト", "请求审核" to "確認を求める", "自动" to "自動", "极速模式" to "ターボモード",
+        "翻译" to "翻訳", "原文" to "原文", "技能" to "スキル", "规则" to "ルール",
+        "已启用" to "有効", "已停用" to "無効", "未安装" to "未インストール", "未配置" to "未設定",
+        "暂无技能或规则。" to "スキルやルールはありません。", "电脑端暂未配置 MCP 服务。" to "MCPサーバーが未設定です。",
+        "这里的 MCP 服务开关与电脑端 Antigravity 实时同步。" to "MCPサーバーのオン/オフはPCと同期されます。",
+        "技能与规则由 agent 按需自动使用；点一项可插入到输入框中明确指定。" to "タップすると入力欄に挿入できます。",
+        "点一个插件，它会作为 @ 标签挂在输入框上方，发送时一起带给 agent（和电脑上 @ 插件一样）。" to "タップすると入力欄の上に @ メンションとして追加されます。",
+        "插件市场" to "ストア", "已安装" to "導入済み", "Google 翻译" to "Google翻訳", "显示原文" to "原文",
+        "安装" to "導入", "卸载" to "削除", "添加" to "追加", "已添加" to "追加済", "详情" to "詳細", "移除" to "削除", "推荐" to "おすすめ", "启用" to "有効化", "停用" to "無効化", "重启" to "再起動",
+        "新建自动化" to "新規作成", "电脑实况" to "PC実況", "网页浏览" to "Web",
+        "鼠标操控" to "マウス操作", "直接触控" to "直接タッチ", "仅查看" to "閲覧のみ",
+        "键盘编辑" to "キーボード", "收起键盘" to "閉じる", "光标大小" to "カーソルサイズ", "光标" to "カーソル",
+        "电脑屏幕" to "PC画面", "全屏" to "全画面", "右侧浏览器" to "右側ブラウザ", "实时同步" to "ライブ同期", "已暂停" to "一時停止",
+        "上滚" to "上スクロール", "下滚" to "下スクロール", "左键" to "左クリック", "右键" to "右クリック", "双击" to "ダブルクリック",
+        "回车" to "Enter", "退格" to "Backspace", "全选" to "すべて選択", "撤销" to "元に戻す",
+        "读取电脑已有文字" to "PC入力欄を読み取る", "替换写入" to "置換入力", "写入+回车" to "入力+Enter", "追加" to "追加",
+        "已同步电脑 Antigravity · 走电脑网络" to "PC Antigravity と同期済み · PCネットワーク経由",
+        "电脑 Antigravity 已打开的标签页" to "PC Antigravity で開いているタブ",
+        "当前对话中的链接" to "この会話のリンク",
+        "输入网址或搜索（走电脑网络）…" to "URLまたは検索語を入力（PCネットワーク）…",
+        "子代理" to "サブエージェント", "后台任务" to "バックグラウンドタスク", "终端" to "ターミナル", "插件扩展" to "拡張機能",
+        "配对" to "ペアリング", "连接电脑" to "PCに接続", "搜索对话、命令、模型、插件…" to "会話・コマンド・モデルを検索…",
+        // 命令面板
+        "操作" to "操作", "斜杠" to "スラッシュ", "模型/权限" to "モデル/権限", "扩展" to "拡張",
+        "快捷操作" to "クイック操作", "最近对话" to "最近の会話", "斜杠命令" to "スラッシュコマンド",
+        "在项目中新建对话" to "プロジェクトで新規会話", "切换模型" to "モデル切替", "权限预设（同步电脑）" to "権限プリセット（PC同期）",
+        "开始一个全新的会话" to "新しい会話を開始", "打开内置浏览器" to "内蔵ブラウザを開く",
+        "在应用内浏览网页或本地服务" to "アプリ内でWebやローカルを表示", "打开当前对话概览" to "会話の概要を開く",
+        "查看产物、文件改动、终端和链接" to "成果物・変更・ターミナルを表示",
+        "停止当前运行" to "実行を停止", "中断正在执行的 Agent 任务" to "実行中のAgentタスクを中断",
+        "取消置顶当前对话" to "ピン留めを解除", "置顶当前对话" to "この会話をピン留め",
+        "复制当前对话全部内容" to "会話全体をコピー", "归档当前对话" to "この会話をアーカイブ",
+        "打开自动化" to "オートメーションを開く", "管理定时运行的后台任务" to "定期タスクを管理",
+        "打开自定义扩展" to "拡張機能を開く", "插件市场、连接器与扩展状态" to "ストア・スキル・拡張状態",
+        "打开设置与额度" to "設定とクォータを開く", "额度、外观主题、推送和连接" to "クォータ・言語・テーマ・接続",
+        "切换外观模式" to "外観モード切替", "切换主题风格" to "スタイル切替", "当前" to "現在",
+        "刷新列表与同步状态" to "一覧と同期状態を更新", "重新拉取电脑端对话、项目与模型" to "PCから会話・モデルを再取得",
+        "没有匹配项" to "一致する項目がありません", "已归档" to "アーカイブ済", "已刷新" to "更新しました",
+    )
+
+    private val en = mapOf(
+        "返回" to "Back", "刷新" to "Refresh", "关闭" to "Close", "取消" to "Cancel", "确定" to "OK",
+        "保存" to "Save", "删除" to "Delete", "编辑" to "Edit", "复制" to "Copy", "分享" to "Share", "重试" to "Retry", "没有可以打开这个链接的应用" to "No app can open this link",
+        "跳过" to "Skip", "运行" to "Run", "确认" to "Confirm", "拒绝" to "Deny", "查看全部" to "View All",
+        "读取中…" to "Loading…", "新建" to "New", "搜索" to "Search", "完成" to "Done", "创建" to "Create",
+        "全部" to "All", "更多" to "More", "清空" to "Clear", "复原" to "Reset",
+        "已连接" to "Connected", "连接中…" to "Connecting…", "无法连接" to "Cannot connect",
+        "电脑在线，但 Antigravity 没开" to "PC online, but Antigravity is not running",
+        "运行中" to "Running", "正在停止" to "Stopping", "空闲" to "Idle",
+        "刚刚" to "Just now", "分钟前" to "m ago", "小时前" to "h ago", "天前" to "d ago",
+        "昨天" to "Yesterday", "马上" to "Soon", "分钟后" to "m", "小时" to "h", "天后" to "d",
+        "设置" to "Settings", "额度" to "Quota", "语言" to "Language", "跟随系统" to "Follow System", "系统" to "System",
+        "选择语言" to "Select Language", "外观与主题" to "Appearance & Theme", "主题风格" to "Style",
+        "深色模式" to "Dark Mode", "浅色" to "Light", "深色" to "Dark", "配色方案" to "Colors",
+        "自定义配色" to "Custom", "自定义颜色" to "Custom", "自由调色" to "Custom", "收回调色" to "Hide",
+        "动态色调 · 柔和圆润" to "Dynamic · Rounded", "纯净极简 · HyperOS" to "Minimal · HyperOS",
+        "早上好" to "Good morning", "中午好" to "Good noon", "下午好" to "Good afternoon", "晚上好" to "Good evening",
+        "正在停止…" to "Stopping…", "正在运行…" to "Running…", "正在发送…" to "Sending…",
+        "输入或长按说话" to "Type or hold mic", "与{0}对话" to "Ask {0}",
+        "回复{0}" to "Reply to {0}", "回复{0}或长按说话" to "Reply to {0}…",
+        "消息推送" to "Notifications", "后台推送" to "Background Notifications",
+        "App 不在前台时，agent 完成或需要你确认会发通知" to "Notify when agent finishes or needs approval in background",
+        "为了锁屏后也能收到，请在系统设置里把本 App 的省电策略设为“无限制”，并允许自启动。" to "Set battery usage to Unrestricted in system settings to receive alerts while locked.",
+        "打开应用设置" to "Open App Settings",
+        "连接" to "Connection", "取消配对" to "Unpair", "设备名称" to "Device Name", "添加设备" to "Add Device", "编辑设备" to "Edit Device", "配对码" to "Pairing Code",
+        "链接打开方式" to "Link Handling", "是否打开链接" to "Open Link?", "每次询问" to "Always Ask",
+        "通过默认浏览器" to "Default Browser", "通过内置浏览器" to "Built-in Browser", "选择打开应用" to "Choose App", "记住本次决定" to "Remember my choice", "已归档的对话" to "Archived Conversations",
+        "没有归档的对话" to "No archived conversations", "取消归档" to "Unarchive", "恢复" to "Restore",
+        "在线" to "Online", "离线" to "Offline", "连接中" to "Connecting", "重置" to "Reset",
+        "已开启" to "On", "已关闭" to "Off",
+        "新对话" to "New Chat", "新建对话" to "New Chat", "自定义扩展" to "Customizations", "命令面板" to "Command Palette",
+        "自动化" to "Automations", "置顶" to "Pin", "取消置顶" to "Unpin", "重命名" to "Rename",
+        "归档" to "Archive", "移动到项目" to "Move to Project", "标为未读" to "Mark Unread", "删除对话" to "Delete Chat",
+        "搜索对话…" to "Search chats…", "项目" to "Projects", "对话" to "Conversations", "新建项目" to "New Project",
+        "历史会话" to "History", "还没有项目" to "No projects yet", "还没有对话" to "No conversations yet",
+        "移出项目" to "Remove from Project", "新名称" to "New Name", "确认删除" to "Confirm Delete",
+        "向 Antigravity 提问…" to "Ask Antigravity…", "问点什么…" to "Ask anything…",
+        "内置浏览器" to "Browser", "概览" to "Overview", "更多操作" to "More", "对话列表" to "Chats",
+        "发送" to "Send", "停止" to "Stop", "立刻发送" to "Send Now", "发送中…" to "Sending…",
+        "选择模型" to "Select Model", "允许一次" to "Allow Once", "本对话允许" to "Allow in Chat",
+        "本项目允许" to "Allow in Project", "全局允许" to "Allow Always", "拒绝并说明" to "Deny with Reason",
+        "思考过程" to "Thinking Process", "收起思考过程" to "Hide Thinking", "思考中" to "Thinking", "思考中…" to "Thinking…",
+        "个步骤" to "steps", "思考强度" to "Thinking Level", "更多模型" to "More Models",
+        "已复制" to "Copied", "已复制网址" to "URL copied", "已复制命令" to "Command copied", "已复制输出" to "Output copied", "已复制日志" to "Log copied",
+        "已同步电脑标签页" to "PC tabs synced", "发送失败" to "Send failed", "操作失败" to "Action failed", "关闭标签页失败" to "Failed to close tab",
+        "已保存" to "Saved", "已删除" to "Deleted", "已归档" to "Archived", "已置顶" to "Pinned", "已取消置顶" to "Unpinned",
+        "排队中" to "Queued", "展开" to "Expand", "收起" to "Collapse",
+        "和电脑上的 Antigravity 对话" to "Chat with Antigravity on PC",
+        "添加到会话" to "Add to Chat", "相机" to "Camera", "照片" to "Photos", "文件" to "Files",
+        "权限" to "Permissions", "权限（和电脑同步）" to "Permissions (Synced)",
+        "插件" to "Plugins", "技能与规则" to "Skills & Rules", "MCP服务" to "MCP Servers",
+        "默认" to "Default", "请求审核" to "Request Review", "自动" to "Auto", "极速模式" to "Turbo Mode",
+        "翻译" to "Translate", "原文" to "Original", "技能" to "Skills", "规则" to "Rules",
+        "已启用" to "Enabled", "已停用" to "Disabled", "未安装" to "Not installed", "未配置" to "Not configured",
+        "暂无技能或规则。" to "No skills or rules yet.", "电脑端暂未配置 MCP 服务。" to "No MCP servers configured on PC.",
+        "这里的 MCP 服务开关与电脑端 Antigravity 实时同步。" to "MCP server toggles sync live with Antigravity on PC.",
+        "技能与规则由 agent 按需自动使用；点一项可插入到输入框中明确指定。" to "Skills & rules are used automatically; tap to insert into the input box.",
+        "点一个插件，它会作为 @ 标签挂在输入框上方，发送时一起带给 agent（和电脑上 @ 插件一样）。" to "Tap a plugin to attach it as an @ mention above the input box.",
+        "插件市场" to "Marketplace", "已安装" to "Installed", "Google 翻译" to "Translate", "显示原文" to "Original",
+        "安装" to "Install", "卸载" to "Uninstall", "添加" to "Add", "已添加" to "Added", "详情" to "Details", "移除" to "Remove", "推荐" to "Featured", "启用" to "Enable", "停用" to "Disable", "重启" to "Restart",
+        "新建自动化" to "New Automation", "电脑实况" to "Live", "网页浏览" to "Web",
+        "鼠标操控" to "Mouse", "直接触控" to "Direct Touch", "仅查看" to "View Only",
+        "键盘编辑" to "Keyboard", "收起键盘" to "Hide Keyboard", "光标大小" to "Cursor Size", "光标" to "Cursor",
+        "电脑屏幕" to "PC Screen", "全屏" to "Full Screen", "右侧浏览器" to "Browser Pane", "实时同步" to "Live Sync", "已暂停" to "Paused",
+        "上滚" to "Scroll Up", "下滚" to "Scroll Down", "左键" to "Left Click", "右键" to "Right Click", "双击" to "Double Click",
+        "回车" to "Enter", "退格" to "Backspace", "全选" to "Select All", "撤销" to "Undo",
+        "读取电脑已有文字" to "Read PC Input", "替换写入" to "Replace", "写入+回车" to "Write + Enter", "追加" to "Append",
+        "已同步电脑 Antigravity · 走电脑网络" to "Synced with PC Antigravity · via PC Network",
+        "电脑 Antigravity 已打开的标签页" to "Open Tabs on PC Antigravity",
+        "当前对话中的链接" to "Links in Current Chat",
+        "输入网址或搜索（走电脑网络）…" to "Enter URL or search (via PC)…",
+        "子代理" to "Subagents", "后台任务" to "Background Tasks", "终端" to "Terminal", "插件扩展" to "Extensions",
+        "配对" to "Pair", "连接电脑" to "Connect PC", "搜索对话、命令、模型、插件…" to "Search chats, commands, models, plugins…",
+        // 命令面板
+        "操作" to "Actions", "斜杠" to "Slash", "模型/权限" to "Model/Perm", "扩展" to "Ext",
+        "快捷操作" to "Quick Actions", "最近对话" to "Recent Chats", "斜杠命令" to "Slash Commands",
+        "在项目中新建对话" to "New Chat in Project", "切换模型" to "Switch Model", "权限预设（同步电脑）" to "Permissions (Synced)",
+        "开始一个全新的会话" to "Start a new conversation", "打开内置浏览器" to "Open Built-in Browser",
+        "在应用内浏览网页或本地服务" to "Browse web or localhost in app", "打开当前对话概览" to "Open Chat Overview",
+        "查看产物、文件改动、终端和链接" to "View artifacts, diffs, terminal & links",
+        "停止当前运行" to "Stop Current Run", "中断正在执行的 Agent 任务" to "Interrupt running agent task",
+        "取消置顶当前对话" to "Unpin Current Chat", "置顶当前对话" to "Pin Current Chat",
+        "复制当前对话全部内容" to "Copy Full Conversation", "归档当前对话" to "Archive Current Chat",
+        "打开自动化" to "Open Automations", "管理定时运行的后台任务" to "Manage scheduled background tasks",
+        "打开自定义扩展" to "Open Customizations", "插件市场、连接器与扩展状态" to "Marketplace, skills & extensions",
+        "打开设置与额度" to "Open Settings & Quota", "额度、外观主题、推送和连接" to "Quota, language, theme & connection",
+        "切换外观模式" to "Switch Theme Mode", "切换主题风格" to "Switch UI Style", "当前" to "Current",
+        "刷新列表与同步状态" to "Refresh & Sync", "重新拉取电脑端对话、项目与模型" to "Reload chats, projects & models from PC",
+        "没有匹配项" to "No matches", "已归档" to "Archived", "已刷新" to "Refreshed",
+    )
+
+    private val ko = en + mapOf(
+        "返回" to "뒤로", "刷新" to "새로고침", "关闭" to "닫기", "取消" to "취소", "确定" to "확인",
+        "保存" to "저장", "删除" to "삭제", "编辑" to "편집", "复制" to "복사", "重试" to "다시 시도", "没有可以打开这个链接的应用" to "이 링크를 열 수 있는 앱이 없습니다",
+        "已连接" to "연결됨", "连接中…" to "연결 중…", "无法连接" to "연결할 수 없음",
+        "设置" to "설정", "额度" to "할당량", "语言" to "언어", "跟随系统" to "시스템 설정 따름", "系统" to "시스템",
+        "选择语言" to "언어 선택", "外观与主题" to "테마 및 외관", "深色模式" to "다크 모드",
+        "浅色" to "라이트", "深色" to "다크", "消息推送" to "알림", "后台推送" to "백그라운드 알림",
+        "打开应用设置" to "앱 설정 열기", "连接" to "연결", "取消配对" to "연결 해제",
+        "已归档的对话" to "보관된 대화", "没有归档的对话" to "보관된 대화가 없습니다",
+        "新对话" to "새 대화", "新建对话" to "새 대화", "自定义扩展" to "확장 기능", "命令面板" to "명령 팔레트",
+        "自动化" to "자동화", "项目" to "프로젝트", "历史会话" to "대화 기록", "还没有项目" to "프로젝트 없음", "还没有对话" to "대화 없음",
+        "向 Antigravity 提问…" to "Antigravity에 질문하기…", "问点什么…" to "메시지 입력…",
+        "早上好" to "좋은 아침입니다", "中午好" to "안녕하세요", "下午好" to "좋은 오후입니다", "晚上好" to "좋은 저녁입니다",
+        "输入或长按说话" to "입력 · 길게 눌러 음성", "与{0}对话" to "{0}에게 질문",
+        "回复{0}" to "{0}에 답장", "回复{0}或长按说话" to "{0}에 답장…",
+        "发送" to "보내기", "停止" to "중지", "立刻发送" to "즉시 보내기",
+        "添加到会话" to "대화에 추가", "相机" to "카메라", "照片" to "사진", "文件" to "파일",
+        "权限" to "권한", "插件" to "플러그인", "技能与规则" to "스킬 및 규칙", "MCP服务" to "MCP 서버",
+        "电脑实况" to "PC 라이브", "网页浏览" to "웹 브라우징", "子代理" to "서브에이전트", "后台任务" to "백그라운드 작업",
+    )
+
+    private val es = en + mapOf(
+        "返回" to "Volver", "刷新" to "Actualizar", "关闭" to "Cerrar", "取消" to "Cancelar", "确定" to "Aceptar",
+        "保存" to "Guardar", "删除" to "Eliminar", "编辑" to "Editar", "复制" to "Copiar", "重试" to "Reintentar", "没有可以打开这个链接的应用" to "Ninguna app puede abrir este enlace",
+        "已连接" to "Conectado", "连接中…" to "Conectando…", "无法连接" to "No se puede conectar",
+        "设置" to "Ajustes", "额度" to "Cuota", "语言" to "Idioma", "跟随系统" to "Seguir al sistema", "系统" to "Sistema",
+        "选择语言" to "Seleccionar idioma", "外观与主题" to "Apariencia y tema", "深色模式" to "Modo oscuro",
+        "浅色" to "Claro", "深色" to "Oscuro", "消息推送" to "Notificaciones", "后台推送" to "Notificaciones en segundo plano",
+        "打开应用设置" to "Abrir ajustes de la app", "连接" to "Conexión", "取消配对" to "Desvincular",
+        "已归档的对话" to "Conversaciones archivadas", "没有归档的对话" to "Sin conversaciones archivadas",
+        "新对话" to "Nuevo chat", "新建对话" to "Nuevo chat", "自定义扩展" to "Extensiones", "命令面板" to "Paleta de comandos",
+        "自动化" to "Automatizaciones", "项目" to "Proyectos", "历史会话" to "Historial",
+        "向 Antigravity 提问…" to "Pregunta a Antigravity…", "问点什么…" to "Escribe un mensaje…",
+        "发送" to "Enviar", "停止" to "Detener", "添加到会话" to "Añadir al chat",
+        "相机" to "Cámara", "照片" to "Fotos", "文件" to "Archivos",
+        "权限" to "Permisos", "插件" to "Plugins", "技能与规则" to "Habilidades y reglas", "MCP服务" to "Servidores MCP",
+    )
+
+    private val fr = en + mapOf(
+        "返回" to "Retour", "刷新" to "Actualiser", "关闭" to "Fermer", "取消" to "Annuler", "确定" to "OK",
+        "保存" to "Enregistrer", "删除" to "Supprimer", "编辑" to "Modifier", "复制" to "Copier", "重试" to "Réessayer", "没有可以打开这个链接的应用" to "Aucune app ne peut ouvrir ce lien",
+        "已连接" to "Connecté", "连接中…" to "Connexion…", "无法连接" to "Connexion impossible",
+        "设置" to "Paramètres", "额度" to "Quota", "语言" to "Langue", "跟随系统" to "Suivre le système", "系统" to "Système",
+        "选择语言" to "Choisir la langue", "外观与主题" to "Apparence et thème", "深色模式" to "Mode sombre",
+        "浅色" to "Clair", "深色" to "Sombre", "消息推送" to "Notifications", "后台推送" to "Notifications en arrière-plan",
+        "打开应用设置" to "Ouvrir les paramètres", "连接" to "Connexion", "取消配对" to "Dissocier",
+        "已归档的对话" to "Conversations archivées", "没有归档的对话" to "Aucune conversation archivée",
+        "新对话" to "Nouvelle discussion", "新建对话" to "Nouvelle discussion", "自定义扩展" to "Extensions", "命令面板" to "Palette de commandes",
+        "自动化" to "Automatisations", "项目" to "Projets", "历史会话" to "Historique",
+        "向 Antigravity 提问…" to "Demander à Antigravity…", "问点什么…" to "Écrire un message…",
+        "发送" to "Envoyer", "停止" to "Arrêter", "添加到会话" to "Ajouter à la discussion",
+        "相机" to "Caméra", "照片" to "Photos", "文件" to "Fichiers",
+        "权限" to "Autorisations", "插件" to "Plugins", "技能与规则" to "Compétences et règles", "MCP服务" to "Serveurs MCP",
+    )
+
+    private val de = en + mapOf(
+        "返回" to "Zurück", "刷新" to "Aktualisieren", "关闭" to "Schließen", "取消" to "Abbrechen", "确定" to "OK",
+        "保存" to "Speichern", "删除" to "Löschen", "编辑" to "Bearbeiten", "复制" to "Kopieren", "重试" to "Erneut versuchen", "没有可以打开这个链接的应用" to "Keine App kann diesen Link öffnen",
+        "已连接" to "Verbunden", "连接中…" to "Verbinden…", "无法连接" to "Verbindung fehlgeschlagen",
+        "设置" to "Einstellungen", "额度" to "Kontingent", "语言" to "Sprache", "跟随系统" to "Systemstandard", "系统" to "System",
+        "选择语言" to "Sprache wählen", "外观与主题" to "Darstellung & Design", "深色模式" to "Dunkelmodus",
+        "浅色" to "Hell", "深色" to "Dunkel", "消息推送" to "Benachrichtigungen", "后台推送" to "Hintergrundbenachrichtigungen",
+        "打开应用设置" to "App-Einstellungen öffnen", "连接" to "Verbindung", "取消配对" to "Entkoppeln",
+        "已归档的对话" to "Archivierte Chats", "没有归档的对话" to "Keine archivierten Chats",
+        "新对话" to "Neuer Chat", "新建对话" to "Neuer Chat", "自定义扩展" to "Erweiterungen", "命令面板" to "Befehlspalette",
+        "自动化" to "Automatisierungen", "项目" to "Projekte", "历史会话" to "Verlauf",
+        "向 Antigravity 提问…" to "Antigravity fragen…", "问点什么…" to "Nachricht schreiben…",
+        "发送" to "Senden", "停止" to "Stopp", "添加到会话" to "Zum Chat hinzufügen",
+        "相机" to "Kamera", "照片" to "Fotos", "文件" to "Dateien",
+        "权限" to "Berechtigungen", "插件" to "Plugins", "技能与规则" to "Skills & Regeln", "MCP服务" to "MCP-Server",
+    )
+
+    private val ru = en + mapOf(
+        "返回" to "Назад", "刷新" to "Обновить", "关闭" to "Закрыть", "取消" to "Отмена", "确定" to "ОК",
+        "保存" to "Сохранить", "删除" to "Удалить", "编辑" to "Изменить", "复制" to "Копировать", "重试" to "Повторить", "没有可以打开这个链接的应用" to "Нет приложения для этой ссылки",
+        "已连接" to "Подключено", "连接中…" to "Подключение…", "无法连接" to "Нет подключения",
+        "设置" to "Настройки", "额度" to "Квота", "语言" to "Язык", "跟随系统" to "Как в системе", "系统" to "Система",
+        "选择语言" to "Выбрать язык", "外观与主题" to "Внешний вид и тема", "深色模式" to "Тёмная тема",
+        "浅色" to "Светлая", "深色" to "Тёмная", "消息推送" to "Уведомления", "后台推送" to "Фоновые уведомления",
+        "打开应用设置" to "Открыть настройки", "连接" to "Подключение", "取消配对" to "Отвязать",
+        "已归档的对话" to "Архивные чаты", "没有归档的对话" to "Нет архивных чатов",
+        "新对话" to "Новый чат", "新建对话" to "Новый чат", "自定义扩展" to "Расширения", "命令面板" to "Палитра команд",
+        "自动化" to "Автоматизация", "项目" to "Проекты", "历史会话" to "История",
+        "向 Antigravity 提问…" to "Спросить Antigravity…", "问点什么…" to "Написать сообщение…",
+        "发送" to "Отправить", "停止" to "Стоп", "添加到会话" to "Добавить в чат",
+        "相机" to "Камера", "照片" to "Фото", "文件" to "Файлы",
+        "权限" to "Разрешения", "插件" to "Плагины", "技能与规则" to "Навыки и правила", "MCP服务" to "MCP-серверы",
+    )
+
+    private val pt = en + mapOf(
+        "返回" to "Voltar", "刷新" to "Atualizar", "关闭" to "Fechar", "取消" to "Cancelar", "确定" to "OK",
+        "保存" to "Salvar", "删除" to "Excluir", "编辑" to "Editar", "复制" to "Copiar", "重试" to "Tentar novamente", "没有可以打开这个链接的应用" to "Nenhum app pode abrir este link",
+        "已连接" to "Conectado", "连接中…" to "Conectando…", "无法连接" to "Não foi possível conectar",
+        "设置" to "Configurações", "额度" to "Cota", "语言" to "Idioma", "跟随系统" to "Seguir o sistema", "系统" to "Sistema",
+        "选择语言" to "Selecionar idioma", "外观与主题" to "Aparência e tema", "深色模式" to "Modo escuro",
+        "浅色" to "Claro", "深色" to "Escuro", "消息推送" to "Notificações", "后台推送" to "Notificações em segundo plano",
+        "打开应用设置" to "Abrir configurações", "连接" to "Conexão", "取消配对" to "Desparear",
+        "已归档的对话" to "Conversas arquivadas", "没有归档的对话" to "Nenhuma conversa arquivada",
+        "新对话" to "Nova conversa", "新建对话" to "Nova conversa", "自定义扩展" to "Extensões", "命令面板" to "Paleta de comandos",
+        "自动化" to "Automações", "项目" to "Projetos", "历史会话" to "Histórico",
+        "向 Antigravity 提问…" to "Pergunte ao Antigravity…", "问点什么…" to "Escreva uma mensagem…",
+        "发送" to "Enviar", "停止" to "Parar", "添加到会话" to "Adicionar à conversa",
+        "相机" to "Câmera", "照片" to "Fotos", "文件" to "Arquivos",
+        "权限" to "Permissões", "插件" to "Plugins", "技能与规则" to "Skills e regras", "MCP服务" to "Servidores MCP",
+    )
+
+    private val tables = mapOf(
+        "zh-TW" to zhTW,
+        "zh-HK" to zhHK,
+        "ja" to ja,
+        "en" to en,
+        "ko" to ko,
+        "es" to es,
+        "fr" to fr,
+        "de" to de,
+        "ru" to ru,
+        "pt" to pt,
+    )
+}

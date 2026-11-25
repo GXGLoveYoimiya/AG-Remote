@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AG Remote</title>
+<link rel="icon" href="/admin/icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f4f5f8; --card: #ffffff; --text: #1b1d22; --muted: #646b78; --line: #e3e6ec;
+    --accent: #3b6ef5; --accent-weak: #e8eeff; --ok: #1e9e5a; --ok-weak: #e3f6ec;
+    --warn: #b86e00; --warn-weak: #fff3dc; --danger: #d13d3d; --code-bg: #f0f3ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121317; --card: #1c1e24; --text: #e9ebf0; --muted: #9aa1ad; --line: #2c2f37;
+      --accent: #7c9dff; --accent-weak: #232c47; --ok: #4fd18b; --ok-weak: #17301f;
+      --warn: #ffb547; --warn-weak: #33280f; --danger: #ff6b6b; --code-bg: #20263a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 "Segoe UI", system-ui, -apple-system, "Microsoft YaHei UI", "Yu Gothic UI", "Malgun Gothic", sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 48px; }
+  body { overflow-x: hidden; }
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+  .logo { width: 44px; height: 44px; flex: none; }
+  h1 { font-size: 21px; margin: 0; }
+  .sub { color: var(--muted); font-size: 13.5px; margin: 2px 0 0; }
+  .grow { flex: 1; min-width: 0; }
+  header .grow { min-width: 220px; }
+  select { font: inherit; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px; font-size: 13px; background: var(--card); border: 1px solid var(--line); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .pill.ok .dot { background: var(--ok); } .pill.bad .dot { background: var(--danger); } .pill.warn .dot { background: var(--warn); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-bottom: 14px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .row2 { grid-template-columns: 1fr; } }
+  .big { font: 700 40px/1.1 "Cascadia Mono", Consolas, "SF Mono", monospace; letter-spacing: .14em; background: var(--code-bg); border-radius: 14px; padding: 14px 16px; text-align: center; user-select: all; }
+  .mono { font-family: "Cascadia Mono", Consolas, monospace; overflow-wrap: anywhere; }
+  .addr { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--code-bg); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; font-size: 17px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+  .btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button { font: inherit; font-size: 13.5px; border: 0; border-radius: 10px; padding: 7px 14px; cursor: pointer; background: var(--accent-weak); color: var(--accent); font-weight: 600; }
+  button:hover { filter: brightness(.97); }
+  button.danger { background: transparent; color: var(--danger); border: 1px solid var(--line); }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; cursor: default; }
+  .warnbox { background: var(--warn-weak); color: var(--warn); border-radius: 12px; padding: 10px 12px; font-size: 13.5px; }
+  .warnbox a { color: inherit; font-weight: 600; }
+  ol { margin: 0; padding-left: 22px; } ol li { margin: 6px 0; }
+  a { color: var(--accent); }
+  .dev { display: flex; align-items: center; gap: 8px 12px; padding: 12px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .dev .grow { min-width: 180px; }
+  .dev:first-of-type { border-top: 0; padding-top: 2px; }
+  .dev .name { font-weight: 600; word-break: break-all; }
+  .dev .meta { color: var(--muted); font-size: 12.5px; }
+  .tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--ok-weak); color: var(--ok); font-weight: 600; margin-left: 6px; }
+  .empty { color: var(--muted); font-size: 14px; }
+  footer { color: var(--muted); font-size: 12.5px; text-align: center; margin-top: 18px; }
+  #toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); opacity: 0; transition: .25s;
+    background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 12px; font-size: 14px; pointer-events: none; max-width: 90vw; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #down { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="logo" src="/admin/icon.svg" alt="">
+    <div class="grow">
+      <h1 data-t="title"></h1>
+      <p class="sub" data-t="subtitle"></p>
+    </div>
+    <label><span data-t="lang"></span>&nbsp;<select id="lang"></select></label>
+  </header>
+
+  <div class="pills">
+    <span class="pill" id="pSvc"><span class="dot"></span><span></span></span>
+    <span class="pill" id="pAg"><span class="dot"></span><span></span></span>
+  </div>
+
+  <div class="card warnbox" id="down" data-t="svcDownLong"></div>
+
+  <div class="row2">
+    <div class="card">
+      <h2 data-t="codeTitle"></h2>
+      <div class="big" id="code">------</div>
+      <p class="hint" data-t="codeHint"></p>
+      <div class="btns">
+        <button id="copyCode" data-t="copy"></button>
+        <button class="ghost" id="newCode" data-t="newCode"></button>
+      </div>
+    </div>
+    <div class="card">
+      <h2 data-t="addrTitle"></h2>
+      <div id="addrs"></div>
+      <p class="hint" id="addrHint"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 data-t="stepsTitle"></h2>
+    <ol>
+      <li><span data-t="step1"></span> <a href="https://tailscale.com/download" target="_blank" rel="noopener" data-t="getTs"></a></li>
+      <li id="step2"></li>
+      <li data-t="step3"></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2 data-t="devTitle"></h2>
+    <div id="devs"></div>
+  </div>
+
+  <footer data-t="localOnly"></footer>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+const LANGS = [
+  ['zh-CN', '简体中文'], ['zh-TW', '繁體中文(台灣)'], ['zh-HK', '繁體中文(香港)'], ['ja', '日本語'], ['en', 'English'],
+  ['ko', '한국어'], ['es', 'Español'], ['fr', 'Français'], ['de', 'Deutsch'], ['ru', 'Русский'], ['pt', 'Português'],
+];
+const T = {
+  'zh-CN': {
+    title: 'AG Remote 配对', subtitle: '让手机通过 Tailscale 连接这台电脑上的 Antigravity', lang: '语言',
+    svcOk: '服务运行中', svcDown: '服务没有运行', svcDownLong: '连不上 AG Remote 服务。请在开始菜单里重新打开“AG Remote”，或重新运行安装程序。',
+    agOk: 'Antigravity 已连接', agNo: '没检测到 Antigravity，请打开它',
+    codeTitle: '配对码', codeHint: '在手机 App 里输入这 6 位数字。', newCode: '换一个配对码',
+    newCodeConfirm: '换了之后旧的配对码就不能用了（已配对的设备不受影响）。继续吗？',
+    addrTitle: '电脑地址', addrHint: '在手机 App 的“IP”里填上面的地址，“端口”填 {port}。',
+    noTs: '没找到 Tailscale 地址。请在这台电脑上安装 Tailscale 并登录。', getTs: '下载 Tailscale',
+    copy: '复制', copied: '已复制',
+    stepsTitle: '怎么连接', step1: '在这台电脑和手机上都安装 Tailscale，并登录同一个账号。',
+    step2: '在手机上安装 AG Remote App：用手机浏览器打开 {url}', step2NoAddr: '在手机上安装 AG Remote App。',
+    step3: '打开 App，填设备名称、IP、端口和配对码，然后点“配对”。',
+    devTitle: '已配对的设备', devNone: '还没有配对的设备。', online: '在线',
+    lastSeen: '最近在线 {t}', notSeen: '服务这次启动后还没连接过', pairedAt: '配对于 {t}',
+    rename: '重命名', renamePrompt: '新的设备名称：', remove: '移除',
+    removeConfirm: '移除“{name}”？这台设备要重新输入配对码才能再连接。',
+    newDevice: '“{name}”已配对', failed: '操作失败：{e}',
+    localOnly: '这个页面只能在这台电脑上打开，配对码不会发送到别处。',
+  },
+  'zh-TW': {
+    title: 'AG Remote 配對', subtitle: '讓手機透過 Tailscale 連線到這台電腦上的 Antigravity', lang: '語言',
+    svcOk: '服務執行中', svcDown: '服務未執行', svcDownLong: '無法連線到 AG Remote 服務。請從開始功能表重新開啟「AG Remote」，或重新執行安裝程式。',
+    agOk: 'Antigravity 已連線', agNo: '未偵測到 Antigravity，請開啟它',
+    codeTitle: '配對碼', codeHint: '在手機 App 中輸入這 6 位數字。', newCode: '更換配對碼',
+    newCodeConfirm: '更換後舊的配對碼將無法使用（已配對的裝置不受影響）。要繼續嗎？',
+    addrTitle: '電腦位址', addrHint: '在手機 App 的「IP」欄填入上方位址，「連接埠」填 {port}。',
+    noTs: '找不到 Tailscale 位址。請在這台電腦上安裝並登入 Tailscale。', getTs: '下載 Tailscale',
+    copy: '複製', copied: '已複製',
+    stepsTitle: '如何連線', step1: '在這台電腦和手機上都安裝 Tailscale，並登入同一個帳號。',
+    step2: '在手機上安裝 AG Remote App：用手機瀏覽器開啟 {url}', step2NoAddr: '在手機上安裝 AG Remote App。',
+    step3: '開啟 App，填入裝置名稱、IP、連接埠和配對碼，然後點「配對」。',
+    devTitle: '已配對的裝置', devNone: '還沒有配對的裝置。', online: '線上',
+    lastSeen: '最近上線 {t}', notSeen: '服務這次啟動後尚未連線', pairedAt: '配對於 {t}',
+    rename: '重新命名', renamePrompt: '新的裝置名稱：', remove: '移除',
+    removeConfirm: '移除「{name}」？這台裝置需要重新輸入配對碼才能再次連線。',
+    newDevice: '「{name}」已配對', failed: '操作失敗：{e}',
+    localOnly: '此頁面只能在這台電腦上開啟，配對碼不會傳送到其他地方。',
+  },
+  ja: {
+    title: 'AG Remote ペアリング', subtitle: 'Tailscale 経由でスマホからこの PC の Antigravity に接続します', lang: '言語',
+    svcOk: 'サービス実行中', svcDown: 'サービス停止中', svcDownLong: 'AG Remote サービスに接続できません。スタートメニューから「AG Remote」を開き直すか、インストーラーを再実行してください。',
+    agOk: 'Antigravity に接続済み', agNo: 'Antigravity が見つかりません。起動してください',
+    codeTitle: 'ペアリングコード', codeHint: 'スマホのアプリにこの 6 桁の数字を入力します。', newCode: 'コードを変更',
+    newCodeConfirm: '変更すると古いコードは使えなくなります（ペアリング済みの端末には影響しません）。続けますか？',
+    addrTitle: 'PC のアドレス', addrHint: 'アプリの「IP」に上のアドレス、「Port」に {port} を入力します。',
+    noTs: 'Tailscale のアドレスが見つかりません。この PC に Tailscale をインストールしてログインしてください。', getTs: 'Tailscale をダウンロード',
+    copy: 'コピー', copied: 'コピーしました',
+    stepsTitle: '接続方法', step1: 'この PC とスマホの両方に Tailscale を入れ、同じアカウントでログインします。',
+    step2: 'スマホに AG Remote アプリを入れます：スマホのブラウザで {url} を開いてください', step2NoAddr: 'スマホに AG Remote アプリを入れます。',
+    step3: 'アプリを開き、端末名・IP・Port・ペアリングコードを入力して「ペアリング」をタップします。',
+    devTitle: 'ペアリング済みの端末', devNone: 'まだ端末がありません。', online: 'オンライン',
+    lastSeen: '最終接続 {t}', notSeen: '今回の起動後はまだ接続していません', pairedAt: '{t} にペアリング',
+    rename: '名前を変更', renamePrompt: '新しい端末名：', remove: '削除',
+    removeConfirm: '「{name}」を削除しますか？再接続にはペアリングコードの再入力が必要です。',
+    newDevice: '「{name}」をペアリングしました', failed: '失敗しました：{e}',
+    localOnly: 'このページはこの PC でしか開けません。ペアリングコードが外部に送られることはありません。',
+  },
+  en: {
+    title: 'AG Remote pairing', subtitle: 'Connect your phone to Antigravity on this PC over Tailscale', lang: 'Language',
+    svcOk: 'Service running', svcDown: 'Service not running', svcDownLong: "Can't reach the AG Remote service. Open “AG Remote” from the Start menu again, or re-run the installer.",
+    agOk: 'Antigravity connected', agNo: 'Antigravity not found — please open it',
+    codeTitle: 'Pairing code', codeHint: 'Enter these 6 digits in the phone app.', newCode: 'New code',
+    newCodeConfirm: 'The old code will stop working (devices already paired are not affected). Continue?',
+    addrTitle: 'PC address', addrHint: 'In the phone app, put the address above under “IP” and {port} under “Port”.',
+    noTs: 'No Tailscale address found. Install Tailscale on this PC and sign in.', getTs: 'Download Tailscale',
+    copy: 'Copy', copied: 'Copied',
+    stepsTitle: 'How to connect', step1: 'Install Tailscale on this PC and on your phone, and sign in with the same account.',
+    step2: 'Install the AG Remote app on your phone: open {url} in the phone’s browser.', step2NoAddr: 'Install the AG Remote app on your phone.',
+    step3: 'Open the app, fill in a device name, IP, port and the pairing code, then tap “Pair”.',
+    devTitle: 'Paired devices', devNone: 'No devices yet.', online: 'Online',
+    lastSeen: 'Last seen {t}', notSeen: 'Not connected since the service started', pairedAt: 'Paired {t}',
+    rename: 'Rename', renamePrompt: 'New device name:', remove: 'Remove',
+    removeConfirm: 'Remove “{name}”? It will need the pairing code to connect again.',
+    newDevice: '“{name}” paired', failed: 'Failed: {e}',
+    localOnly: 'This page only opens on this PC. The pairing code is never sent anywhere else.',
+  },
+  ko: {
+    title: 'AG Remote 페어링', subtitle: 'Tailscale로 휴대폰을 이 PC의 Antigravity에 연결합니다', lang: '언어',
+    svcOk: '서비스 실행 중', svcDown: '서비스 중지됨', svcDownLong: 'AG Remote 서비스에 연결할 수 없습니다. 시작 메뉴에서 “AG Remote”를 다시 열거나 설치 프로그램을 다시 실행하세요.',
+    agOk: 'Antigravity 연결됨', agNo: 'Antigravity를 찾을 수 없습니다. 실행해 주세요',
+    codeTitle: '페어링 코드', codeHint: '휴대폰 앱에 이 6자리 숫자를 입력하세요.', newCode: '코드 변경',
+    newCodeConfirm: '변경하면 이전 코드는 더 이상 쓸 수 없습니다(이미 페어링된 기기는 영향 없음). 계속할까요?',
+    addrTitle: 'PC 주소', addrHint: '앱의 “IP”에 위 주소를, “Port”에 {port}를 입력하세요.',
+    noTs: 'Tailscale 주소가 없습니다. 이 PC에 Tailscale을 설치하고 로그인하세요.', getTs: 'Tailscale 다운로드',
+    copy: '복사', copied: '복사됨',
+    stepsTitle: '연결 방법', step1: '이 PC와 휴대폰 모두에 Tailscale을 설치하고 같은 계정으로 로그인하세요.',
+    step2: '휴대폰에 AG Remote 앱 설치: 휴대폰 브라우저에서 {url} 을 여세요', step2NoAddr: '휴대폰에 AG Remote 앱을 설치하세요.',
+    step3: '앱을 열고 기기 이름, IP, Port, 페어링 코드를 입력한 뒤 “페어링”을 누르세요.',
+    devTitle: '페어링된 기기', devNone: '아직 기기가 없습니다.', online: '온라인',
+    lastSeen: '마지막 접속 {t}', notSeen: '서비스 시작 후 아직 연결되지 않음', pairedAt: '{t} 페어링',
+    rename: '이름 변경', renamePrompt: '새 기기 이름:', remove: '삭제',
+    removeConfirm: '“{name}”을(를) 삭제할까요? 다시 연결하려면 페어링 코드가 필요합니다.',
+    newDevice: '“{name}” 페어링됨', failed: '실패: {e}',
+    localOnly: '이 페이지는 이 PC에서만 열 수 있으며 페어링 코드는 외부로 전송되지 않습니다.',
+  },
+  es: {
+    title: 'Vincular AG Remote', subtitle: 'Conecta tu teléfono a Antigravity en este PC mediante Tailscale', lang: 'Idioma',
+    svcOk: 'Servicio activo', svcDown: 'Servicio detenido', svcDownLong: 'No se puede contactar con el servicio AG Remote. Vuelve a abrir “AG Remote” desde el menú Inicio o ejecuta de nuevo el instalador.',
+    agOk: 'Antigravity conectado', agNo: 'No se encontró Antigravity: ábrelo',
+    codeTitle: 'Código de vinculación', codeHint: 'Introduce estos 6 dígitos en la app del teléfono.', newCode: 'Nuevo código',
+    newCodeConfirm: 'El código anterior dejará de funcionar (los dispositivos ya vinculados no se ven afectados). ¿Continuar?',
+    addrTitle: 'Dirección del PC', addrHint: 'En la app, pon la dirección de arriba en “IP” y {port} en “Port”.',
+    noTs: 'No se encontró una dirección de Tailscale. Instala Tailscale en este PC e inicia sesión.', getTs: 'Descargar Tailscale',
+    copy: 'Copiar', copied: 'Copiado',
+    stepsTitle: 'Cómo conectar', step1: 'Instala Tailscale en este PC y en el teléfono, e inicia sesión con la misma cuenta.',
+    step2: 'Instala la app AG Remote en el teléfono: abre {url} en el navegador del teléfono.', step2NoAddr: 'Instala la app AG Remote en el teléfono.',
+    step3: 'Abre la app, rellena nombre del dispositivo, IP, puerto y código, y pulsa “Vincular”.',
+    devTitle: 'Dispositivos vinculados', devNone: 'Aún no hay dispositivos.', online: 'En línea',
+    lastSeen: 'Visto {t}', notSeen: 'Sin conexión desde que se inició el servicio', pairedAt: 'Vinculado {t}',
+    rename: 'Renombrar', renamePrompt: 'Nuevo nombre del dispositivo:', remove: 'Quitar',
+    removeConfirm: '¿Quitar “{name}”? Necesitará el código para volver a conectarse.',
+    newDevice: '“{name}” vinculado', failed: 'Error: {e}',
+    localOnly: 'Esta página solo se abre en este PC. El código nunca se envía a otro sitio.',
+  },
+  fr: {
+    title: 'Association AG Remote', subtitle: 'Connectez votre téléphone à Antigravity sur ce PC via Tailscale', lang: 'Langue',
+    svcOk: 'Service actif', svcDown: 'Service arrêté', svcDownLong: 'Impossible de joindre le service AG Remote. Rouvrez « AG Remote » depuis le menu Démarrer ou relancez le programme d’installation.',
+    agOk: 'Antigravity connecté', agNo: 'Antigravity introuvable — ouvrez-le',
+    codeTitle: 'Code d’association', codeHint: 'Saisissez ces 6 chiffres dans l’application du téléphone.', newCode: 'Nouveau code',
+    newCodeConfirm: 'L’ancien code ne fonctionnera plus (les appareils déjà associés ne sont pas concernés). Continuer ?',
+    addrTitle: 'Adresse du PC', addrHint: 'Dans l’application, indiquez l’adresse ci-dessus dans « IP » et {port} dans « Port ».',
+    noTs: 'Aucune adresse Tailscale trouvée. Installez Tailscale sur ce PC et connectez-vous.', getTs: 'Télécharger Tailscale',
+    copy: 'Copier', copied: 'Copié',
+    stepsTitle: 'Comment se connecter', step1: 'Installez Tailscale sur ce PC et sur le téléphone, avec le même compte.',
+    step2: 'Installez l’application AG Remote : ouvrez {url} dans le navigateur du téléphone.', step2NoAddr: 'Installez l’application AG Remote sur le téléphone.',
+    step3: 'Ouvrez l’application, saisissez un nom, l’IP, le port et le code, puis touchez « Associer ».',
+    devTitle: 'Appareils associés', devNone: 'Aucun appareil pour l’instant.', online: 'En ligne',
+    lastSeen: 'Vu {t}', notSeen: 'Pas connecté depuis le démarrage du service', pairedAt: 'Associé {t}',
+    rename: 'Renommer', renamePrompt: 'Nouveau nom de l’appareil :', remove: 'Retirer',
+    removeConfirm: 'Retirer « {name} » ? Il faudra le code pour le reconnecter.',
+    newDevice: '« {name} » associé', failed: 'Échec : {e}',
+    localOnly: 'Cette page ne s’ouvre que sur ce PC. Le code n’est envoyé nulle part ailleurs.',
+  },
+  de: {
+    title: 'AG Remote koppeln', subtitle: 'Verbinde dein Handy über Tailscale mit Antigravity auf diesem PC', lang: 'Sprache',
+    svcOk: 'Dienst läuft', svcDown: 'Dienst läuft nicht', svcDownLong: 'Der AG-Remote-Dienst ist nicht erreichbar. Öffne „AG Remote“ erneut über das Startmenü oder führe das Installationsprogramm noch einmal aus.',
+    agOk: 'Antigravity verbunden', agNo: 'Antigravity nicht gefunden – bitte öffnen',
+    codeTitle: 'Kopplungscode', codeHint: 'Gib diese 6 Ziffern in der Handy-App ein.', newCode: 'Neuer Code',
+    newCodeConfirm: 'Der alte Code funktioniert dann nicht mehr (bereits gekoppelte Geräte sind nicht betroffen). Fortfahren?',
+    addrTitle: 'PC-Adresse', addrHint: 'Trage in der App die Adresse oben unter „IP“ und {port} unter „Port“ ein.',
+    noTs: 'Keine Tailscale-Adresse gefunden. Installiere Tailscale auf diesem PC und melde dich an.', getTs: 'Tailscale herunterladen',
+    copy: 'Kopieren', copied: 'Kopiert',
+    stepsTitle: 'So verbindest du dich', step1: 'Installiere Tailscale auf diesem PC und auf dem Handy und melde dich mit demselben Konto an.',
+    step2: 'Installiere die AG-Remote-App: Öffne {url} im Browser des Handys.', step2NoAddr: 'Installiere die AG-Remote-App auf dem Handy.',
+    step3: 'Öffne die App, gib Gerätename, IP, Port und Code ein und tippe auf „Koppeln“.',
+    devTitle: 'Gekoppelte Geräte', devNone: 'Noch keine Geräte.', online: 'Online',
+    lastSeen: 'Zuletzt {t}', notSeen: 'Seit dem Dienststart nicht verbunden', pairedAt: 'Gekoppelt {t}',
+    rename: 'Umbenennen', renamePrompt: 'Neuer Gerätename:', remove: 'Entfernen',
+    removeConfirm: '„{name}“ entfernen? Zum erneuten Verbinden ist der Code nötig.',
+    newDevice: '„{name}“ gekoppelt', failed: 'Fehlgeschlagen: {e}',
+    localOnly: 'Diese Seite lässt sich nur auf diesem PC öffnen. Der Code wird nirgendwohin gesendet.',
+  },
+  ru: {
+    title: 'Сопряжение AG Remote', subtitle: 'Подключите телефон к Antigravity на этом ПК через Tailscale', lang: 'Язык',
+    svcOk: 'Служба работает', svcDown: 'Служба не запущена', svcDownLong: 'Не удаётся связаться со службой AG Remote. Снова откройте «AG Remote» из меню «Пуск» или перезапустите установщик.',
+    agOk: 'Antigravity подключён', agNo: 'Antigravity не найден — откройте его',
+    codeTitle: 'Код сопряжения', codeHint: 'Введите эти 6 цифр в приложении на телефоне.', newCode: 'Новый код',
+    newCodeConfirm: 'Старый код перестанет работать (уже сопряжённые устройства не затронуты). Продолжить?',
+    addrTitle: 'Адрес ПК', addrHint: 'В приложении укажите адрес выше в поле «IP», а {port} — в поле «Port».',
+    noTs: 'Адрес Tailscale не найден. Установите Tailscale на этот ПК и войдите.', getTs: 'Скачать Tailscale',
+    copy: 'Копировать', copied: 'Скопировано',
+    stepsTitle: 'Как подключиться', step1: 'Установите Tailscale на этот ПК и на телефон и войдите в один и тот же аккаунт.',
+    step2: 'Установите приложение AG Remote: откройте {url} в браузере телефона.', step2NoAddr: 'Установите приложение AG Remote на телефон.',
+    step3: 'Откройте приложение, введите имя устройства, IP, порт и код, затем нажмите «Сопрячь».',
+    devTitle: 'Сопряжённые устройства', devNone: 'Устройств пока нет.', online: 'В сети',
+    lastSeen: 'Был(а) {t}', notSeen: 'Не подключалось с момента запуска службы', pairedAt: 'Сопряжено {t}',
+    rename: 'Переименовать', renamePrompt: 'Новое имя устройства:', remove: 'Удалить',
+    removeConfirm: 'Удалить «{name}»? Для повторного подключения понадобится код.',
+    newDevice: '«{name}» сопряжено', failed: 'Ошибка: {e}',
+    localOnly: 'Эта страница открывается только на этом ПК. Код никуда не отправляется.',
+  },
+  pt: {
+    title: 'Emparelhar AG Remote', subtitle: 'Ligue o telemóvel/celular ao Antigravity neste PC através do Tailscale', lang: 'Idioma',
+    svcOk: 'Serviço em execução', svcDown: 'Serviço parado', svcDownLong: 'Não foi possível contactar o serviço AG Remote. Abra novamente “AG Remote” no menu Iniciar ou execute o instalador outra vez.',
+    agOk: 'Antigravity ligado', agNo: 'Antigravity não encontrado — abra-o',
+    codeTitle: 'Código de emparelhamento', codeHint: 'Introduza estes 6 dígitos na app do telefone.', newCode: 'Novo código',
+    newCodeConfirm: 'O código antigo deixará de funcionar (dispositivos já emparelhados não são afetados). Continuar?',
+    addrTitle: 'Endereço do PC', addrHint: 'Na app, coloque o endereço acima em “IP” e {port} em “Port”.',
+    noTs: 'Nenhum endereço Tailscale encontrado. Instale o Tailscale neste PC e inicie sessão.', getTs: 'Transferir Tailscale',
+    copy: 'Copiar', copied: 'Copiado',
+    stepsTitle: 'Como ligar', step1: 'Instale o Tailscale neste PC e no telefone e inicie sessão com a mesma conta.',
+    step2: 'Instale a app AG Remote: abra {url} no navegador do telefone.', step2NoAddr: 'Instale a app AG Remote no telefone.',
+    step3: 'Abra a app, preencha o nome do dispositivo, IP, porta e código e toque em “Emparelhar”.',
+    devTitle: 'Dispositivos emparelhados', devNone: 'Ainda não há dispositivos.', online: 'Online',
+    lastSeen: 'Visto {t}', notSeen: 'Sem ligação desde o arranque do serviço', pairedAt: 'Emparelhado {t}',
+    rename: 'Mudar nome', renamePrompt: 'Novo nome do dispositivo:', remove: 'Remover',
+    removeConfirm: 'Remover “{name}”? Será preciso o código para voltar a ligar.',
+    newDevice: '“{name}” emparelhado', failed: 'Falhou: {e}',
+    localOnly: 'Esta página só abre neste PC. O código nunca é enviado para outro lado.',
+  },
+};
+// 香港繁体：沿用台湾用词，只改个别说法
+T['zh-HK'] = { ...T['zh-TW'], svcOk: '服務運行中', svcDown: '服務未運行', step2: '在手機上安裝 AG Remote App：用手機瀏覽器打開 {url}' };
+
+function detectLang() {
+  try { const s = localStorage.getItem('agr-lang'); if (s && T[s]) return s; } catch {}
+  for (const raw of navigator.languages || [navigator.language || 'en']) {
+    const l = raw.toLowerCase();
+    if (l.startsWith('zh')) return /hk|mo/.test(l) ? 'zh-HK' : /tw|hant/.test(l) ? 'zh-TW' : 'zh-CN';
+    const base = l.split('-')[0];
+    if (T[base]) return base;
+  }
+  return 'en';
+}
+let lang = detectLang();
+const t = (k, vars = {}) => (T[lang][k] ?? T.en[k] ?? k).replace(/\{(\w+)\}/g, (_, v) => vars[v] ?? '');
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+let state = null, alive = false, knownIds = null;
+
+function toast(msg) {
+  const el = $('toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove('show'), 2600);
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const a = document.createElement('textarea'); a.value = text; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); }
+  toast(t('copied'));
+}
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  try { return new Intl.DateTimeFormat(lang, { dateStyle: 'medium', timeStyle: 'short' }).format(d); } catch { return d.toLocaleString(); }
+}
+function relTime(iso) {
+  const sec = Math.round((new Date(iso) - Date.now()) / 1000);
+  const units = [['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]];
+  for (const [u, s] of units) if (Math.abs(sec) >= s || u === 'second') {
+    try { return new Intl.RelativeTimeFormat(lang, { numeric: 'auto' }).format(Math.round(sec / s), u); } catch { return fmtTime(iso); }
+  }
+}
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? { cache: 'no-store' } : {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-AGR-Admin': '1' }, body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+  return j;
+}
+
+function renderStatic() {
+  document.documentElement.lang = lang;
+  document.title = t('title');
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = t(el.dataset.t); });
+  $('lang').value = lang;
+}
+function render() {
+  const s = state;
+  $('down').style.display = alive ? 'none' : 'block';
+  const svc = $('pSvc'); svc.className = 'pill ' + (alive ? 'ok' : 'bad'); svc.lastElementChild.textContent = alive ? t('svcOk') : t('svcDown');
+  const ag = $('pAg'); ag.style.display = alive ? '' : 'none';
+  ag.className = 'pill ' + (s?.antigravity ? 'ok' : 'warn'); ag.lastElementChild.textContent = s?.antigravity ? t('agOk') : t('agNo');
+  if (!s) return;
+
+  $('code').textContent = s.code;
+  const addrs = s.addrs || [];
+  $('addrs').innerHTML = addrs.length
+    ? addrs.map(a => `<div class="addr"><span class="mono">${esc(a)}</span><button data-copy="${esc(a)}">${esc(t('copy'))}</button></div>`).join('')
+    : `<div class="warnbox">${esc(t('noTs'))} <a href="https://tailscale.com/download" target="_blank" rel="noopener">${esc(t('getTs'))}</a></div>`;
+  $('addrHint').textContent = addrs.length ? t('addrHint', { port: s.port }) : '';
+  const dl = addrs.length ? `http://${addrs[0]}:${s.port}/dl` : '';
+  $('step2').innerHTML = dl ? esc(t('step2', { url: '\u0000' })).replace('\u0000', `<span class="mono">${esc(dl)}</span> <button data-copy="${esc(dl)}">${esc(t('copy'))}</button>`) : esc(t('step2NoAddr'));
+
+  const devs = s.devices || [];
+  $('devs').innerHTML = devs.length ? devs.map(d => {
+    const seen = d.online ? `<span class="tag">${esc(t('online'))}</span>` : '';
+    const meta = [d.lastSeen && !d.online ? t('lastSeen', { t: relTime(d.lastSeen) }) : (!d.lastSeen ? t('notSeen') : ''),
+      d.pairedAt ? t('pairedAt', { t: fmtTime(d.pairedAt) }) : '', d.ip].filter(Boolean).map(esc).join(' · ');
+    return `<div class="dev"><div class="grow"><div class="name">${esc(d.name || '—')}${seen}</div><div class="meta">${meta}</div></div>
+      <button class="ghost" data-rename="${esc(d.id)}">${esc(t('rename'))}</button>
+      <button class="danger" data-remove="${esc(d.id)}">${esc(t('remove'))}</button></div>`;
+  }).join('') : `<div class="empty">${esc(t('devNone'))}</div>`;
+}
+
+async function refresh() {
+  try {
+    const s = await api('/admin/api/state');
+    const ids = new Set(s.devices.map(d => d.id));
+    if (knownIds) for (const d of s.devices) if (!knownIds.has(d.id)) toast(t('newDevice', { name: d.name || '—' }));
+    knownIds = ids; state = s; alive = true;
+  } catch { alive = false; }
+  render();
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  try {
+    if (b.dataset.copy) return copy(b.dataset.copy);
+    if (b.id === 'copyCode' && state) return copy(state.code);
+    if (b.id === 'newCode') { if (!confirm(t('newCodeConfirm'))) return; state = await api('/admin/api/new-code', {}); return render(); }
+    if (b.dataset.rename) {
+      const d = state.devices.find(x => x.id === b.dataset.rename);
+      const name = prompt(t('renamePrompt'), d?.name || ''); if (!name || !name.trim()) return;
+      state = await api('/admin/api/rename', { id: b.dataset.rename, name: name.trim() }); return render();
+    }
+    if (b.dataset.remove) {
+      const d = state.devices.find(x => x.id === b.dataset.remove);
+      if (!confirm(t('removeConfirm', { name: d?.name || '—' }))) return;
+      state = await api('/admin/api/remove', { id: b.dataset.remove });
+      knownIds = new Set(state.devices.map(x => x.id)); return render();
+    }
+  } catch (err) { toast(t('failed', { e: err.message })); }
+});
+
+const sel = $('lang');
+sel.innerHTML = LANGS.map(([c, n]) => `<option value="${c}">${n}</option>`).join('');
+sel.addEventListener('change', () => { lang = sel.value; try { localStorage.setItem('agr-lang', lang); } catch {} renderStatic(); render(); });
+
+renderStatic(); render(); refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

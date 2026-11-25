@@ -1,0 +1,15 @@
+# 编译产物
+android/build/
+android/app/build/
+android/.gradle/
+android/.kotlin/
+android/local.properties
+*.apk
+bridge/wincap.exe
+bridge/wincap.new.exe
+# 运行时数据：配对令牌、配对码、草稿、日志（不进版本库）
+bridge/data/
+*.log
+# 从 language_server.exe 导出的协议描述，随时可重新生成
+proto_dump/
+dist/

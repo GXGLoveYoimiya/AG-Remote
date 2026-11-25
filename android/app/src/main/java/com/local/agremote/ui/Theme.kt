@@ -1,0 +1,592 @@
+package com.local.agremote.ui
+
+import android.app.Activity
+import android.os.Build
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import com.local.agremote.ThemeConfig
+
+val LocalUiStyle = compositionLocalOf { "material" }
+
+val PRESET_COLORS = listOf(
+    0xFF3482FF.toInt() to "小米蓝",
+    0xFF0EA5E9.toInt() to "天空蓝",
+    0xFF06B6D4.toInt() to "青碧",
+    0xFF10B981.toInt() to "翡翠绿",
+    0xFF22C55E.toInt() to "青草绿",
+    0xFFEAB308.toInt() to "琥珀金",
+    0xFFF97316.toInt() to "活力橙",
+    0xFFEF4444.toInt() to "绯红",
+    0xFFEC4899.toInt() to "樱花粉",
+    0xFF8B5CF6.toInt() to "罗兰紫",
+    0xFF6366F1.toInt() to "靛蓝",
+    0xFF64748B.toInt() to "高级灰",
+)
+
+private fun bestOnColor(bg: Color): Color = if (bg.luminance() > 0.45f) Color(0xFF111111) else Color.White
+
+private fun hueShift(color: Color, degrees: Float): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(color.toArgb(), hsv)
+    hsv[0] = (hsv[0] + degrees + 360f) % 360f
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
+
+private fun materialSchemeFromSeed(seed: Color, dark: Boolean): ColorScheme {
+    val tertSeed = hueShift(seed, 42f)
+    return if (!dark) {
+        val primary = lerp(seed, Color.Black, if (seed.luminance() > 0.55f) 0.22f else 0.06f)
+        val primaryContainer = lerp(Color.White, seed, 0.22f)
+        val onPrimaryContainer = lerp(seed, Color.Black, 0.55f)
+        val secondary = lerp(seed, Color(0xFF606068), 0.45f)
+        val secondaryContainer = lerp(Color.White, seed, 0.14f)
+        val tertiary = lerp(tertSeed, Color.Black, if (tertSeed.luminance() > 0.55f) 0.2f else 0.05f)
+        val tertiaryContainer = lerp(Color.White, tertSeed, 0.20f)
+        val surface = lerp(Color(0xFFFDFCFF), seed, 0.025f)
+        lightColorScheme(
+            primary = primary,
+            onPrimary = bestOnColor(primary),
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = onPrimaryContainer,
+            secondary = secondary,
+            onSecondary = bestOnColor(secondary),
+            secondaryContainer = secondaryContainer,
+            onSecondaryContainer = lerp(secondary, Color.Black, 0.5f),
+            tertiary = tertiary,
+            onTertiary = bestOnColor(tertiary),
+            tertiaryContainer = tertiaryContainer,
+            onTertiaryContainer = lerp(tertSeed, Color.Black, 0.55f),
+            background = surface,
+            onBackground = Color(0xFF1A1B1E),
+            surface = surface,
+            onSurface = Color(0xFF1A1B1E),
+            surfaceVariant = lerp(Color(0xFFEAECEF), seed, 0.08f),
+            onSurfaceVariant = Color(0xFF494A50),
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = lerp(Color(0xFFF7F7FA), seed, 0.04f),
+            surfaceContainer = lerp(Color(0xFFF2F2F6), seed, 0.06f),
+            surfaceContainerHigh = lerp(Color(0xFFECECF1), seed, 0.085f),
+            surfaceContainerHighest = lerp(Color(0xFFE5E6EC), seed, 0.11f),
+            outline = Color(0xFF76777E),
+            outlineVariant = lerp(Color(0xFFD2D3DA), seed, 0.08f),
+        )
+    } else {
+        val primary = lerp(seed, Color.White, if (seed.luminance() < 0.25f) 0.45f else 0.26f)
+        val primaryContainer = lerp(Color(0xFF1C1D22), seed, 0.34f)
+        val onPrimaryContainer = lerp(seed, Color.White, 0.78f)
+        val secondary = lerp(primary, Color(0xFFB4B6BE), 0.35f)
+        val secondaryContainer = lerp(Color(0xFF202127), seed, 0.24f)
+        val tertiary = lerp(tertSeed, Color.White, 0.32f)
+        val tertiaryContainer = lerp(Color(0xFF222026), tertSeed, 0.32f)
+        val surface = lerp(Color(0xFF121316), seed, 0.03f)
+        darkColorScheme(
+            primary = primary,
+            onPrimary = bestOnColor(primary),
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = onPrimaryContainer,
+            secondary = secondary,
+            onSecondary = bestOnColor(secondary),
+            secondaryContainer = secondaryContainer,
+            onSecondaryContainer = lerp(secondary, Color.White, 0.75f),
+            tertiary = tertiary,
+            onTertiary = bestOnColor(tertiary),
+            tertiaryContainer = tertiaryContainer,
+            onTertiaryContainer = lerp(tertSeed, Color.White, 0.78f),
+            background = surface,
+            onBackground = Color(0xFFE6E6EC),
+            surface = surface,
+            onSurface = Color(0xFFE6E6EC),
+            surfaceVariant = lerp(Color(0xFF2B2C32), seed, 0.08f),
+            onSurfaceVariant = Color(0xFFBABBC4),
+            surfaceContainerLowest = lerp(Color(0xFF0D0E11), seed, 0.02f),
+            surfaceContainerLow = lerp(Color(0xFF191A1F), seed, 0.04f),
+            surfaceContainer = lerp(Color(0xFF1E1F25), seed, 0.055f),
+            surfaceContainerHigh = lerp(Color(0xFF272830), seed, 0.075f),
+            surfaceContainerHighest = lerp(Color(0xFF31333B), seed, 0.10f),
+            outline = Color(0xFF8E9099),
+            outlineVariant = lerp(Color(0xFF42434C), seed, 0.08f),
+        )
+    }
+}
+
+/** Miuix（HyperOS 风格）：纯净中性黑白层次 + 高对比纯色卡片 + 清晰主题强调色。 */
+private fun miuixScheme(accent: Color, dark: Boolean): ColorScheme {
+    val tert = hueShift(accent, 30f)
+    return if (!dark) {
+        val primary = accent
+        val primaryContainer = lerp(Color.White, accent, 0.14f)
+        val onPrimaryContainer = lerp(accent, Color.Black, 0.35f)
+        val secondaryContainer = lerp(Color.White, accent, 0.10f)
+        lightColorScheme(
+            primary = primary,
+            onPrimary = bestOnColor(primary),
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = onPrimaryContainer,
+            secondary = primary,
+            onSecondary = bestOnColor(primary),
+            secondaryContainer = secondaryContainer,
+            onSecondaryContainer = Color(0xFF111111),
+            tertiary = tert,
+            onTertiary = bestOnColor(tert),
+            tertiaryContainer = lerp(Color.White, tert, 0.14f),
+            onTertiaryContainer = Color(0xFF1A1A1A),
+            background = Color(0xFFF7F7F7),
+            onBackground = Color(0xFF000000),
+            surface = Color(0xFFF7F7F7),
+            onSurface = Color(0xFF000000),
+            surfaceVariant = Color(0xFFEFEFF2),
+            onSurfaceVariant = Color(0xFF666666),
+            surfaceContainerLowest = Color(0xFFFFFFFF),
+            surfaceContainerLow = Color(0xFFFFFFFF),
+            surfaceContainer = Color(0xFFFFFFFF),
+            surfaceContainerHigh = Color(0xFFEDEDEF),
+            surfaceContainerHighest = Color(0xFFE4E4E7),
+            outline = Color(0xFF8E8E93),
+            outlineVariant = Color(0xFFE5E5EA),
+        )
+    } else {
+        val primary = if (accent.luminance() < 0.18f) lerp(accent, Color.White, 0.35f) else accent
+        val primaryContainer = lerp(Color(0xFF1C1C1E), primary, 0.28f)
+        val onPrimaryContainer = lerp(primary, Color.White, 0.72f)
+        val secondaryContainer = lerp(Color(0xFF1C1C1E), primary, 0.20f)
+        darkColorScheme(
+            primary = primary,
+            onPrimary = bestOnColor(primary),
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = onPrimaryContainer,
+            secondary = primary,
+            onSecondary = bestOnColor(primary),
+            secondaryContainer = secondaryContainer,
+            onSecondaryContainer = Color(0xFFF2F2F7),
+            tertiary = tert,
+            onTertiary = bestOnColor(tert),
+            tertiaryContainer = lerp(Color(0xFF1C1C1E), tert, 0.25f),
+            onTertiaryContainer = Color(0xFFF2F2F7),
+            background = Color(0xFF000000),
+            onBackground = Color(0xFFF2F2F7),
+            surface = Color(0xFF000000),
+            onSurface = Color(0xFFF2F2F7),
+            surfaceVariant = Color(0xFF242426),
+            onSurfaceVariant = Color(0xFF8E8E93),
+            surfaceContainerLowest = Color(0xFF0A0A0A),
+            surfaceContainerLow = Color(0xFF141414),
+            surfaceContainer = Color(0xFF1C1C1E),
+            surfaceContainerHigh = Color(0xFF242426),
+            surfaceContainerHighest = Color(0xFF2C2C2E),
+            outline = Color(0xFF636366),
+            outlineVariant = Color(0xFF2C2C2E),
+        )
+    }
+}
+
+@Composable
+fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
+    val ctx = LocalContext.current
+    val sysDark = isSystemInDarkTheme()
+    val dark = when (cfg.darkMode) {
+        "light" -> false
+        "dark" -> true
+        else -> sysDark
+    }
+    val hasDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val scheme = when (cfg.style) {
+        "miuix" -> {
+            val accent = if (cfg.colorMode == "system" && hasDynamic) {
+                (if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)).primary
+            } else Color(cfg.seedColor)
+            miuixScheme(accent, dark)
+        }
+        else -> {
+            if (cfg.colorMode == "system" && hasDynamic) {
+                if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
+            } else {
+                materialSchemeFromSeed(Color(cfg.seedColor), dark)
+            }
+        }
+    }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            val ctrl = WindowCompat.getInsetsController(window, view)
+            ctrl.isAppearanceLightStatusBars = !dark
+            ctrl.isAppearanceLightNavigationBars = !dark
+        }
+    }
+
+    CompositionLocalProvider(LocalUiStyle provides cfg.style) {
+        MaterialTheme(colorScheme = scheme, content = content)
+    }
+}
+
+/** 设置页里的主题风格 + 深色模式 + 自由调色卡片。 */
+@Composable
+fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
+    val isMiuix = cfg.style == "miuix"
+    var showPicker by remember { mutableStateOf(false) }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(if (isMiuix) 16.dp else 20.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            // 1. 主题风格：Material You / Miuix
+            Text(tr("主题风格"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StyleOptionCard(
+                    title = "Material You",
+                    desc = tr("动态色调 · 柔和圆润"),
+                    selected = cfg.style != "miuix",
+                    previewBg = Color(0xFFF4EFF8),
+                    previewCard = Color(0xFFE7DFF0),
+                    previewAccent = Color(0xFF6750A4),
+                    modifier = Modifier.weight(1f),
+                ) { onChange(cfg.copy(style = "material")) }
+                StyleOptionCard(
+                    title = "Miuix",
+                    desc = tr("纯净极简 · HyperOS"),
+                    selected = cfg.style == "miuix",
+                    previewBg = Color(0xFFF7F7F7),
+                    previewCard = Color(0xFFFFFFFF),
+                    previewAccent = Color(0xFF3482FF),
+                    modifier = Modifier.weight(1f),
+                ) { onChange(cfg.copy(style = "miuix")) }
+            }
+
+            // 2. 深色模式
+            Text(tr("深色模式"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("system" to tr("系统"), "light" to tr("浅色"), "dark" to tr("深色")).forEach { (k, label) ->
+                    val sel = cfg.darkMode == k
+                    Surface(
+                        onClick = { onChange(cfg.copy(darkMode = k)) },
+                        color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Box(Modifier.padding(horizontal = 6.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 3. 主题颜色：跟随系统 / 自由调色 + 两行整齐的预设色圆点
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(tr("配色方案"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (cfg.colorMode == "system") tr("跟随系统") else String.format("#%06X", cfg.seedColor and 0xFFFFFF),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val isPreset = cfg.colorMode == "custom" && PRESET_COLORS.any { it.first == cfg.seedColor }
+            val isSys = cfg.colorMode == "system" && !showPicker
+            val isFreeActive = showPicker || (cfg.colorMode == "custom" && !isPreset)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(
+                    onClick = { showPicker = false; onChange(cfg.copy(colorMode = "system")) },
+                    color = if (isSys) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RoundedCornerShape(12.dp),
+                    border = if (isSys) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Row(
+                        Modifier.padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp),
+                            tint = if (isSys) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(6.dp))
+                        Text(tr("系统"), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            color = if (isSys) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+                Surface(
+                    onClick = { showPicker = !showPicker },
+                    color = if (isFreeActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RoundedCornerShape(12.dp),
+                    border = if (isFreeActive) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.Palette, null, Modifier.size(16.dp),
+                            tint = if (isFreeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (showPicker) tr("收回调色") else tr("自由调色"), style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            color = if (isFreeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                PRESET_COLORS.chunked(6).forEach { rowColors ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        rowColors.forEach { (argb, name) ->
+                            val sel = !showPicker && cfg.colorMode == "custom" && cfg.seedColor == argb
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(argb))
+                                    .then(if (sel) Modifier.border(2.5.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
+                                    .clickable { showPicker = false; onChange(cfg.copy(colorMode = "custom", seedColor = argb)) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (sel) Icon(Icons.Rounded.Check, name, Modifier.size(18.dp), tint = bestOnColor(Color(argb)))
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (showPicker) {
+                CustomColorPicker(
+                    initial = cfg.seedColor,
+                    onCancel = { showPicker = false },
+                    onConfirm = { argb ->
+                        showPicker = false
+                        onChange(cfg.copy(colorMode = "custom", seedColor = argb))
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StyleOptionCard(
+    title: String,
+    desc: String,
+    selected: Boolean,
+    previewBg: Color,
+    previewCard: Color,
+    previewAccent: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(14.dp),
+        border = if (selected) BorderStroke(1.8.dp, MaterialTheme.colorScheme.primary) else null,
+        modifier = modifier,
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 迷你风格示意图
+            Box(
+                Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(10.dp)).background(previewBg).padding(6.dp)
+            ) {
+                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f).height(24.dp).clip(RoundedCornerShape(7.dp)).background(previewCard))
+                    Box(Modifier.size(22.dp).clip(CircleShape).background(previewAccent))
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(desc, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                if (selected) Icon(Icons.Rounded.Check, "已选", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onConfirm: (Int) -> Unit) {
+    val initHsv = remember(initial) {
+        FloatArray(3).also { android.graphics.Color.colorToHSV(initial, it) }
+    }
+    var h by remember(initial) { mutableFloatStateOf(initHsv[0]) }
+    var s by remember(initial) { mutableFloatStateOf(initHsv[1].coerceAtLeast(0.15f)) }
+    var v by remember(initial) { mutableFloatStateOf(initHsv[2].coerceAtLeast(0.25f)) }
+    var hex by remember(initial) { mutableStateOf(String.format("#%06X", initial and 0xFFFFFF)) }
+
+    fun syncHex() {
+        val argb = android.graphics.Color.HSVToColor(floatArrayOf(h, s, v))
+        hex = String.format("#%06X", argb and 0xFFFFFF)
+    }
+
+    val previewArgb = android.graphics.Color.HSVToColor(floatArrayOf(h, s, v))
+    val preview = Color(previewArgb)
+    val hueBrush = remember {
+        Brush.horizontalGradient(
+            listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+        )
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 彩虹色相滑条
+            Text("色相", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(30.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(hueBrush)
+                    .pointerInput(Unit) {
+                        detectTapGestures { off ->
+                            h = (off.x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f) * 360f
+                            syncHex()
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures { ch, _ ->
+                            ch.consume()
+                            h = (ch.position.x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f) * 360f
+                            syncHex()
+                        }
+                    },
+            ) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val cx = (h / 360f).coerceIn(0f, 1f) * size.width
+                    val cy = size.height / 2f
+                    drawCircle(Color.White, radius = 11.dp.toPx(), center = Offset(cx, cy))
+                    drawCircle(preview, radius = 8.dp.toPx(), center = Offset(cx, cy))
+                }
+            }
+
+            // 饱和度
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("饱和度", Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Slider(
+                    value = s,
+                    onValueChange = { s = it; syncHex() },
+                    valueRange = 0f..1f,
+                    modifier = Modifier.weight(1f),
+                    colors = SliderDefaults.colors(thumbColor = preview, activeTrackColor = preview),
+                )
+            }
+
+            // 明度
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("亮度", Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Slider(
+                    value = v,
+                    onValueChange = { v = it; syncHex() },
+                    valueRange = 0.15f..1f,
+                    modifier = Modifier.weight(1f),
+                    colors = SliderDefaults.colors(thumbColor = preview, activeTrackColor = preview),
+                )
+            }
+
+            // 预览色块 + HEX 输入
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(preview)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp)))
+                OutlinedTextField(
+                    value = hex,
+                    onValueChange = { raw ->
+                        val cleaned = raw.uppercase().filter { it == '#' || it in '0'..'9' || it in 'A'..'F' }.take(7)
+                        hex = cleaned
+                        val digits = cleaned.removePrefix("#")
+                        if (digits.length == 6) {
+                            runCatching { (0xFF000000.toInt() or digits.toInt(16)) }.onSuccess { argb ->
+                                val out = FloatArray(3)
+                                android.graphics.Color.colorToHSV(argb, out)
+                                h = out[0]; s = out[1]; v = out[2]
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    label = { Text("自定义色值 (HEX)") },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            // 取消 / 确认保存
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("取消") }
+                Button(
+                    onClick = { onConfirm(previewArgb) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = preview, contentColor = bestOnColor(preview)),
+                ) { Text("确认保存") }
+            }
+        }
+    }
+}

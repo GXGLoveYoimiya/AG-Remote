@@ -1,0 +1,4 @@
+-dontwarn org.commonmark.**
+-keep class org.commonmark.** { *; }
+-keep class com.caverock.androidsvg.** { *; }
+-dontwarn com.caverock.androidsvg.**
