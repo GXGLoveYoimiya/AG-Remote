@@ -71,7 +71,7 @@ AG Remote 由两部分组成：
 
 ### 致谢
 
-本项目由 GXGLoveYoimiya 主导，代码在 Claude（Anthropic）和 Gemini（Google，通过 Antigravity）的协助下完成。
+本项目由 GXGLoveYoimiya 主导，代码在 Claude（Anthropic）和 Gemini（Google，通过 Antigravity，GitHub 上以 `gemini-code-assist[bot]` 署名）的协助下完成。
 
 ### 许可证
 
@@ -139,7 +139,7 @@ To uninstall, run `%LOCALAPPDATA%\AGRemote\uninstall.cmd`. Add `-Purge` to also 
 
 ### Credits
 
-Led by GXGLoveYoimiya, written with help from Claude (Anthropic) and Gemini (Google, via Antigravity).
+Led by GXGLoveYoimiya, written with help from Claude (Anthropic) and Gemini (Google, via Antigravity; credited on GitHub as `gemini-code-assist[bot]`).
 
 ### License
 
