@@ -22,13 +22,19 @@ AG Remote 由两部分组成：
 
 ### 功能
 
-- **对话**：查看、新建、继续对话，实时显示进度；思考过程和工具调用收在可折叠的“思考过程”里。
+- **对话**：查看、新建、继续对话，实时显示进度；思考过程和工具调用收在可折叠的“思考过程”里；支持数学公式（LaTeX）显示。
 - **审批**：批准或拒绝 agent 的命令和权限请求；回答 agent 的提问。
-- **模型与权限**：切换模型和思考强度、切换权限预设，和电脑端双向同步。
+- **模型与权限**：切换模型和思考强度、切换权限预设，和电脑端双向同步；输入框旁的圆环显示当前额度用了多少。
 - **附件**：相机、相册、文件；@ 提及连接器（插件）。
-- **语音输入**：由电脑上的 Antigravity 识别。
-- **对话管理**：项目、自动化（定时任务）、插件市场、技能、规则、MCP。
-- **内置浏览器**：走电脑的网络打开网页；能看电脑上 Antigravity 浏览器的实时画面，并用虚拟鼠标操控。
+- **语音**：语音输入，以及和 Antigravity 实时语音对话。
+- **对话管理**：项目、自动化（定时任务）、归档（可撤销）、插件市场、技能、规则、MCP（可逐个开关工具）。
+- **内置浏览器**：
+  - 多标签页（主页也算一个标签页），卡片式切换，左右滑动关闭，关闭可撤销；可一次性同步电脑上的标签页。
+  - 地址栏输入网址直接打开，其他内容用所选搜索引擎搜索（Google、Bing、百度、DuckDuckGo、Yahoo、Yandex）。
+  - 网页翻译成当前界面语言，可显示原文；可设置某种语言总是翻译、从不翻译，或某个网站从不翻译。
+  - 可选走电脑的网络或手机自己的网络。
+- **电脑实况**：连续视频流查看电脑上 Antigravity 的浏览器，四档画质可选，用虚拟鼠标操控。
+- **外观**：默认 Claude 风格主题，也可选 Material You、Miuix；自定义强调色（可保存自己的配色）；可导入自定义字体。
 - **通知**：agent 完成或需要你确认时推送。
 - **多语言**：简体中文、繁體中文（台灣／香港）、日本語、English、한국어、Español、Français、Deutsch、Русский、Português。
 
@@ -55,7 +61,7 @@ AG Remote 由两部分组成：
 - **谁能连**：服务只接受本机和 Tailscale 地址（`100.64.0.0/10`）的连接；手机必须先用配对码换取令牌，之后每个请求都要带上。
 - **配对页**：只能在电脑本机打开。会检查来源地址和 Host（防 DNS 重绑定），修改操作还要求自定义请求头和同源 Origin（防跨站请求）。
 - **网页代理**（内置浏览器用的）：只给 24 小时内带有效令牌访问过的设备使用，并且不能借道访问服务自己。
-- **读取 Antigravity 的 CSRF 令牌**：电脑端服务会从本机 Antigravity 进程的启动参数里读出这个令牌，用来调用它的本地接口。整个过程只在本机进行。
+- **读取 Antigravity 的 CSRF 令牌**：电脑端服务从 Antigravity 在本机写下的 `~/.gemini/antigravity/daemon/hub_<端口>.json` 里读出这个令牌（旧版本则从进程启动参数读），用来调用它的本地接口。整个过程只在本机进行。
 
 ### 常见问题
 
@@ -90,13 +96,19 @@ The phone and the PC connect over [Tailscale](https://tailscale.com/).
 
 ### Features
 
-- **Conversations**: browse, start and continue conversations with live progress. Thinking and tool steps are folded into a collapsible "thinking" block.
+- **Conversations**: browse, start and continue conversations with live progress. Thinking and tool steps are folded into a collapsible "thinking" block. Math (LaTeX) is rendered.
 - **Approvals**: approve or deny the agent's command and permission requests, and answer its questions.
-- **Models and permissions**: switch model, thinking level and permission preset, kept in sync with the PC both ways.
+- **Models and permissions**: switch model, thinking level and permission preset, kept in sync with the PC both ways. A ring next to the input shows how much of your quota is used.
 - **Attachments**: camera, photos and files; @-mention connectors (plugins).
-- **Voice input**: transcribed by Antigravity on the PC.
-- **Management**: projects, automations (scheduled tasks), plugin marketplace, skills, rules and MCP.
-- **Built-in browser**: browse the web through the PC's network; watch Antigravity's browser on the PC live and control it with a virtual mouse.
+- **Voice**: voice input, plus live voice conversations with Antigravity.
+- **Management**: projects, automations (scheduled tasks), archiving (with undo), plugin marketplace, skills, rules and MCP (with per-tool toggles).
+- **Built-in browser**:
+  - Tabs, including the home page as a tab. Switch between them with a card grid, swipe a card to close it, and undo a close. You can also copy the PC's tabs over once.
+  - Type a URL to open it; anything else is searched with your chosen engine (Google, Bing, Baidu, DuckDuckGo, Yahoo, Yandex).
+  - Translate pages into the app's language and switch back to the original. Set a language to always or never translate, or never translate a site.
+  - Browse through the PC's network or the phone's own.
+- **PC live view**: watch Antigravity's browser on the PC as a continuous video stream with four quality levels, and control it with a virtual mouse.
+- **Appearance**: a Claude-style default theme, plus Material You and Miuix. Choose a custom accent color and save your own palettes, or import a custom font.
 - **Notifications**: get a push when the agent finishes or needs your approval.
 - **11 languages**: 简体中文, 繁體中文 (Taiwan / Hong Kong), 日本語, English, 한국어, Español, Français, Deutsch, Русский, Português.
 
@@ -123,7 +135,7 @@ To uninstall, run `%LOCALAPPDATA%\AGRemote\uninstall.cmd`. Add `-Purge` to also 
 - **Who can connect**: the service only accepts connections from localhost and Tailscale addresses (`100.64.0.0/10`). A phone first exchanges the pairing code for a token, and every request after that must carry the token.
 - **Pairing page**: it only opens on the PC itself. Requests are checked for loopback source and a localhost `Host` header (against DNS rebinding); changes also require a custom header and a same-origin `Origin` (against CSRF).
 - **Web proxy** (used by the built-in browser): only devices that made an authenticated request in the last 24 hours can use it, and it can't be used to reach the service itself.
-- **Antigravity's CSRF token**: the PC service reads this token from the local Antigravity process's command line to call its local API. This all happens on the PC.
+- **Antigravity's CSRF token**: the PC service reads this token from the file Antigravity writes locally, `~/.gemini/antigravity/daemon/hub_<port>.json` (older versions: from the process's command line), to call its local API. This all happens on the PC.
 
 ### Troubleshooting
 
