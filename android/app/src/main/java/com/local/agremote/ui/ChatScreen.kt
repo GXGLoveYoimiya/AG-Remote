@@ -1334,10 +1334,10 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
         // 输入框：卡片底色 + 细边框 + 柔和阴影（各主题风格统一，只有颜色跟随主题）
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainerLowest,
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(28.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            shadowElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            shadowElevation = 3.dp,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
                 .onGloballyPositioned { surfacePos = it.positionInRoot() }
                 .pointerInput(Unit) {
                     val stopDragPx = with(density) { 80.dp.toPx() }
@@ -1466,10 +1466,10 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                 val showTopField = !holdMode || text.isNotBlank() || sttText.isNotBlank() || holdImeAtStart
                 if (!voiceActive) {
                     val endCollapsed = if (canStop || showVoiceMode) 104.dp else 52.dp
-                    val startPad = lerp(48.dp, 12.dp, progress)
-                    val endPad = lerp(endCollapsed, 12.dp, progress)
-                    val topPad = lerp(0.dp, 6.dp, progress)
-                    val bottomPad = lerp(0.dp, 50.dp, progress)
+                    val startPad = lerp(48.dp, 14.dp, progress)
+                    val endPad = lerp(endCollapsed, 14.dp, progress)
+                    val topPad = lerp(0.dp, 12.dp, progress)
+                    val bottomPad = lerp(0.dp, 60.dp, progress)
                     val fieldMinH = lerp(44.dp, 32.dp, progress)
                     var rightGroupW by remember { mutableIntStateOf(0) }
                     Box(Modifier.fillMaxWidth()) {
@@ -1522,9 +1522,8 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier.weight(1f, fill = false).graphicsLayer { alpha = ((progress - 0.15f) / 0.85f).coerceIn(0f, 1f) },
                                 ) {
-                                    Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(modelLabel, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Icon(Icons.Rounded.ExpandMore, null, Modifier.size(18.dp))
+                                    Box(Modifier.height(44.dp).padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
+                                        Text(modelLabel, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
