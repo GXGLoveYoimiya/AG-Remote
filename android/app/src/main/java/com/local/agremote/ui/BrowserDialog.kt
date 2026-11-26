@@ -675,12 +675,9 @@ fun BrowserDialog(
                             // 翻译：翻过后图标亮起，再点显示原文
                             IconButton(onClick = { offerTranslate = null; if (pageTranslated) showOriginal() else translatePage() },
                                 enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)) {
-                                // 已翻译：图标外面一个 32dp 的圆形底色（和输入框“+”同一种颜色）；未翻译：只有黑色图标
-                                Box(Modifier.size(32.dp).then(if (pageTranslated) Modifier.background(MaterialTheme.colorScheme.secondaryContainer, CircleShape) else Modifier),
-                                    contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"), Modifier.size(20.dp),
-                                        tint = if (pageTranslated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                                }
+                                // 翻译前后图标保持一样（不加底色、不变色）
+                                Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"))
+                            }
                             }
                             // 标签页数：点开标签页切换页
                             IconButton(onClick = { snapThumb(); showTabs = true }, modifier = Modifier.size(44.dp)) {
