@@ -77,6 +77,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material.icons.rounded.SpaceDashboard
+import androidx.compose.material.icons.outlined.Inventory2
 import com.local.agremote.AppViewModel
 import com.local.agremote.Conversation
 
@@ -88,12 +89,6 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
     val chat by vm.chat.collectAsState()
     val projects by vm.projects.collectAsState()
     val active = list.filter { !it.archived }
-    // 自动化/插件自带的项目只在里面有对话时才显示
-    val shownProjects = projects.filter { p -> !p.sidecar || active.any { it.id in p.conversations } }
-    val inProject = shownProjects.flatMap { it.conversations }.toSet()
-    val loose = active.filter { it.id !in inProject }
-    val expanded = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
-    var newProject by remember { mutableStateOf(false) }
 
     val hosts by vm.hosts.collectAsState()
     val activeHostId by vm.activeHostId.collectAsState()
@@ -140,51 +135,20 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
             item {
+                DrawerRow(Icons.Outlined.Inventory2, tr("项目")) { onOpen("projects"); onClose() }
+                DrawerRow(Icons.Rounded.Extension, tr("自定义")) { onOpen("customizations"); onClose() }
                 DrawerRow(Icons.Rounded.Schedule, tr("自动化")) { onOpen("automations"); onClose() }
-                DrawerRow(Icons.Rounded.Extension, tr("自定义扩展")) { onOpen("customizations"); onClose() }
             }
-            // 项目
-            item {
-                Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(tr("项目"), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    IconButton(onClick = { newProject = true }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Rounded.CreateNewFolder, tr("新建项目"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-            if (shownProjects.isEmpty()) item {
-                Text(tr("还没有项目"), Modifier.padding(start = 12.dp, bottom = 4.dp), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline)
-            }
-            shownProjects.forEach { p ->
-                val open = expanded[p.id] ?: (chat.id != null && chat.id in p.conversations)
-                val convs = active.filter { it.id in p.conversations }
-                item(key = "p_" + p.id) {
-                    ProjectRow(vm, p, open, convs.size, onToggle = { expanded[p.id] = !open },
-                        onNewChat = { vm.newChatInProject(p.id); onClose() })
-                }
-                if (open) {
-                    items(convs, key = { "pc_" + it.id }) { c ->
-                        Box(Modifier.padding(start = 20.dp)) {
-                            ConvItem(vm, c, selected = c.id == chat.id) { vm.openChat(c.id); onClose() }
-                        }
-                    }
-                    if (convs.isEmpty()) item(key = "pe_" + p.id) {
-                        Text(tr("还没有对话"), Modifier.padding(start = 44.dp, bottom = 6.dp), style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline)
-                    }
-                }
-            }
-            // 历史会话（不在任何项目里的）
+            // 历史会话（全部对话，项目里的也在；按项目看在“项目”页）
             item {
                 HorizontalDivider(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 Text(tr("历史会话"), Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp), style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            items(loose, key = { it.id }) { c ->
+            items(active, key = { it.id }) { c ->
                 ConvItem(vm, c, selected = c.id == chat.id) { vm.openChat(c.id); onClose() }
             }
-            if (loose.isEmpty()) item {
+            if (active.isEmpty()) item {
                 Text(tr("还没有对话"), Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -205,10 +169,6 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
             }
         }
     }
-
-    if (newProject) ProjectDialog(title = "新建项目", initName = "", showFolder = true, onDismiss = { newProject = false }) { n, f ->
-        newProject = false; vm.createProject(n, f)
-    }
 }
 
 /** 侧边栏里的一行：图标 + 文字，选中时灰色圆角底。 */
@@ -223,52 +183,8 @@ private fun DrawerRow(icon: androidx.compose.ui.graphics.vector.ImageVector, lab
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ProjectRow(vm: AppViewModel, p: com.local.agremote.Project, open: Boolean, count: Int, onToggle: () -> Unit, onNewChat: () -> Unit) {
-    var menu by remember { mutableStateOf(false) }
-    var renaming by remember { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf(false) }
-    val haptic = LocalHapticFeedback.current
-    Box {
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-            .combinedClickable(onClick = onToggle, onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); menu = true })
-            .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (open) Icons.Rounded.FolderOpen else Icons.Rounded.Folder, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(p.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                p.folders.firstOrNull()?.let {
-                    Text(it, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            if (count > 0) Text("$count", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-            IconButton(onClick = onNewChat, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Rounded.Add, "在这个项目里新建对话", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(20.dp)) {
-            DropdownMenuItem(text = { Text("在项目中新建对话") }, leadingIcon = { Icon(Icons.Rounded.Add, null) }, onClick = { menu = false; onNewChat() })
-            DropdownMenuItem(text = { Text("重命名") }, leadingIcon = { Icon(Icons.Rounded.Edit, null) }, onClick = { menu = false; renaming = true })
-            DropdownMenuItem(text = { Text("删除项目", color = MaterialTheme.colorScheme.error) },
-                leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.error) }, onClick = { menu = false; deleting = true })
-        }
-    }
-    if (renaming) ProjectDialog("重命名项目", p.name, showFolder = false, onDismiss = { renaming = false }) { n, _ ->
-        renaming = false; vm.renameProject(p.id, n)
-    }
-    if (deleting) AlertDialog(
-        onDismissRequest = { deleting = false },
-        title = { Text("删除项目？") },
-        text = { Text("「${p.name}」这个项目会被删除。项目里的对话不会删，会回到历史会话里；电脑上的文件夹也不会动。") },
-        confirmButton = { TextButton(onClick = { deleting = false; vm.deleteProject(p.id) }) { Text("删除", color = MaterialTheme.colorScheme.error) } },
-        dismissButton = { TextButton(onClick = { deleting = false }) { Text("取消") } },
-    )
-}
-
-@Composable
-private fun ProjectDialog(title: String, initName: String, showFolder: Boolean, onDismiss: () -> Unit, onOk: (String, String) -> Unit) {
+internal fun ProjectDialog(title: String, initName: String, showFolder: Boolean, onDismiss: () -> Unit, onOk: (String, String) -> Unit) {
     var name by remember { mutableStateOf(initName) }
     var folder by remember { mutableStateOf("") }
     AlertDialog(

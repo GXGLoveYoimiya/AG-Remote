@@ -128,7 +128,7 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
     LaunchedEffect(Unit) { vm.loadMarket(); vm.loadCustomizations(); vm.loadExtras() }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
-        AppTopBar(tr("自定义扩展"), onBack = onBack) {
+        AppTopBar(tr("自定义"), onBack = onBack) {
                 TextButton(onClick = { translateOn = !translateOn }) {
                     Icon(
                         Icons.Rounded.Translate, null, Modifier.size(18.dp),

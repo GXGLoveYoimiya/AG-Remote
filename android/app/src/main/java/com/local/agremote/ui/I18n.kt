@@ -115,6 +115,15 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "自定义" to "自訂",
+        "关于 {0}，我能帮你做些什么？" to "關於 {0}，我能幫你做些什麼？",
+        "搜索项目" to "搜尋專案",
+        "创建项目，按主题或电脑上的文件夹整理你和 Antigravity 的对话。" to "建立專案，依主題或電腦上的資料夾整理你和 Antigravity 的對話。",
+        "没有匹配的项目" to "沒有符合的專案",
+        "重命名项目" to "重新命名專案",
+        "删除项目" to "刪除專案",
+        "删除项目？" to "刪除專案？",
+        "这个项目会被删除。项目里的对话不会删，会回到历史会话里；电脑上的文件夹也不会动。" to "這個專案會被刪除。專案裡的對話不會刪除，會回到歷史對話；電腦上的資料夾也不會變動。",
         "暂无子代理" to "暫無子代理",
         "暂无后台任务" to "暫無背景任務",
         "已使用 {0}%" to "已使用 {0}%",
@@ -291,6 +300,15 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "自定义" to "カスタマイズ",
+        "关于 {0}，我能帮你做些什么？" to "{0} について、何をお手伝いしましょうか？",
+        "搜索项目" to "プロジェクトを検索",
+        "创建项目，按主题或电脑上的文件夹整理你和 Antigravity 的对话。" to "プロジェクトを作成して、テーマや PC 上のフォルダごとに Antigravity との会話を整理しましょう。",
+        "没有匹配的项目" to "一致するプロジェクトはありません",
+        "重命名项目" to "プロジェクト名を変更",
+        "删除项目" to "プロジェクトを削除",
+        "删除项目？" to "プロジェクトを削除しますか？",
+        "这个项目会被删除。项目里的对话不会删，会回到历史会话里；电脑上的文件夹也不会动。" to "このプロジェクトは削除されます。中の会話は削除されず履歴に戻り、PC 上のフォルダもそのままです。",
         "暂无子代理" to "サブエージェントはありません",
         "暂无后台任务" to "バックグラウンドタスクはありません",
         "已使用 {0}%" to "{0}% 使用済み",
@@ -444,6 +462,15 @@ object I18n {
     )
 
     private val en = mapOf(
+        "自定义" to "Customize",
+        "关于 {0}，我能帮你做些什么？" to "How can I help with {0}?",
+        "搜索项目" to "Search projects",
+        "创建项目，按主题或电脑上的文件夹整理你和 Antigravity 的对话。" to "Create a project to organize your Antigravity chats by topic or by a folder on your PC.",
+        "没有匹配的项目" to "No matching projects",
+        "重命名项目" to "Rename project",
+        "删除项目" to "Delete project",
+        "删除项目？" to "Delete project?",
+        "这个项目会被删除。项目里的对话不会删，会回到历史会话里；电脑上的文件夹也不会动。" to " will be deleted. Its chats stay and move back to your history; the folder on your PC is not touched.",
         "暂无子代理" to "No subagents",
         "暂无后台任务" to "No background tasks",
         "已使用 {0}%" to "{0}% used",
@@ -597,6 +624,7 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "自定义" to "사용자 지정",
         "已使用 {0}%" to "{0}% 사용됨",
         "电脑" to "PC",
         "播放" to "재생",
@@ -662,6 +690,7 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "自定义" to "Personalizar",
         "已使用 {0}%" to "{0}% usado",
         "电脑" to "Equipos",
         "播放" to "Reproducción",
@@ -723,6 +752,7 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "自定义" to "Personnaliser",
         "已使用 {0}%" to "{0} % utilisé",
         "电脑" to "Ordinateurs",
         "播放" to "Lecture",
@@ -784,6 +814,7 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "自定义" to "Anpassen",
         "已使用 {0}%" to "{0} % genutzt",
         "电脑" to "Computer",
         "播放" to "Wiedergabe",
@@ -845,6 +876,7 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "自定义" to "Настройка",
         "已使用 {0}%" to "Использовано {0}%",
         "电脑" to "Компьютеры",
         "播放" to "Воспроизведение",
@@ -906,6 +938,7 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "自定义" to "Personalizar",
         "已使用 {0}%" to "{0}% utilizado",
         "电脑" to "Computadores",
         "播放" to "Reprodução",

@@ -133,6 +133,7 @@ private fun Root(vm: AppViewModel) {
                 "usage" -> SettingsScreen(vm, onBack = { screen = "chat" }, startPage = "usage")
                 "automations" -> com.local.agremote.ui.AutomationsScreen(vm, onBack = { screen = "chat" })
                 "customizations" -> com.local.agremote.ui.CustomizationsScreen(vm, onBack = { screen = "chat" })
+                "projects" -> com.local.agremote.ui.ProjectsScreen(vm, onBack = { screen = "chat" }, onOpenChat = { screen = "chat" })
                 else -> ChatScreen(
                     vm,
                     onMenu = { scope.launch { drawer.open() } },

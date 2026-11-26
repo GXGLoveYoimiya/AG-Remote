@@ -174,6 +174,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.material.icons.rounded.Image
 import com.local.agremote.ModelInfo
+import androidx.compose.material.icons.outlined.Inventory2
 import com.local.agremote.AppViewModel
 import com.local.agremote.Step
 import org.json.JSONArray
@@ -227,14 +228,29 @@ fun ChatScreen(
     LaunchedEffect(Unit) { while (true) { vm.refreshQuota(); kotlinx.coroutines.delay(60_000) } }
     LaunchedEffect(working) { if (!working) vm.refreshQuota() }
 
+    val projects by vm.projects.collectAsState()
+    val newProjName by vm.newChatProjectName.collectAsState()
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 navigationIcon = { IconButton(onClick = { focusManager.clearFocus(); onMenu() }) { Icon(Icons.Rounded.Menu, "对话列表") } },
                 title = {
-                    if (s.id != null) Text(curConv?.title ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleMedium)
+                    // 项目里的对话：“项目 / 对话标题”；项目里的新对话：项目图标 + 项目名（照 Claude）
+                    val projName = if (s.id == null) newProjName
+                        else projects.find { !it.sidecar && s.id in it.conversations }?.name ?: ""
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (projName.isNotBlank()) {
+                            Icon(Icons.Outlined.Inventory2, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(projName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false))
+                            if (s.id != null) Text("  /  ", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.outline)
+                        }
+                        if (s.id != null) Text(curConv?.title ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
+                    }
                 },
                 actions = {
                     IconButton(onClick = { focusManager.clearFocus(); vm.openBrowser() }) {
@@ -270,18 +286,21 @@ fun ChatScreen(
                     // App 自己的图标（和桌面图标、语音模式里的一样）
                     Image(painterResource(com.local.agremote.R.drawable.ic_fg), null, Modifier.size(84.dp))
                     Spacer(Modifier.size(16.dp))
-                    Text(
+                    if (newProjName.isBlank()) Text(
                         greeting(account?.name),
                         style = MaterialTheme.typography.headlineMedium,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                    val pname by vm.newChatProjectName.collectAsState()
-                    if (pname.isNotBlank()) {
-                        Spacer(Modifier.size(8.dp))
+                    ) else {
+                        // 项目里的新对话：“关于 书，我能帮你做些什么？”，项目名用强调色
+                        val parts = tr("关于 {0}，我能帮你做些什么？").split("{0}")
+                        val ac = accent()
                         Text(
-                            "「$pname」",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            buildAnnotatedString {
+                                append(parts.first())
+                                withStyle(SpanStyle(color = ac)) { append(newProjName) }
+                                append(parts.getOrElse(1) { "" })
+                            },
+                            style = MaterialTheme.typography.headlineSmall,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                     }
