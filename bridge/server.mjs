@@ -40,7 +40,8 @@ let drafts = {};
 try { drafts = JSON.parse(readFileSync(DRAFTS_FILE, 'utf8')) || {}; } catch {}
 const saveDrafts = () => { try { writeFileSync(DRAFTS_FILE, JSON.stringify(drafts, null, 2)); } catch {} };
 
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+// 日志用本机时间（toISOString 是 UTC，会和电脑时钟差几个小时）
+const log = (...a) => console.log(new Date().toLocaleTimeString('en-GB', { hour12: false }), ...a);
 
 /** 带令牌的设备；找不到返回 undefined。 */
 function deviceOf(tok) {
@@ -173,6 +174,7 @@ function ps(cmd) {
     { windowsHide: true, maxBuffer: 4 << 20 }, (e, out) => res(e ? '' : out)));
 }
 
+let lastGood = null; // 上次连上的 language_server（同进程、同端口、同令牌时不用再试探）
 async function discover() {
   const out = await ps(
     "Get-CimInstance Win32_Process -Filter \"Name='language_server.exe'\" | ForEach-Object { " +
@@ -186,8 +188,11 @@ async function discover() {
     if (!token || !p.ports) continue;
     for (const port of String(p.ports).split(',').filter(Boolean)) {
       const cand = { base: `http://127.0.0.1:${port}`, token, pid: p.pid, exe: p.exe || '' };
+      if (lastGood && lastGood.base === cand.base && lastGood.token === token && lastGood.pid === p.pid) return lastGood;
       try {
-        await rawRpc(cand, 'GetAllCascadeTrajectories', {}, 3000);
+        // Antigravity 忙（跑任务）时这个接口可能要好几秒，给足时间，免得误判成“没开”
+        await rawRpc(cand, 'GetAllCascadeTrajectories', {}, 12000);
+        lastGood = cand;
         log(`language_server 已连接：pid ${p.pid} 端口 ${port}`);
         return cand;
       } catch {}
@@ -226,7 +231,11 @@ async function rpc(method, body, timeoutMs) {
     try {
       return await rawRpc(ls, method, body, timeoutMs);
     } catch (e) {
-      // 连接失败或令牌失效 → 重新发现一次（Antigravity 可能重启过）
+      // 超时只说明 Antigravity 正忙，不是没开：直接报错，别丢掉连接重新查找
+      if (e.name === 'AbortError' || e.name === 'TimeoutError') {
+        throw Object.assign(new Error(`${method} 超时（Antigravity 可能正忙）`), { status: 504 });
+      }
+      // 连接被拒或令牌失效 → 重新发现一次（Antigravity 可能重启过）
       if (e.status && e.status !== 401 && e.status !== 403) throw e;
       ls = null;
       if (attempt) throw e;
@@ -1640,7 +1649,12 @@ async function watchJetbox() {
         const now = syncInfo();
         if (JSON.stringify(now) !== before) push({ type: 'sync', ...now });
       });
-    } catch (e) { ls = null; }
+    } catch (e) {
+      // Node 自带的 fetch 会把 5 分钟没有数据的长连接断掉（UND_ERR_BODY_TIMEOUT），这只是订阅要重连，
+      // 不代表 Antigravity 没了；只有连不上（进程退出/重启）时才丢掉连接重新查找
+      const idle = e?.cause?.code === 'UND_ERR_BODY_TIMEOUT' || /terminated|body timeout/i.test(String(e?.message));
+      if (!idle) ls = null;
+    }
     await new Promise(res => setTimeout(res, 3000));
   }
 }
@@ -1732,7 +1746,8 @@ async function tick() {
     lastList = now;
     push({ type: 'alive', ls: true });
   } catch (e) {
-    push({ type: 'alive', ls: false, error: e.message });
+    // 只有真的找不到 Antigravity（503）才告诉手机“没开”；超时、数据库被占用等临时错误不算
+    push({ type: 'alive', ls: e.status !== 503, error: e.message });
   }
 }
 function ensureWatcher() {
