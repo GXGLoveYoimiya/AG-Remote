@@ -24,7 +24,7 @@ const DATA = join(ROOT, 'data');
 const CONFIG_FILE = join(DATA, 'config.json');
 const DRAFTS_FILE = join(DATA, 'drafts.json');
 const PORT = Number(process.env.AGR_PORT || 5100);
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.1.0';
 let lastAdminDiscover = 0;
 const SVC = '/exa.language_server_pb.LanguageServerService/';
 
@@ -1977,7 +1977,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const path = url.pathname;
   try {
-    if (path === '/api/ping') return send(res, 200, { ok: true, name: 'AG Remote', version: 1 });
+    if (path === '/api/ping') return send(res, 200, { ok: true, name: 'AG Remote', version: APP_VERSION });
     if (path === '/' || path === '/pair' || path === '/pair/' || path.startsWith('/admin/')) {
       if (!adminOk(req, ip)) return send(res, 403, { error: 'This page can only be opened on this computer.' });
       if (path === '/') { res.writeHead(302, { Location: '/pair' }); return res.end(); }
@@ -2497,7 +2497,10 @@ async function voiceConfig() {
   } catch (e) { health = { ready: false, state: e.status === 503 ? 'no_antigravity' : 'unsupported' }; }
   const meta = await loadUiMeta().catch(() => ({ voices: VOICE_FALLBACK }));
   await freshJetbox().catch(() => {});
-  return { available: !!health?.ready, state: health?.state || '', voices: meta.voices, speeds: VOICE_SPEEDS, settings: voiceSettings() };
+  // 通话中切换模型要发枚举数字：把当前可选模型的数字一起给手机
+  const models = {};
+  try { for (const m of (await listModels()).models) if (m.model) models[m.model] = await modelNumber(m.model); } catch {}
+  return { available: !!health?.ready, state: health?.state || '', voices: meta.voices, speeds: VOICE_SPEEDS, settings: voiceSettings(), models };
 }
 
 async function writeVoiceSettings(b) {

@@ -102,7 +102,8 @@ data class McpServer(val name: String, val status: String, val error: String, va
 data class VoiceInfo(val name: String, val tone: String)
 data class VoiceSettings(val name: String = "", val speed: Double = 1.0, val volume: Int = 100)
 data class VoiceConfig(val available: Boolean = false, val state: String = "", val voices: List<VoiceInfo> = emptyList(),
-                       val speeds: List<Double> = listOf(0.75, 1.0, 1.25, 1.5, 1.75, 2.0), val settings: VoiceSettings = VoiceSettings())
+                       val speeds: List<Double> = listOf(0.75, 1.0, 1.25, 1.5, 1.75, 2.0), val settings: VoiceSettings = VoiceSettings(),
+                       val models: Map<String, Int> = emptyMap())
 
 fun parseVoiceSettings(o: JSONObject?) = VoiceSettings(
     name = o?.optString("voiceName").orEmpty(), speed = o?.optDouble("voiceSpeed", 1.0) ?: 1.0,
@@ -212,6 +213,10 @@ class Prefs(ctx: Context) {
     var notify: Boolean
         get() = sp.getBoolean("notify", true)
         set(v) = sp.edit().putBoolean("notify", v).apply()
+    /** 实时语音的“按住说话”模式（默认免提）。 */
+    var voicePushToTalk: Boolean
+        get() = sp.getBoolean("voice_ptt", false)
+        set(v) = sp.edit().putBoolean("voice_ptt", v).apply()
     var i18nJson: String
         get() = sp.getString("i18n_json", "{}") ?: "{}"
         set(v) = sp.edit().putString("i18n_json", v).apply()
@@ -724,6 +729,7 @@ class Api(private val prefs: Prefs) {
             voices = (0 until vs.length()).map { vs.getJSONObject(it).let { v -> VoiceInfo(v.optString("name"), v.optString("tone")) } },
             speeds = (0 until sp.length()).map { sp.getDouble(it) },
             settings = parseVoiceSettings(o.optJSONObject("settings")),
+            models = o.optJSONObject("models")?.let { m -> m.keys().asSequence().associateWith { m.optInt(it) } } ?: emptyMap(),
         )
     }
 

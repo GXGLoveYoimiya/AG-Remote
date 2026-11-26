@@ -1193,8 +1193,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         previewPlayer?.release(); previewPlayer = null; _previewing.value = null
         val s = _voiceCfg.value.settings
         val call = VoiceCall(getApplication(), api)
+        call.setPushToTalk(_voicePtt.value)
         _voiceCall.value = call
         call.start(_chat.value.id, _selected.value, s.name, s.speed, s.volume)
+    }
+
+    private val _voicePtt = MutableStateFlow(prefs.voicePushToTalk)
+    val voicePtt = _voicePtt.asStateFlow()
+    fun setVoicePtt(on: Boolean) { _voicePtt.value = on; prefs.voicePushToTalk = on; _voiceCall.value?.setPushToTalk(on) }
+
+    /** 通话中换模型：和平时一样同步到电脑，同时告诉正在进行的通话。 */
+    fun pickVoiceModel(model: String) {
+        pickModel(model)
+        _voiceCfg.value.models[model]?.let { _voiceCall.value?.setModel(it) }
+    }
+
+    /** 通话中加附件（相机/照片/文件）：作为一条消息发进这次通话的对话。 */
+    fun sendVoiceAttachments(uris: List<android.net.Uri>) {
+        val call = _voiceCall.value ?: return
+        val cid = call.convId.value ?: run { _toast.tryEmit("对话还没建好，稍等一下再加附件"); return }
+        val ctx = getApplication<Application>()
+        viewModelScope.launch {
+            val files = uris.mapNotNull { u -> runCatching { Attachments.load(ctx, u) }.onFailure { _toast.tryEmit("附件读取失败：" + err(it)) }.getOrNull() }
+            if (files.isEmpty()) return@launch
+            runCatching { api.send(cid, "请看附件。", _selected.value, files) }
+                .onSuccess { _toast.tryEmit("已发送附件") }
+                .onFailure { _toast.tryEmit("发送失败：" + err(it)) }
+        }
     }
 
     /** 结束通话并关掉通话界面；新建的对话会出现在列表里并自动打开。 */

@@ -93,6 +93,21 @@ class VoiceCall(private val ctx: Context, private val api: Api) {
 
     fun setSpeaker(on: Boolean) { _speaker.value = on; routeSpeaker(on) }
 
+    /** 通话中换模型（Antigravity 用来干活的模型，枚举数字由电脑端给出）。 */
+    fun setModel(number: Int) {
+        if (number <= 0) return
+        val inner = ByteArrayOutputStream(); Pb.writeTag(inner, 1, 0); Pb.writeVarint(inner, number.toLong())
+        val o = ByteArrayOutputStream(); Pb.writeTag(o, 3, 2); Pb.writeVarint(o, inner.size().toLong()); o.write(inner.toByteArray())
+        ws?.send(o.toByteArray().toByteString())
+    }
+
+    /** 按住说话模式：只有按着麦克风时才上传声音（其余时间发静音，松开后服务端就判定你说完了）。 */
+    private val _pushToTalk = MutableStateFlow(false); val pushToTalk = _pushToTalk.asStateFlow()
+    private val _holding = MutableStateFlow(false); val holding = _holding.asStateFlow()
+    fun setPushToTalk(on: Boolean) { _pushToTalk.value = on; _holding.value = false }
+    fun setHolding(h: Boolean) { _holding.value = h }
+    private fun micOpen() = !_muted.value && (!_pushToTalk.value || _holding.value)
+
     // ---------------- 音频 ----------------
 
     private fun setupAudioRoute() {
@@ -153,9 +168,9 @@ class VoiceCall(private val ctx: Context, private val api: Api) {
                 while (running) {
                     val n = rec.read(frame, 0, frame.size)
                     if (n <= 0) break
-                    val muted = _muted.value
-                    _micLevel.value = if (muted) 0f else level(frame, n)
-                    ws?.send(micAudio(if (muted) silence else frame, n))
+                    val open = micOpen()
+                    _micLevel.value = if (open) level(frame, n) else 0f
+                    ws?.send(micAudio(if (open) frame else silence, n))
                 }
             } catch (_: Exception) {
             } finally {
