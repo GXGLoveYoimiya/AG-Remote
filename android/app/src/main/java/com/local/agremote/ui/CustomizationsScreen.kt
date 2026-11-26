@@ -65,6 +65,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.Color
 import com.local.agremote.AppViewModel
 import com.local.agremote.Customization
 import com.local.agremote.MarketItem
@@ -125,11 +127,8 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
     var detail by remember { mutableStateOf<MarketItem?>(null) }
     LaunchedEffect(Unit) { vm.loadMarket(); vm.loadCustomizations(); vm.loadExtras() }
 
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text(tr("自定义扩展"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, tr("返回")) } },
-            actions = {
+    Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
+        AppTopBar(tr("自定义扩展"), onBack = onBack) {
                 TextButton(onClick = { translateOn = !translateOn }) {
                     Icon(
                         Icons.Rounded.Translate, null, Modifier.size(18.dp),
@@ -143,8 +142,7 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
                         color = if (translateOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            },
-        )
+        }
     }) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -156,7 +154,10 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
             }
             OutlinedTextField(q, { q = it; if (tab == 0) vm.loadMarket(it) }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                 singleLine = true, leadingIcon = { Icon(Icons.Rounded.Search, null) }, shape = RoundedCornerShape(28.dp),
-                placeholder = { Text(tr("搜索")) })
+                placeholder = { Text(tr("搜索")) },
+                colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.Transparent,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh))
             Box(Modifier.weight(1f)) {
                 if (tab == 0) MarketTab(vm, q, translateOn) { detail = it }
                 else InstalledTab(vm, q, translateOn, onToggleTranslate = { translateOn = !translateOn }) { detail = it }
@@ -176,7 +177,7 @@ private fun MarketTab(vm: AppViewModel, q: String, translateOn: Boolean, onOpen:
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (q.isNotBlank()) {
             if (market.items.isEmpty()) item { Hint(vm.t("No customizations match your search.", "没有匹配的插件。")) }
-            items(market.items, key = { "s_" + it.id }) { PluginRow(vm, it, market.installed, translateOn, onOpen) }
+            if (market.items.isNotEmpty()) item(key = "search") { PluginGroup(vm, market.items, market.installed, translateOn, onOpen) }
             return@LazyColumn
         }
         // 推荐位
@@ -189,7 +190,7 @@ private fun MarketTab(vm: AppViewModel, q: String, translateOn: Boolean, onOpen:
             item(key = "g_" + g.id) {
                 val (gName, _) = rememberGoogleTranslated(vm.zh(g.name), translateOn)
                 val (gDesc, _) = rememberGoogleTranslated(vm.zh(g.description), translateOn)
-                Column(Modifier.padding(top = 18.dp, bottom = 4.dp)) {
+                Column(Modifier.padding(start = 6.dp, top = 18.dp, bottom = 4.dp)) {
                     Text(gName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     if (gDesc.isNotBlank()) Text(gDesc, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -197,7 +198,7 @@ private fun MarketTab(vm: AppViewModel, q: String, translateOn: Boolean, onOpen:
             }
             val open = expanded[g.id] == true
             val shown = if (open || members.size <= 6) members else members.take(6)
-            items(shown, key = { "m_" + g.id + it.id }) { PluginRow(vm, it, market.installed, translateOn, onOpen) }
+            item(key = "m_" + g.id) { PluginGroup(vm, shown, market.installed, translateOn, onOpen) }
             if (members.size > 6) item(key = "more_" + g.id) {
                 TextButton(onClick = { expanded[g.id] = !open }) { Text(if (open) "收起" else "展开更多（${members.size - 6}）") }
             }
@@ -211,7 +212,7 @@ private fun FeaturedCard(vm: AppViewModel, feat: List<MarketItem>, installed: Se
     var localTr by remember(main.id, translateOn) { mutableStateOf(translateOn) }
     val baseDesc = vm.zh(main.description)
     val (desc, translating) = rememberGoogleTranslated(baseDesc, localTr)
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+    Surface(color = sheetCardColor(), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
         Column {
             // 上半部分：几个推荐插件的图标
             Box(Modifier.fillMaxWidth().height(120.dp).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
@@ -256,7 +257,7 @@ private fun FeaturedCard(vm: AppViewModel, feat: List<MarketItem>, installed: Se
 private fun PluginRow(vm: AppViewModel, p: MarketItem, installed: Set<String>, translateOn: Boolean, onOpen: (MarketItem) -> Unit) {
     val busy by vm.installing.collectAsState()
     val (desc, _) = rememberGoogleTranslated(vm.zh(p.description), translateOn)
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { onOpen(p) }.padding(horizontal = 4.dp, vertical = 8.dp),
+    Row(Modifier.fillMaxWidth().clickable { onOpen(p) }.padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Logo(vm, p.logo, 44.dp)
         Spacer(Modifier.width(14.dp))
@@ -270,6 +271,17 @@ private fun PluginRow(vm: AppViewModel, p: MarketItem, installed: Set<String>, t
             p.id in busy -> CircularProgressIndicator(Modifier.size(22.dp).padding(2.dp), strokeWidth = 2.dp)
             p.id in installed -> Icon(Icons.Rounded.Check, "已添加", tint = MaterialTheme.colorScheme.primary)
             else -> IconButton(onClick = { vm.marketAction(p.id, "install") }) { Icon(Icons.Rounded.Add, "添加") }
+        }
+    }
+}
+
+/** 一组插件：同一张卡片，行之间细分隔线。 */
+@Composable
+private fun PluginGroup(vm: AppViewModel, list: List<MarketItem>, installed: Set<String>, translateOn: Boolean, onOpen: (MarketItem) -> Unit) {
+    CardGroup {
+        list.forEachIndexed { i, p ->
+            if (i > 0) CardDivider(indent = false)
+            PluginRow(vm, p, installed, translateOn, onOpen)
         }
     }
 }
@@ -361,7 +373,7 @@ private fun InstalledTab(
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item { SectionTitle("${tr("插件")}（${plugins.size}）") }
         if (plugins.isEmpty()) item { Hint(tr("未安装")) }
-        items(plugins, key = { "p_" + it.id }) { PluginRow(vm, it, m?.installed ?: emptySet(), translateOn, onOpen) }
+        if (plugins.isNotEmpty()) item(key = "plugins") { PluginGroup(vm, plugins, m?.installed ?: emptySet(), translateOn, onOpen) }
 
         item {
             Spacer(Modifier.height(8.dp))
@@ -378,20 +390,19 @@ private fun InstalledTab(
         }
         if (sr.isEmpty()) item { Hint(tr("暂无技能或规则。")) }
         if (sr.isNotEmpty()) item {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    sr.forEachIndexed { k, c ->
-                        if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surface)
-                        CustomizationRow(c, skills.find { it.name == c.name }?.description?.let { vm.zh(it) } ?: "", translateOn)
-                    }
+            CardGroup {
+                sr.forEachIndexed { k, c ->
+                    if (k > 0) CardDivider(indent = false)
+                    CustomizationRow(c, skills.find { it.name == c.name }?.description?.let { vm.zh(it) } ?: "", translateOn)
                 }
             }
         }
 
         item { Spacer(Modifier.height(8.dp)); SectionTitle(tr("MCP服务") + "（${servers.size}）") }
         if (servers.isEmpty()) item { Hint(tr("电脑端暂未配置 MCP 服务。")) }
-        items(servers, key = { "s_" + it.name }) { s ->
-            Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+        if (servers.isNotEmpty()) item(key = "servers") { CardGroup { servers.forEachIndexed { i, s ->
+            if (i > 0) CardDivider(indent = false)
+            run {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(s.name, style = MaterialTheme.typography.titleSmall)
@@ -403,18 +414,18 @@ private fun InstalledTab(
                     Switch(checked = s.enabled, onCheckedChange = { vm.toggleMcp(s.name, it) })
                 }
             }
-        }
+        } } }
     }
 }
 
 @Composable
 private fun SectionTitle(t: String) {
-    Text(t, Modifier.padding(start = 4.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    SectionLabel(t)
 }
 
 @Composable
 private fun Hint(t: String) {
-    Text(t, Modifier.padding(4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(t, Modifier.padding(horizontal = 6.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -425,7 +436,7 @@ private fun CustomizationRow(c: Customization, rawDesc: String, globalTranslate:
     val canTr = needsGoogleTranslate(rawDesc)
     Column(
         Modifier.fillMaxWidth().clickable { if (rawDesc.isNotBlank()) expanded = !expanded }
-            .padding(horizontal = 18.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(c.name, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)

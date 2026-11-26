@@ -40,7 +40,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -70,6 +69,13 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.KeyboardCommandKey
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.IconButton
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.IconButtonDefaults
 import com.local.agremote.AppViewModel
 import com.local.agremote.Conversation
 
@@ -93,72 +99,60 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
     val activeHost = hosts.find { it.id == activeHostId } ?: hosts.firstOrNull()
     var pickHostMenu by remember { mutableStateOf(false) }
 
-    ModalDrawerSheet(Modifier.fillMaxHeight().width(316.dp)) {
-        Column(Modifier.padding(start = 24.dp, end = 16.dp, top = 20.dp, bottom = 8.dp)) {
+    ModalDrawerSheet(Modifier.fillMaxHeight().width(316.dp), drawerContainerColor = MaterialTheme.colorScheme.surface) {
+        // 顶部：标题 + 命令面板；下面一行是连接状态和当前电脑
+        Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Antigravity", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                if (activeHost != null) {
-                    Box {
-                        Surface(
-                            onClick = { if (hosts.size > 1) pickHostMenu = true else { onOpen("settings"); onClose() } },
-                            shape = RoundedCornerShape(50),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ) {
-                            Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    activeHost.name.ifBlank { activeHost.host },
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.widthIn(max = 110.dp),
-                                )
-                                if (hosts.size > 1) {
-                                    Icon(Icons.Rounded.ExpandMore, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
+                Text("Antigravity", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                IconButton(onClick = { onClose(); onCommandPalette() }) { Icon(Icons.Rounded.KeyboardCommandKey, tr("命令面板")) }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { LinkLine(link) }
+                if (activeHost != null) Box(Modifier.padding(end = 8.dp)) {
+                    Surface(
+                        onClick = { if (hosts.size > 1) pickHostMenu = true else { onOpen("settings"); onClose() } },
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Row(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Computer, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(6.dp))
+                            Text(activeHost.name.ifBlank { activeHost.host }, style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 110.dp))
+                            if (hosts.size > 1) Icon(Icons.Rounded.ExpandMore, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        DropdownMenu(pickHostMenu, { pickHostMenu = false }, shape = RoundedCornerShape(16.dp)) {
-                            hosts.forEach { h ->
-                                DropdownMenuItem(
-                                    text = { Text(h.name.ifBlank { h.host }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                    trailingIcon = {
-                                        if (h.id == activeHostId) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                                    },
-                                    onClick = { pickHostMenu = false; vm.switchHost(h.id); onClose() },
-                                )
-                            }
+                    }
+                    DropdownMenu(pickHostMenu, { pickHostMenu = false }, shape = RoundedCornerShape(16.dp)) {
+                        hosts.forEach { h ->
+                            DropdownMenuItem(
+                                text = { Text(h.name.ifBlank { h.host }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                trailingIcon = {
+                                    if (h.id == activeHostId) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                },
+                                onClick = { pickHostMenu = false; vm.switchHost(h.id); onClose() },
+                            )
                         }
                     }
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            LinkLine(link)
         }
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
             item {
-                NavigationDrawerItem(label = { Text(tr("新对话"), maxLines = 1, overflow = TextOverflow.Ellipsis) }, icon = { Icon(Icons.Rounded.EditNote, null) },
-                    selected = chat.id == null, onClick = { vm.newChat(); onClose() })
-                NavigationDrawerItem(label = { Text(tr("自动化"), maxLines = 1, overflow = TextOverflow.Ellipsis) }, icon = { Icon(Icons.Rounded.Schedule, null) },
-                    selected = false, onClick = { onOpen("automations"); onClose() })
-                NavigationDrawerItem(label = { Text(tr("自定义扩展"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    icon = { Icon(Icons.Rounded.Extension, null) },
-                    selected = false, onClick = { onOpen("customizations"); onClose() })
-                NavigationDrawerItem(label = { Text(tr("命令面板"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    icon = { Icon(Icons.Rounded.KeyboardCommandKey, null) },
-                    selected = false, onClick = { onClose(); onCommandPalette() })
+                DrawerRow(Icons.Rounded.Schedule, tr("自动化")) { onOpen("automations"); onClose() }
+                DrawerRow(Icons.Rounded.Extension, tr("自定义扩展")) { onOpen("customizations"); onClose() }
             }
-            // 项目管理
+            // 项目
             item {
-                Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 14.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(tr("项目"), Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    IconButton(onClick = { newProject = true }, modifier = Modifier.size(32.dp)) {
+                Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(tr("项目"), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    IconButton(onClick = { newProject = true }, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Rounded.CreateNewFolder, tr("新建项目"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
             if (shownProjects.isEmpty()) item {
-                Text(tr("还没有项目"), Modifier.padding(start = 16.dp, bottom = 4.dp), style = MaterialTheme.typography.bodySmall,
+                Text(tr("还没有项目"), Modifier.padding(start = 12.dp, bottom = 4.dp), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline)
             }
             shownProjects.forEach { p ->
@@ -170,40 +164,59 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                 }
                 if (open) {
                     items(convs, key = { "pc_" + it.id }) { c ->
-                        Box(Modifier.padding(start = 16.dp)) {
+                        Box(Modifier.padding(start = 20.dp)) {
                             ConvItem(vm, c, selected = c.id == chat.id) { vm.openChat(c.id); onClose() }
                         }
                     }
                     if (convs.isEmpty()) item(key = "pe_" + p.id) {
-                        Text(tr("还没有对话"), Modifier.padding(start = 40.dp, bottom = 6.dp), style = MaterialTheme.typography.bodySmall,
+                        Text(tr("还没有对话"), Modifier.padding(start = 44.dp, bottom = 6.dp), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.outline)
                     }
                 }
             }
             // 历史会话（不在任何项目里的）
             item {
-                Text(tr("历史会话"), Modifier.padding(start = 16.dp, top = 14.dp, bottom = 4.dp), style = MaterialTheme.typography.labelMedium,
+                HorizontalDivider(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                Text(tr("历史会话"), Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp), style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             items(loose, key = { it.id }) { c ->
                 ConvItem(vm, c, selected = c.id == chat.id) { vm.openChat(c.id); onClose() }
             }
             if (loose.isEmpty()) item {
-                Text(tr("还没有对话"), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("还没有对话"), Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-        NavigationDrawerItem(
-            label = { Text(tr("设置")) },
-            icon = { Icon(Icons.Rounded.Settings, null) },
-            selected = false,
-            onClick = { onOpen("settings"); onClose() },
-            modifier = Modifier.padding(12.dp),
-        )
+        // 底部：设置 + 新建对话
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            FilledTonalIconButton(onClick = { onOpen("settings"); onClose() }, modifier = Modifier.size(48.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                Icon(Icons.Rounded.Settings, tr("设置"))
+            }
+            Spacer(Modifier.width(10.dp))
+            Button(onClick = { vm.newChat(); onClose() }, modifier = Modifier.weight(1f).height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
+                Icon(Icons.Rounded.EditNote, null, Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(tr("新建对话"), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
     }
 
     if (newProject) ProjectDialog(title = "新建项目", initName = "", showFolder = true, onDismiss = { newProject = false }) { n, f ->
         newProject = false; vm.createProject(n, f)
+    }
+}
+
+/** 侧边栏里的一行：图标 + 文字，选中时灰色圆角底。 */
+@Composable
+private fun DrawerRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean = false, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+        .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent)
+        .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(22.dp))
+        Spacer(Modifier.width(14.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -215,9 +228,9 @@ private fun ProjectRow(vm: AppViewModel, p: com.local.agremote.Project, open: Bo
     var deleting by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     Box {
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
             .combinedClickable(onClick = onToggle, onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); menu = true })
-            .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(if (open) Icons.Rounded.FolderOpen else Icons.Rounded.Folder, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -278,26 +291,21 @@ private fun ConvItem(vm: AppViewModel, c: Conversation, selected: Boolean, onCli
     val running = isRunning(c.status)
 
     Box {
-        Surface(
-            color = if (selected) MaterialTheme.colorScheme.secondaryContainer else androidx.compose.ui.graphics.Color.Transparent,
-            shape = RoundedCornerShape(28.dp),
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                .combinedClickable(onClick = onClick, onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); menu = true }),
-        ) {
-            Row(Modifier.padding(start = 16.dp, end = 14.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(c.title, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (c.unread) FontWeight.SemiBold else FontWeight.Normal)
-                    Text(relTime(c.updated), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Spacer(Modifier.width(8.dp))
-                when {
-                    c.waiting -> Icon(Icons.Rounded.TouchApp, "等待确认", Modifier.size(16.dp), tint = Amber)
-                    running -> StatusDot(true)
-                    c.unread -> Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                    c.pinned -> Icon(Icons.Rounded.PushPin, "已置顶", Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
-                }
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent)
+            .combinedClickable(onClick = onClick, onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); menu = true })
+            .padding(start = 12.dp, end = 12.dp, top = 11.dp, bottom = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.AutoMirrored.Rounded.Chat, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(14.dp))
+            Text(c.title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (c.unread) FontWeight.SemiBold else FontWeight.Normal)
+            Spacer(Modifier.width(8.dp))
+            when {
+                c.waiting -> Icon(Icons.Rounded.TouchApp, "等待确认", Modifier.size(16.dp), tint = Amber)
+                running -> StatusDot(true)
+                c.unread -> Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                c.pinned -> Icon(Icons.Rounded.PushPin, "已置顶", Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
             }
         }
         ConvActionMenus(vm, c, expanded = menu, onDismiss = { menu = false })

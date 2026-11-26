@@ -328,20 +328,15 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme, content = content)
 }
 
-/** 设置页里的主题风格 + 深色模式 + 自由调色卡片。 */
+/** 设置页里的主题风格 + 配色（深色模式在设置首页的“颜色模式”里）。 */
 @Composable
-fun ThemeSettingsCard(cfg: ThemeConfig, showDarkMode: Boolean = true, onChange: (ThemeConfig) -> Unit) {
+fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
     var showPicker by remember { mutableStateOf(false) }
 
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            // 1. 主题风格：默认（仿 Claude）/ Material You / Miuix
-            Text(tr("主题风格"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 1. 主题风格：默认（仿 Claude）/ Material You / Miuix —— 布局都一样，只是配色不同
+            SectionLabel(tr("主题风格"))
+            CardGroup {
                 StyleOptionCard(
                     title = tr("默认"),
                     desc = tr("温暖纸感 · 简洁克制"),
@@ -351,6 +346,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, showDarkMode: Boolean = true, onChange: 
                     previewAccent = Color(0xFFD97757),
                     modifier = Modifier.fillMaxWidth(),
                 ) { onChange(cfg.copy(style = "default")) }
+                CardDivider(indent = false)
                 StyleOptionCard(
                     title = "Material You",
                     desc = tr("动态色调 · 柔和圆润"),
@@ -360,6 +356,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, showDarkMode: Boolean = true, onChange: 
                     previewAccent = Color(0xFF6750A4),
                     modifier = Modifier.fillMaxWidth(),
                 ) { onChange(cfg.copy(style = "material")) }
+                CardDivider(indent = false)
                 StyleOptionCard(
                     title = "Miuix",
                     desc = tr("纯净极简 · HyperOS"),
@@ -371,36 +368,9 @@ fun ThemeSettingsCard(cfg: ThemeConfig, showDarkMode: Boolean = true, onChange: 
                 ) { onChange(cfg.copy(style = "miuix")) }
             }
 
-            // 2. 深色模式（设置首页已经有“颜色模式”时不重复显示）
-            if (showDarkMode) {
-            Text(tr("深色模式"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("system" to tr("系统"), "light" to tr("浅色"), "dark" to tr("深色")).forEach { (k, label) ->
-                    val sel = cfg.darkMode == k
-                    Surface(
-                        onClick = { onChange(cfg.copy(darkMode = k)) },
-                        color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Box(Modifier.padding(horizontal = 6.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
-                            Text(
-                                label,
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                    }
-                }
-            }
-            }
-
-            // 3. 主题颜色：跟随系统 / 自由调色 + 两行整齐的预设色圆点
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("配色方案"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            // 2. 主题颜色：跟随系统 / 自由调色 + 两行整齐的预设色圆点
+            Row(Modifier.padding(end = 6.dp), verticalAlignment = Alignment.Bottom) {
+                SectionLabel(tr("配色方案"), Modifier.weight(1f))
                 Text(
                     if (cfg.colorMode == "system") tr("跟随系统") else String.format("#%06X", cfg.seedColor and 0xFFFFFF),
                     style = MaterialTheme.typography.labelMedium,
@@ -410,6 +380,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, showDarkMode: Boolean = true, onChange: 
             val isPreset = cfg.colorMode == "custom" && PRESET_COLORS.any { it.first == cfg.seedColor }
             val isSys = cfg.colorMode == "system" && !showPicker
             val isFreeActive = showPicker || (cfg.colorMode == "custom" && !isPreset)
+            CardBox {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(
                     onClick = { showPicker = false; onChange(cfg.copy(colorMode = "system")) },
@@ -452,6 +423,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, showDarkMode: Boolean = true, onChange: 
                     }
                 }
             }
+            Spacer(Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 PRESET_COLORS.chunked(7).forEach { rowColors ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -484,7 +456,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, showDarkMode: Boolean = true, onChange: 
                     },
                 )
             }
-        }
+            }
     }
 }
 
@@ -499,17 +471,11 @@ private fun StyleOptionCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Surface(
-        onClick = onClick,
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-        else MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(14.dp),
-        border = if (selected) BorderStroke(1.8.dp, MaterialTheme.colorScheme.primary) else null,
-        modifier = modifier,
-    ) {
-        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+    run {
+        Row(modifier.clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             // 迷你风格示意图
-            Box(Modifier.width(76.dp).height(40.dp).clip(RoundedCornerShape(10.dp)).background(previewBg).padding(6.dp)) {
+            Box(Modifier.width(76.dp).height(40.dp).clip(RoundedCornerShape(10.dp)).background(previewBg)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp)).padding(6.dp)) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f).height(22.dp).clip(RoundedCornerShape(7.dp)).background(previewCard))
                     Box(Modifier.size(20.dp).clip(CircleShape).background(previewAccent))
@@ -517,8 +483,8 @@ private fun StyleOptionCard(
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(desc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (selected) Icon(Icons.Rounded.Check, tr("已选"), Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
         }

@@ -1,17 +1,11 @@
 package com.local.agremote.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,23 +30,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Hearing
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
-import androidx.compose.material.icons.rounded.PhotoCamera
-import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +58,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -80,7 +68,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
@@ -100,8 +87,8 @@ private fun speedLabel(s: Double) = (if (s % 1.0 == 0.0) s.toInt().toString() el
 /**
  * 实时语音（布局参考 Claude 移动端的语音模式）：
  * 开场是图标 + 问候；说起来后像聊天一样一问一答；没说完的话以斜体浮在麦克风上方；
- * 底部一层柔光随声音起伏（你说话偏蓝、AI 说话偏暖）；中间大麦克风（点按静音 / 按住说话），
- * 底栏：附件、模型、外放、挂断；右上角齿轮打开语音设置。
+ * 底部一层柔光随声音起伏（你说话时主题主色、AI 说话时第三色）；中间大麦克风（点按静音），
+ * 底栏：模型、外放、挂断；右上角齿轮打开语音设置。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,12 +100,10 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
     val ai by call.aiLevel.collectAsState()
     val muted by call.muted.collectAsState()
     val speaker by call.speaker.collectAsState()
-    val ptt by call.pushToTalk.collectAsState()
-    val holding by call.holding.collectAsState()
     val account by vm.account.collectAsState()
     val models by vm.models.collectAsState()
     val selected by vm.selected.collectAsState()
-    var sheet by remember { mutableStateOf<String?>(null) } // settings / add / model
+    var sheet by remember { mutableStateOf<String?>(null) } // settings / model
 
     val view = LocalView.current
     DisposableEffect(Unit) { view.keepScreenOn = true; onDispose { view.keepScreenOn = false } }
@@ -186,42 +171,33 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
 
                 // 还没说完的话：斜体浮在麦克风上方
                 Box(Modifier.fillMaxWidth().height(40.dp), contentAlignment = Alignment.Center) {
-                    val hint = when {
-                        interim != null -> interim
-                        ptt && !holding && !ended && !connecting -> tr("按住说话，松开发送")
-                        else -> null
-                    }
-                    if (hint != null) Text(hint, style = MaterialTheme.typography.bodyLarge, fontStyle = FontStyle.Italic,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (interim != null) 0.85f else 0.55f),
+                    if (interim != null) Text(interim, style = MaterialTheme.typography.bodyLarge, fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
                         maxLines = 1, modifier = Modifier.padding(horizontal = 32.dp))
                 }
 
-                // 大麦克风：免提时点按静音；按住说话模式下按着才收音
+                // 大麦克风：点按静音 / 取消静音
                 Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
-                    val micOn = if (ptt) holding else !muted
-                    val scale by animateFloatAsState(if (ptt && holding) 1.12f else 1f + mic * 0.12f, tween(100), label = "mic")
+                    val micOn = !muted
+                    val scale by animateFloatAsState(1f + mic * 0.12f, tween(100), label = "mic")
                     Surface(
                         shape = CircleShape,
                         color = if (micOn) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainerHighest,
                         contentColor = MaterialTheme.colorScheme.onSurface,
                         shadowElevation = if (micOn) 8.dp else 0.dp,
                         modifier = Modifier.size((64 * scale).dp)
-                            .then(if (ptt) Modifier.pointerInput(Unit) {
-                                awaitEachGesture { awaitFirstDown(); call.setHolding(true); waitForUpOrCancellation(); call.setHolding(false) }
-                            } else Modifier.clickable(enabled = !ended) { call.setMuted(!muted) }),
+                            .clickable(enabled = !ended) { call.setMuted(!muted) },
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(if (micOn || ptt) Icons.Rounded.Mic else Icons.Rounded.MicOff,
-                                if (ptt) tr("按住说话") else if (muted) tr("取消静音") else tr("静音"), Modifier.size(26.dp))
+                            Icon(if (micOn) Icons.Rounded.Mic else Icons.Rounded.MicOff,
+                                if (muted) tr("取消静音") else tr("静音"), Modifier.size(26.dp))
                         }
                     }
                 }
 
-                // 底栏：附件、模型、外放、挂断
+                // 底栏：模型、外放、挂断
                 Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 14.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    CircleButton(Icons.Rounded.Add, tr("添加到会话"), size = 44, enabled = !ended) { sheet = "add" }
-                    Spacer(Modifier.width(10.dp))
                     Surface(onClick = { sheet = "model" }, shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.surfaceContainerLowest,
                         shadowElevation = 3.dp, modifier = Modifier.height(44.dp)) {
@@ -246,7 +222,6 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
 
         when (sheet) {
             "settings" -> SheetFrame(tr("语音设置"), onClose = { sheet = null }) { VoiceSettingsContent(vm, inCall = true) }
-            "add" -> VoiceAddSheet(vm, onClose = { sheet = null })
             "model" -> ModelSheet(models, selected, onPick = { vm.pickVoiceModel(it) }, onClose = { sheet = null })
         }
     }
@@ -299,53 +274,18 @@ private fun SheetFrame(title: String, onClose: () -> Unit, content: @Composable 
     }
 }
 
-/** “添加到会话”：相机 / 照片 / 文件，作为一条消息发进这次通话的对话。 */
-@Composable
-private fun VoiceAddSheet(vm: AppViewModel, onClose: () -> Unit) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    var cameraUri by rememberSaveable { mutableStateOf<String?>(null) }
-    fun done(uris: List<android.net.Uri>) { if (uris.isNotEmpty()) { vm.sendVoiceAttachments(uris); onClose() } }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> if (ok) cameraUri?.let { done(listOf(android.net.Uri.parse(it))) } }
-    val photos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { done(it) }
-    val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { done(it) }
-    SheetFrame(tr("添加到会话"), onClose) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            AddTile(Icons.Rounded.PhotoCamera, tr("相机"), Modifier.weight(1f)) {
-                val u = com.local.agremote.Attachments.cameraUri(ctx); cameraUri = u.toString(); camera.launch(u)
-            }
-            AddTile(Icons.Rounded.PhotoLibrary, tr("照片"), Modifier.weight(1f)) {
-                photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
-            }
-            AddTile(Icons.Rounded.Description, tr("文件"), Modifier.weight(1f)) { files.launch(arrayOf("*/*")) }
-        }
-    }
-}
-
-@Composable
-private fun AddTile(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(20.dp), color = sheetCardColor(), modifier = modifier.height(100.dp)) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.size(44.dp)) {
-                Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(22.dp)) }
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
 /**
- * 语音设置：音色（左右滑动的卡片，滑到即试听并选用）、语速、音量、模式（免提 / 按住说话）。
- * 设置页和通话中都用这一块；音色、语速、音量写回电脑上的 Antigravity，模式只存在手机上。
+ * 语音设置（都是 Antigravity 自带的设置项，和电脑同步）：音色（左右滑动的卡片，滑到即试听并选用）、语速、音量。
+ * 设置页和通话中都用这一块。
  */
 @Composable
 fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
     val cfg by vm.voiceCfg.collectAsState()
-    val ptt by vm.voicePtt.collectAsState()
     val s = cfg.settings
     val voices = cfg.voices
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (voices.isNotEmpty()) {
+            SectionLabel(tr("音色") + if (inCall) "（" + tr("下次通话生效") + "）" else "")
             val start = voices.indexOfFirst { it.name == s.name }.coerceAtLeast(0)
             val pager = rememberPagerState(initialPage = start) { voices.size }
             // 用户滑到一个音色：选用并试听（初次显示不算）
@@ -359,7 +299,9 @@ fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
                 val v = voices[i]
                 val cur = i == pager.currentPage
                 Surface(onClick = { if (cur) vm.previewVoice(v.name) }, shape = RoundedCornerShape(28.dp),
-                    color = if (cur) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    color = sheetCardColor(),
+                    border = androidx.compose.foundation.BorderStroke(if (cur) 1.5.dp else 1.dp,
+                        if (cur) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxSize().padding(vertical = if (cur) 0.dp else 18.dp)) {
                     Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                         Text(v.name, style = MaterialTheme.typography.titleLarge, fontWeight = if (cur) FontWeight.SemiBold else FontWeight.Normal)
@@ -374,21 +316,14 @@ fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
                         if (i == pager.currentPage) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant, CircleShape))
                 }
             }
-            if (inCall) Text(tr("音色") + "：" + tr("下次通话生效"), Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        // 语速（下拉）
-        var speedMenu by remember { mutableStateOf(false) }
-        SettingRowSurface {
-            Row(Modifier.fillMaxWidth().clickable { speedMenu = true }.padding(horizontal = 16.dp, vertical = 15.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("语速"), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        SectionLabel(tr("播放"))
+        CardGroup {
+            var speedMenu by remember { mutableStateOf(false) }
+            ListRow(tr("语速"), value = speedLabel(s.speed), end = RowEnd.None, trailing = {
                 Box {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(speedLabel(s.speed), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Icon(Icons.Rounded.UnfoldMore, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    Icon(Icons.Rounded.UnfoldMore, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     DropdownMenu(expanded = speedMenu, onDismissRequest = { speedMenu = false }) {
                         cfg.speeds.forEach { sp ->
                             DropdownMenuItem(text = { Text(speedLabel(sp)) }, onClick = { speedMenu = false; vm.saveVoice(speed = sp) },
@@ -396,64 +331,29 @@ fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
                         }
                     }
                 }
-            }
-        }
-
-        // 音量
-        SettingRowSurface {
+            }) { speedMenu = true }
+            CardDivider(indent = false)
             Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Row {
                     Text(tr("音量"), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                    Text("${s.volume}%", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${s.volume}%", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 var vol by remember(s.volume) { mutableFloatStateOf(s.volume.toFloat()) }
                 Slider(value = vol, onValueChange = { vol = it }, onValueChangeFinished = { vm.saveVoice(volume = vol.toInt()) }, valueRange = 0f..100f)
             }
         }
-
-        // 模式
-        Text(tr("模式"), Modifier.padding(start = 4.dp, top = 4.dp), style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SettingRowSurface {
-            Column {
-                ModeRow(tr("免提"), tr("最适合安静的环境"), !ptt) { vm.setVoicePtt(false) }
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
-                ModeRow(tr("按住说话"), tr("按住说话，松开发送"), ptt) { vm.setVoicePtt(true) }
-            }
-        }
     }
 }
 
-@Composable
-private fun SettingRowSurface(content: @Composable () -> Unit) {
-    Surface(color = sheetCardColor(), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) { content() }
-}
-
-@Composable
-private fun ModeRow(title: String, desc: String, checked: Boolean, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (checked) Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary)
-    }
-}
-
-/** 设置页里的一块：电脑不支持时给出原因。 */
+/** 设置页里的实时语音：电脑不支持时给出原因。 */
 @Composable
 fun VoiceSettingsCard(vm: AppViewModel) {
     val cfg by vm.voiceCfg.collectAsState()
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            if (!cfg.available) {
-                Text(tr("电脑上的 Antigravity 不支持实时语音（需要 2.35 或更新版本）"), Modifier.padding(4.dp),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (cfg.voices.isEmpty()) return@Column
-                Spacer(Modifier.height(10.dp))
-            }
-            VoiceSettingsContent(vm)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (!cfg.available) CardBox {
+            Text(tr("电脑上的 Antigravity 不支持实时语音（需要 2.35 或更新版本）"),
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        if (cfg.voices.isNotEmpty()) VoiceSettingsContent(vm)
     }
 }

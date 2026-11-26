@@ -217,10 +217,6 @@ class Prefs(ctx: Context) {
     var notify: Boolean
         get() = sp.getBoolean("notify", true)
         set(v) = sp.edit().putBoolean("notify", v).apply()
-    /** 实时语音的“按住说话”模式（默认免提）。 */
-    var voicePushToTalk: Boolean
-        get() = sp.getBoolean("voice_ptt", false)
-        set(v) = sp.edit().putBoolean("voice_ptt", v).apply()
     var i18nJson: String
         get() = sp.getString("i18n_json", "{}") ?: "{}"
         set(v) = sp.edit().putString("i18n_json", v).apply()

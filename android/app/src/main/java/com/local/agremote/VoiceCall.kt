@@ -101,12 +101,7 @@ class VoiceCall(private val ctx: Context, private val api: Api) {
         ws?.send(o.toByteArray().toByteString())
     }
 
-    /** 按住说话模式：只有按着麦克风时才上传声音（其余时间发静音，松开后服务端就判定你说完了）。 */
-    private val _pushToTalk = MutableStateFlow(false); val pushToTalk = _pushToTalk.asStateFlow()
-    private val _holding = MutableStateFlow(false); val holding = _holding.asStateFlow()
-    fun setPushToTalk(on: Boolean) { _pushToTalk.value = on; _holding.value = false }
-    fun setHolding(h: Boolean) { _holding.value = h }
-    private fun micOpen() = !_muted.value && (!_pushToTalk.value || _holding.value)
+    private fun micOpen() = !_muted.value
 
     // ---------------- 音频 ----------------
 

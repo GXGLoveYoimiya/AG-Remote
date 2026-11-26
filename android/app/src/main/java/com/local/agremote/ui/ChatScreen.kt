@@ -1465,7 +1465,8 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                             val ai = assistantName(fullLabel)
                                             Text(
                                                 when {
-                                                    sending || working -> tr("正在发送…")
+                                                    sending -> tr("正在发送…")
+                                                    working -> tr("排队发送消息") // 运行中发的消息会排队，等这一轮结束再发
                                                     id == null && !imeVisible -> tr("输入或长按说话")
                                                     id == null -> tr("与{0}对话", ai)
                                                     imeVisible -> tr("回复{0}", ai)

@@ -57,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
 import com.local.agremote.AppViewModel
 import com.local.agremote.Automation
 
@@ -88,10 +89,8 @@ fun AutomationsScreen(vm: AppViewModel, onBack: () -> Unit) {
     LaunchedEffect(Unit) { vm.loadAutomations() }
 
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text(tr("自动化")) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, tr("返回")) } })
-        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        topBar = { AppTopBar(tr("自动化"), onBack = onBack) },
         floatingActionButton = {
             ExtendedFloatingActionButton(onClick = { creating = true }, icon = { Icon(Icons.Rounded.Add, null) }, text = { Text(tr("新建自动化")) })
         },
@@ -110,13 +109,14 @@ fun AutomationsScreen(vm: AppViewModel, onBack: () -> Unit) {
             }
             else -> LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 96.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(l, key = { it.id }) { a ->
-                    Surface(onClick = { editing = a }, color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(start = 18.dp, end = 12.dp, top = 14.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                item { CardGroup { l.forEachIndexed { i, a ->
+                    if (i > 0) CardDivider(indent = false)
+                    run {
+                        Row(Modifier.fillMaxWidth().clickable { editing = a }.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(a.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(cronText(a.schedule), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                Text(a.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(cronText(a.schedule), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(a.prompt, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 if (a.error.isNotBlank()) Text(a.error, style = MaterialTheme.typography.bodySmall, maxLines = 2,
@@ -126,7 +126,7 @@ fun AutomationsScreen(vm: AppViewModel, onBack: () -> Unit) {
                             Switch(checked = a.enabled, onCheckedChange = { vm.automationAction(a.id, if (it) "enable" else "disable") })
                         }
                     }
-                }
+                } } }
             }
         }
     }

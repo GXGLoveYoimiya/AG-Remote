@@ -115,6 +115,10 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "已使用 {0}%" to "已使用 {0}%",
+        "电脑" to "電腦",
+        "播放" to "播放",
+        "排队发送消息" to "排隊傳送訊息",
         "用量" to "用量",
         "连接的电脑" to "連線的電腦",
         "不可用" to "無法使用",
@@ -285,6 +289,10 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "已使用 {0}%" to "{0}% 使用済み",
+        "电脑" to "PC",
+        "播放" to "再生",
+        "排队发送消息" to "メッセージをキューに追加",
         "用量" to "使用量",
         "连接的电脑" to "接続中の PC",
         "不可用" to "利用不可",
@@ -432,6 +440,10 @@ object I18n {
     )
 
     private val en = mapOf(
+        "已使用 {0}%" to "{0}% used",
+        "电脑" to "Computers",
+        "播放" to "Playback",
+        "排队发送消息" to "Queue a message",
         "用量" to "Usage",
         "连接的电脑" to "Connected PC",
         "不可用" to "Unavailable",
@@ -579,6 +591,10 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "已使用 {0}%" to "{0}% 사용됨",
+        "电脑" to "PC",
+        "播放" to "재생",
+        "排队发送消息" to "메시지 대기열에 추가",
         "用量" to "사용량",
         "连接的电脑" to "연결된 PC",
         "不可用" to "사용할 수 없음",
@@ -640,6 +656,10 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "已使用 {0}%" to "{0}% usado",
+        "电脑" to "Equipos",
+        "播放" to "Reproducción",
+        "排队发送消息" to "Poner un mensaje en cola",
         "用量" to "Uso",
         "连接的电脑" to "PC conectado",
         "不可用" to "No disponible",
@@ -697,6 +717,10 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "已使用 {0}%" to "{0} % utilisé",
+        "电脑" to "Ordinateurs",
+        "播放" to "Lecture",
+        "排队发送消息" to "Mettre un message en file d’attente",
         "用量" to "Utilisation",
         "连接的电脑" to "PC connecté",
         "不可用" to "Indisponible",
@@ -754,6 +778,10 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "已使用 {0}%" to "{0} % genutzt",
+        "电脑" to "Computer",
+        "播放" to "Wiedergabe",
+        "排队发送消息" to "Nachricht einreihen",
         "用量" to "Nutzung",
         "连接的电脑" to "Verbundener PC",
         "不可用" to "Nicht verfügbar",
@@ -811,6 +839,10 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "已使用 {0}%" to "Использовано {0}%",
+        "电脑" to "Компьютеры",
+        "播放" to "Воспроизведение",
+        "排队发送消息" to "Поставить сообщение в очередь",
         "用量" to "Использование",
         "连接的电脑" to "Подключённый ПК",
         "不可用" to "Недоступно",
@@ -868,6 +900,10 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "已使用 {0}%" to "{0}% utilizado",
+        "电脑" to "Computadores",
+        "播放" to "Reprodução",
+        "排队发送消息" to "Pôr uma mensagem na fila",
         "用量" to "Utilização",
         "连接的电脑" to "PC ligado",
         "不可用" to "Indisponível",

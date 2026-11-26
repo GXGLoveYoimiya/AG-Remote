@@ -19,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
@@ -28,6 +27,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -36,16 +36,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.text.KeyboardOptions
@@ -61,20 +58,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.local.agremote.AppViewModel
 import com.local.agremote.Conversation
-import com.local.agremote.QuotaGroup
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.rounded.DataUsage
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -121,20 +114,11 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
     }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
-        TopAppBar(
-            title = { Text(title) },
-            navigationIcon = {
-                IconButton(onClick = { if (page == "main") onBack() else page = "main" }) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, tr("返回"))
-                }
-            },
-            actions = {
-                if (page == "main" || page == "usage") IconButton(onClick = { vm.loadAccount(); vm.refreshList() }) { Icon(Icons.Rounded.Refresh, tr("刷新")) }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-        )
+        AppTopBar(title, onBack = { if (page == "main") onBack() else page = "main" }) {
+            if (page == "main" || page == "usage") IconButton(onClick = { vm.loadAccount(); vm.refreshList() }) { Icon(Icons.Rounded.Refresh, tr("刷新")) }
+        }
     }) { pad ->
-        LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(16.dp),
+        LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (page) {
                 "main" -> {
@@ -155,47 +139,43 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
                             }
                         }
                     }
-                    item { Section(tr("账户")) }
+                    item { SectionLabel(tr("账户")) }
                     item {
-                        RowGroup {
-                            NavRow(Icons.Rounded.DataUsage, tr("用量"), account?.plan.orEmpty()) { page = "usage" }
-                            GroupDivider()
-                            NavRow(Icons.Rounded.Archive, tr("已归档的对话"), "${archived.size}") { page = "archived" }
+                        CardGroup {
+                            ListRow(tr("用量"), Icons.Rounded.DataUsage, value = account?.plan) { page = "usage" }
+                            CardDivider()
+                            ListRow(tr("已归档的对话"), Icons.Rounded.Archive, value = "${archived.size}") { page = "archived" }
                         }
                     }
-                    item { Section(tr("应用")) }
+                    item { SectionLabel(tr("应用")) }
                     item {
-                        RowGroup {
-                            NavRow(Icons.Rounded.Computer, tr("连接的电脑"),
-                                activeHost?.name?.ifBlank { activeHost.host } ?: "${vm.prefs.host}:${vm.prefs.port}") { page = "hosts" }
-                            GroupDivider()
-                            NavRow(Icons.Rounded.GraphicEq, tr("实时语音"),
-                                if (voiceCfg.available) voiceCfg.settings.name else tr("不可用")) { page = "voice" }
-                            GroupDivider()
-                            NavRow(Icons.Rounded.Notifications, tr("消息推送"), if (vm.prefs.notify) tr("开") else tr("关")) { page = "notify" }
-                            GroupDivider()
-                            NavRow(Icons.Rounded.Link, tr("链接打开方式"), linkModes.find { it.first == linkMode }?.second.orEmpty()) { page = "link" }
+                        CardGroup {
+                            ListRow(tr("连接的电脑"), Icons.Rounded.Computer,
+                                value = activeHost?.name?.ifBlank { activeHost.host } ?: "${vm.prefs.host}:${vm.prefs.port}") { page = "hosts" }
+                            CardDivider()
+                            ListRow(tr("实时语音"), Icons.Rounded.GraphicEq,
+                                value = if (voiceCfg.available) voiceCfg.settings.name else tr("不可用")) { page = "voice" }
+                            CardDivider()
+                            ListRow(tr("消息推送"), Icons.Rounded.Notifications, value = if (vm.prefs.notify) tr("开") else tr("关")) { page = "notify" }
+                            CardDivider()
+                            ListRow(tr("链接打开方式"), Icons.Rounded.Link, value = linkModes.find { it.first == linkMode }?.second) { page = "link" }
                         }
                     }
-                    item { Section(tr("外观")) }
+                    item { SectionLabel(tr("外观")) }
                     item {
-                        RowGroup {
+                        CardGroup {
                             ColorModeRow(themeCfg.darkMode) { vm.updateTheme(themeCfg.copy(darkMode = it)) }
-                            GroupDivider()
-                            NavRow(Icons.Rounded.Palette, tr("主题风格与配色"), when (themeCfg.style) {
+                            CardDivider()
+                            ListRow(tr("主题风格与配色"), Icons.Rounded.Palette, value = when (themeCfg.style) {
                                 "material" -> "Material You"; "miuix" -> "Miuix"; else -> tr("默认") }) { page = "theme" }
-                            GroupDivider()
-                            NavRow(Icons.Rounded.Language, tr("语言"), appLanguageDisplayName(langCode, currentLang)) { pickLang = true }
+                            CardDivider()
+                            ListRow(tr("语言"), Icons.Rounded.Language, value = appLanguageDisplayName(langCode, currentLang)) { pickLang = true }
                         }
                     }
                     item {
-                        RowGroup {
-                            Row(Modifier.fillMaxWidth().clickable { confirmUnpair = true }.padding(horizontal = 16.dp, vertical = 15.dp),
-                                verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.AutoMirrored.Rounded.Logout, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.error)
-                                Spacer(Modifier.width(14.dp))
-                                Text(tr("取消配对"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
-                            }
+                        CardGroup {
+                            ListRow(tr("取消配对"), Icons.AutoMirrored.Rounded.Logout, end = RowEnd.None,
+                                titleColor = MaterialTheme.colorScheme.error) { confirmUnpair = true }
                         }
                     }
                     item { Spacer(Modifier.height(24.dp)) }
@@ -203,110 +183,80 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
 
                 "usage" -> {
                     val a = account
-                    if (a == null) item { Text(tr("读取中…"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    if (a == null) item { Text(tr("读取中…"), Modifier.padding(6.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     else {
-                        item {
-                            Card {
-                                Text(a.plan.ifBlank { "Antigravity" }, style = MaterialTheme.typography.titleMedium)
-                                if (a.name.isNotBlank()) Text(a.name, style = MaterialTheme.typography.bodySmall,
+                        if (a.note.isNotBlank()) item { Text(a.note, Modifier.padding(horizontal = 6.dp), style = MaterialTheme.typography.bodyLarge) }
+                        a.groups.forEach { g ->
+                            item { SectionLabel(g.name) }
+                            if (g.models.isNotEmpty()) item {
+                                Text(g.models.joinToString("、"), Modifier.padding(horizontal = 6.dp), style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                            items(g.buckets) { b ->
+                                val sp = if (LocalAppLang.current.startsWith("zh") || LocalAppLang.current == "ja") "" else " "
+                                UsageCard(b.name, 1.0 - b.remaining, if (b.reset.isNotBlank()) "${untilText(b.reset)}$sp${tr("重置")}" else "", b.desc)
+                            }
                         }
-                        items(a.groups) { QuotaCard(it) }
-                        if (a.note.isNotBlank()) item {
-                            Text(a.note, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        if (a.promptAvail != null || a.flowAvail != null) item {
-                            Card {
-                                Text("AI Credits", style = MaterialTheme.typography.titleSmall)
-                                Spacer(Modifier.height(6.dp))
-                                a.promptAvail?.let { CreditRow("Prompt credits", it, a.promptMonthly) }
-                                a.flowAvail?.let { CreditRow("Flow credits", it, a.flowMonthly) }
+                        if (a.promptAvail != null || a.flowAvail != null) {
+                            item { SectionLabel("AI Credits") }
+                            item {
+                                CardGroup {
+                                    a.promptAvail?.let { ListRow("Prompt credits", value = creditText(it, a.promptMonthly), end = RowEnd.None) }
+                                    if (a.promptAvail != null && a.flowAvail != null) CardDivider(indent = false)
+                                    a.flowAvail?.let { ListRow("Flow credits", value = creditText(it, a.flowMonthly), end = RowEnd.None) }
+                                }
                             }
                         }
                     }
                 }
 
                 "archived" -> {
-                    if (archived.isEmpty()) item { Text(tr("没有归档的对话"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    items(archived, key = { it.id }) { ArchivedRow(vm, it) }
+                    if (archived.isEmpty()) item { Text(tr("没有归档的对话"), Modifier.padding(6.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    else item {
+                        CardGroup {
+                            archived.forEachIndexed { i, c ->
+                                if (i > 0) CardDivider(indent = false)
+                                ArchivedRow(vm, c)
+                            }
+                        }
+                    }
                 }
 
                 "voice" -> item { VoiceSettingsCard(vm) }
-                "notify" -> item { NotifyCard(vm) }
-                "theme" -> item { ThemeSettingsCard(themeCfg, showDarkMode = false) { vm.updateTheme(it) } }
+                "notify" -> item { NotifySettings(vm) }
+                "theme" -> item { ThemeSettingsCard(themeCfg) { vm.updateTheme(it) } }
 
                 "link" -> item {
-                    RowGroup {
+                    CardGroup {
                         linkModes.forEachIndexed { idx, (mode, label) ->
-                            if (idx > 0) GroupDivider()
-                            val sel = linkMode == mode
-                            Row(Modifier.fillMaxWidth().clickable { vm.updateLinkOpenMode(mode) }.padding(horizontal = 16.dp, vertical = 15.dp),
-                                verticalAlignment = Alignment.CenterVertically) {
-                                Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                                if (sel) Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                            }
+                            if (idx > 0) CardDivider(indent = false)
+                            ListRow(label, end = RowEnd.Checked(linkMode == mode)) { vm.updateLinkOpenMode(mode) }
                         }
                     }
                 }
 
-                "hosts" -> item {
-                    Card {
-                        hosts.forEachIndexed { idx, h ->
-                            if (idx > 0) HorizontalDivider(
-                                Modifier.padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                            )
-                            val isActive = h.id == activeHostId
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable { if (!isActive) vm.switchHost(h.id) }
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(Icons.Rounded.Computer, null, Modifier.size(20.dp),
-                                    tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(Modifier.width(10.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(h.name.ifBlank { h.host }, style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        if (isActive) {
-                                            Spacer(Modifier.width(6.dp))
-                                            Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                "hosts" -> {
+                    item { CardBox { LinkLine(link) } }
+                    item { SectionLabel(tr("电脑")) }
+                    item {
+                        CardGroup {
+                            hosts.forEachIndexed { idx, h ->
+                                if (idx > 0) CardDivider()
+                                val isActive = h.id == activeHostId
+                                ListRow(h.name.ifBlank { h.host }, Icons.Rounded.Computer, desc = "${h.host}:${h.port}", end = RowEnd.Checked(isActive),
+                                    trailing = {
+                                        IconButton(onClick = { editingHost = h }, modifier = Modifier.size(36.dp)) {
+                                            Icon(Icons.Rounded.Edit, tr("编辑设备"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
-                                    }
-                                    Text("${h.host}:${h.port}", style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    if (isActive) {
-                                        Spacer(Modifier.height(2.dp))
-                                        LinkLine(link)
-                                    }
-                                }
-                                IconButton(onClick = { editingHost = h }, modifier = Modifier.size(34.dp)) {
-                                    Icon(Icons.Rounded.Edit, tr("编辑设备"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                IconButton(onClick = { vm.removeHost(h.id) }, modifier = Modifier.size(34.dp)) {
-                                    Icon(Icons.Rounded.Delete, tr("删除"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
-                                }
+                                        IconButton(onClick = { vm.removeHost(h.id) }, modifier = Modifier.size(36.dp)) {
+                                            Icon(Icons.Rounded.Delete, tr("删除"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                                        }
+                                    }) { if (!isActive) vm.switchHost(h.id) }
                             }
-                        }
-                        if (hosts.isEmpty()) {
-                            LinkLine(link)
-                            Spacer(Modifier.height(4.dp))
-                            Text("${vm.prefs.host}:${vm.prefs.port}", style = MaterialTheme.typography.bodyMedium)
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        OutlinedButton(onClick = { addingHost = true }) {
-                            Icon(Icons.Rounded.Add, null, Modifier.size(18.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text(tr("添加设备"))
+                            if (hosts.isEmpty()) ListRow("${vm.prefs.host}:${vm.prefs.port}", Icons.Rounded.Computer, end = RowEnd.Checked(true))
                         }
                     }
+                    item { CardGroup { ListRow(tr("添加设备"), Icons.Rounded.Add) { addingHost = true } } }
                 }
             }
         }
@@ -445,183 +395,91 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
     }
 }
 
+/** 颜色模式：浅色 / 深色 / 跟随系统三个小预览块，直接点选。 */
 @Composable
-private fun Section(t: String) {
-    Text(t, Modifier.padding(start = 6.dp, top = 8.dp), style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
-/** 一组设置行：卡片底色 + 圆角，行之间细分割线。 */
-@Composable
-private fun RowGroup(content: @Composable () -> Unit) {
-    Surface(color = sheetCardColor(), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-        Column { content() }
-    }
-}
-
-@Composable
-private fun GroupDivider() {
-    HorizontalDivider(Modifier.padding(start = 52.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-}
-
-/** 图标 + 名称 + 右侧当前值 + 箭头，点开二级页面。 */
-@Composable
-private fun NavRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, value: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 15.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurface)
-        Spacer(Modifier.width(14.dp))
-        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        if (value.isNotBlank()) Text(value, Modifier.padding(start = 8.dp).widthIn(max = 160.dp), style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-/** 颜色模式：浅色 / 深色 / 跟随系统三个小预览块，直接点选。 */
-@Composable
-private fun ColorModeRow(mode: String, onPick: (String) -> Unit) {
-    val accent = MaterialTheme.colorScheme.primary
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.DarkMode, null, Modifier.size(22.dp))
-            Spacer(Modifier.width(14.dp))
-            Text(tr("颜色模式"), style = MaterialTheme.typography.bodyLarge)
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            listOf("light" to tr("浅色"), "dark" to tr("深色"), "system" to tr("跟随系统")).forEach { (k, label) ->
-                val sel = mode == k
-                Column(Modifier.weight(1f).clickable { onPick(k) }, horizontalAlignment = Alignment.CenterHorizontally) {
-                    androidx.compose.foundation.Canvas(
-                        Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp))
-                            .border(if (sel) 2.dp else 1.dp, if (sel) accent else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                    ) {
-                        val light = Color(0xFFF8F7F5); val dark = Color(0xFF262624)
-                        when (k) {
-                            "light" -> drawRect(light)
-                            "dark" -> drawRect(dark)
-                            else -> {
-                                drawRect(light)
-                                val p = androidx.compose.ui.graphics.Path().apply { moveTo(size.width, 0f); lineTo(size.width, size.height); lineTo(0f, size.height); close() }
-                                drawPath(p, dark)
-                            }
-                        }
-                        val line = if (k == "dark") Color(0xFF6B6A65) else Color(0xFFB9B8B3)
-                        drawRoundRect(line, androidx.compose.ui.geometry.Offset(size.width * 0.14f, size.height * 0.22f),
-                            androidx.compose.ui.geometry.Size(size.width * 0.42f, 4.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()))
-                        drawRoundRect(line, androidx.compose.ui.geometry.Offset(size.width * 0.14f, size.height * 0.36f),
-                            androidx.compose.ui.geometry.Size(size.width * 0.28f, 4.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()))
-                        drawCircle(accent, 6.dp.toPx(), androidx.compose.ui.geometry.Offset(size.width * 0.8f, size.height * 0.72f))
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text(label, style = MaterialTheme.typography.labelMedium,
-                        color = if (sel) accent else MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Card(content: @Composable () -> Unit) {
-    Surface(color = sheetCardColor(),
-        shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) { content() }
-    }
-}
-
-@Composable
-private fun QuotaCard(g: QuotaGroup) {
-    Card {
-        Text(g.name, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(4.dp))
-        g.models.forEach {
-            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun ColorModeRow(mode: String, onPick: (String) -> Unit) {
+    val accent = MaterialTheme.colorScheme.primary
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.DarkMode, null, Modifier.size(22.dp))
+            Spacer(Modifier.width(14.dp))
+            Text(tr("颜色模式"), style = MaterialTheme.typography.bodyLarge)
         }
-        g.buckets.forEach { b ->
-            val pct = (b.remaining * 100).toInt().coerceIn(0, 100)
-            val color = when {
-                pct <= 10 -> MaterialTheme.colorScheme.error
-                pct <= 30 -> Amber
-                else -> MaterialTheme.colorScheme.primary
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            listOf("light" to tr("浅色"), "dark" to tr("深色"), "system" to tr("跟随系统")).forEach { (k, label) ->
+                val sel = mode == k
+                Column(Modifier.weight(1f).clickable { onPick(k) }, horizontalAlignment = Alignment.CenterHorizontally) {
+                    androidx.compose.foundation.Canvas(
+                        Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp))
+                            .border(if (sel) 2.dp else 1.dp, if (sel) accent else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                    ) {
+                        val light = Color(0xFFF8F7F5); val dark = Color(0xFF262624)
+                        when (k) {
+                            "light" -> drawRect(light)
+                            "dark" -> drawRect(dark)
+                            else -> {
+                                drawRect(light)
+                                val p = androidx.compose.ui.graphics.Path().apply { moveTo(size.width, 0f); lineTo(size.width, size.height); lineTo(0f, size.height); close() }
+                                drawPath(p, dark)
+                            }
+                        }
+                        val line = if (k == "dark") Color(0xFF6B6A65) else Color(0xFFB9B8B3)
+                        drawRoundRect(line, androidx.compose.ui.geometry.Offset(size.width * 0.14f, size.height * 0.22f),
+                            androidx.compose.ui.geometry.Size(size.width * 0.42f, 4.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()))
+                        drawRoundRect(line, androidx.compose.ui.geometry.Offset(size.width * 0.14f, size.height * 0.36f),
+                            androidx.compose.ui.geometry.Size(size.width * 0.28f, 4.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()))
+                        drawCircle(accent, 6.dp.toPx(), androidx.compose.ui.geometry.Offset(size.width * 0.8f, size.height * 0.72f))
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(label, style = MaterialTheme.typography.labelMedium,
+                        color = if (sel) accent else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Spacer(Modifier.height(14.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(b.name, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-                Text("$pct%", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = color)
-            }
-            Spacer(Modifier.height(8.dp))
-            LinearProgressIndicator(progress = { b.remaining.toFloat() }, modifier = Modifier.fillMaxWidth().height(8.dp),
-                color = color, trackColor = MaterialTheme.colorScheme.surfaceContainerHighest, strokeCap = StrokeCap.Round,
-                gapSize = 0.dp, drawStopIndicator = {})
-            Spacer(Modifier.height(6.dp))
-            if (b.reset.isNotBlank()) {
-                val sp = if (LocalAppLang.current.startsWith("zh") || LocalAppLang.current == "ja") "" else " "
-                Text("${untilText(b.reset)}$sp${tr("重置")}", style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (b.desc.isNotBlank()) Text(b.desc, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
-@Composable
-private fun CreditRow(label: String, avail: Int, monthly: Int?) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(if (monthly != null && monthly > 0) "$avail / $monthly" else "$avail", style = MaterialTheme.typography.bodyMedium)
-    }
-}
+/** 额度数字：有月度上限时显示“剩余 / 上限”。 */
+private fun creditText(avail: Int, monthly: Int?) = if (monthly != null && monthly > 0) "$avail / $monthly" else "$avail"
 
 @Composable
 private fun ArchivedRow(vm: AppViewModel, c: Conversation) {
     var deleting by remember { mutableStateOf(false) }
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(c.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
-                Text(relTime(c.updated), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            IconButton(onClick = { vm.setArchived(c.id, false) }) { Icon(Icons.Rounded.Unarchive, tr("取消归档")) }
-            IconButton(onClick = { deleting = true }) { Icon(Icons.Rounded.Delete, tr("删除"), tint = MaterialTheme.colorScheme.error) }
-        }
-    }
+    ListRow(c.title, desc = relTime(c.updated), end = RowEnd.None, trailing = {
+        IconButton(onClick = { vm.setArchived(c.id, false) }, modifier = Modifier.size(40.dp)) { Icon(Icons.Rounded.Unarchive, tr("取消归档")) }
+        IconButton(onClick = { deleting = true }, modifier = Modifier.size(40.dp)) { Icon(Icons.Rounded.Delete, tr("删除"), tint = MaterialTheme.colorScheme.error) }
+    })
     if (deleting) DeleteDialog(c.title, onDismiss = { deleting = false }) { deleting = false; vm.delete(c.id) }
 }
 
 
+/** 消息推送：开关 + 系统设置入口 + 说明（和其他设置页同一套行样式）。 */
 @Composable
-private fun NotifyCard(vm: AppViewModel) {
+private fun NotifySettings(vm: AppViewModel) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var on by remember { mutableStateOf(vm.prefs.notify) }
     val askPerm = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
-    Card {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(tr("后台推送"), style = MaterialTheme.typography.titleSmall)
-                Text(tr("App 不在前台时，agent 完成或需要你确认会发通知"), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CardGroup {
+            ListRow(tr("后台推送"), Icons.Rounded.Notifications, desc = tr("App 不在前台时，agent 完成或需要你确认会发通知"),
+                end = RowEnd.Toggle(on) {
+                    on = it; vm.prefs.notify = it
+                    if (it) {
+                        if (android.os.Build.VERSION.SDK_INT >= 33) askPerm.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        com.local.agremote.WatchService.start(ctx)
+                    } else com.local.agremote.WatchService.stop(ctx)
+                })
+            CardDivider()
+            ListRow(tr("打开应用设置"), Icons.Rounded.Settings) {
+                runCatching {
+                    ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + ctx.packageName)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
             }
-            androidx.compose.material3.Switch(checked = on, onCheckedChange = {
-                on = it; vm.prefs.notify = it
-                if (it) {
-                    if (android.os.Build.VERSION.SDK_INT >= 33) askPerm.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                    com.local.agremote.WatchService.start(ctx)
-                } else com.local.agremote.WatchService.stop(ctx)
-            })
         }
-        Spacer(Modifier.height(8.dp))
-        Text(tr("为了锁屏后也能收到，请在系统设置里把本 App 的省电策略设为“无限制”，并允许自启动。"),
+        Text(tr("为了锁屏后也能收到，请在系统设置里把本 App 的省电策略设为“无限制”，并允许自启动。"), Modifier.padding(horizontal = 6.dp),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(6.dp))
-        OutlinedButton(onClick = {
-            runCatching {
-                ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    android.net.Uri.parse("package:" + ctx.packageName)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-            }
-        }) { Text(tr("打开应用设置")) }
     }
 }
