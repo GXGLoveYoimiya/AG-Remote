@@ -232,6 +232,10 @@ class Prefs(ctx: Context) {
     var votesJson: String
         get() = sp.getString("votes_json", "{}") ?: "{}"
         set(v) = sp.edit().putString("votes_json", v).apply()
+    /** 浏览器走电脑网络（true）还是手机自己的网络（false）。 */
+    var browserViaPc: Boolean
+        get() = sp.getBoolean("browser_via_pc", true)
+        set(v) = sp.edit().putBoolean("browser_via_pc", v).apply()
     /** 浏览器的搜索引擎（SEARCH_ENGINES 里的 key）。 */
     var searchEngine: String
         get() = sp.getString("search_engine", "google") ?: "google"

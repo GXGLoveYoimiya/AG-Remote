@@ -1,5 +1,6 @@
 package com.local.agremote.ui
 
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
@@ -316,8 +317,15 @@ fun BrowserDialog(
 
     // 「网页浏览」代理：走电脑网络（仅在进入网页浏览时启用，关闭时还原）
     var proxyReady by remember { mutableStateOf(false) }
-    DisposableEffect(vm.prefs.host, vm.prefs.port) {
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE) && vm.prefs.host.isNotBlank()) {
+    var viaPc by remember { mutableStateOf(vm.prefs.browserViaPc) } // 走电脑网络 / 手机网络
+    DisposableEffect(vm.prefs.host, vm.prefs.port, viaPc) {
+        if (!viaPc) {
+            // 走手机自己的网络：去掉代理
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                runCatching { ProxyController.getInstance().clearProxyOverride({ r -> r.run() }) { proxyReady = true } }
+                    .onFailure { proxyReady = true }
+            } else proxyReady = true
+        } else if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE) && vm.prefs.host.isNotBlank()) {
             val cfg = ProxyConfig.Builder()
                 .addProxyRule("http://${vm.prefs.host}:${vm.prefs.port}")
                 .build()
@@ -657,9 +665,9 @@ fun BrowserDialog(
                             // 翻译：翻过后图标亮起，再点显示原文
                             IconButton(onClick = { offerTranslate = null; if (pageTranslated) showOriginal() else translatePage() },
                                 enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)
-                                    .then(if (pageTranslated) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)) {
+                                    .then(if (pageTranslated) Modifier.background(MaterialTheme.colorScheme.secondaryContainer, CircleShape) else Modifier)) { // 已翻译：和输入框“+”一样的圆形底色
                                 Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
-                                    tint = if (pageTranslated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) // 未翻译：黑色无框；已翻译：加圆框（默认主题黑色，其他主题强调色）
+                                    tint = if (pageTranslated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) // 未翻译：黑色；已翻译：默认主题黑色，其他主题强调色
                             }
                             // 标签页数：点开标签页切换页
                             IconButton(onClick = { snapThumb(); showTabs = true }, modifier = Modifier.size(44.dp)) {
@@ -684,6 +692,26 @@ fun BrowserDialog(
                                         onClick = { webMenu = false; snapThumb(); newTab() })
                                     DropdownMenuItem(text = { Text(tr("同步电脑标签页")) }, leadingIcon = { Icon(Icons.Rounded.Sync, null) },
                                         onClick = { webMenu = false; importPcTabs = true; vm.refreshBrowserTabs(chatId) })
+                                    // 网络：走电脑 / 走手机（切换后重新加载当前页）
+                                    Box {
+                                        var netMenu by remember { mutableStateOf(false) }
+                                        DropdownMenuItem(text = { Text(tr("网络") + " · " + if (viaPc) tr("电脑网络") else tr("手机网络")) },
+                                            leadingIcon = { Icon(if (viaPc) Icons.Rounded.Computer else Icons.Rounded.PhoneAndroid, null) },
+                                            onClick = { netMenu = true })
+                                        DropdownMenu(netMenu, { netMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
+                                            listOf(true to tr("电脑网络"), false to tr("手机网络")).forEach { (pc, label) ->
+                                                DropdownMenuItem(text = { Text(label) },
+                                                    trailingIcon = { if (pc == viaPc) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)) },
+                                                    onClick = {
+                                                        netMenu = false; webMenu = false
+                                                        if (pc != viaPc) {
+                                                            viaPc = pc; vm.prefs.browserViaPc = pc
+                                                            scope.launch { delay(300); webViewRef?.reload() }
+                                                        }
+                                                    })
+                                            }
+                                        }
+                                    }
                                     Box {
                                         var engineMenu by remember { mutableStateOf(false) }
                                         val cur = SEARCH_ENGINES.find { it.first == engineKey } ?: SEARCH_ENGINES[0]

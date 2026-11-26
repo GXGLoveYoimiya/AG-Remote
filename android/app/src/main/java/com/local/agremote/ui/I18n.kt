@@ -115,6 +115,9 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "网络" to "網路",
+        "电脑网络" to "電腦網路",
+        "手机网络" to "手機網路",
         "搜索引擎" to "搜尋引擎",
         "百度" to "百度",
         "翻译设置" to "翻譯設定",
@@ -416,6 +419,9 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "网络" to "ネットワーク",
+        "电脑网络" to "PC のネットワーク",
+        "手机网络" to "スマホのネットワーク",
         "搜索引擎" to "検索エンジン",
         "百度" to "Baidu",
         "翻译设置" to "翻訳の設定",
@@ -694,6 +700,9 @@ object I18n {
     )
 
     private val en = mapOf(
+        "网络" to "Network",
+        "电脑网络" to "Via PC",
+        "手机网络" to "Phone network",
         "搜索引擎" to "Search engine",
         "百度" to "Baidu",
         "翻译设置" to "Translation settings",
@@ -972,6 +981,9 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "网络" to "네트워크",
+        "电脑网络" to "PC 네트워크",
+        "手机网络" to "휴대폰 네트워크",
         "搜索引擎" to "검색 엔진",
         "百度" to "Baidu",
         "翻译设置" to "번역 설정",
@@ -1267,6 +1279,9 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "网络" to "Red",
+        "电脑网络" to "A través del PC",
+        "手机网络" to "Red del móvil",
         "搜索引擎" to "Buscador",
         "百度" to "Baidu",
         "翻译设置" to "Ajustes de traducción",
@@ -1569,6 +1584,9 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "网络" to "Réseau",
+        "电脑网络" to "Via le PC",
+        "手机网络" to "Réseau du téléphone",
         "搜索引擎" to "Moteur de recherche",
         "百度" to "Baidu",
         "翻译设置" to "Paramètres de traduction",
@@ -1871,6 +1889,9 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "网络" to "Netzwerk",
+        "电脑网络" to "Über PC",
+        "手机网络" to "Handynetz",
         "搜索引擎" to "Suchmaschine",
         "百度" to "Baidu",
         "翻译设置" to "Übersetzungseinstellungen",
@@ -2173,6 +2194,9 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "网络" to "Сеть",
+        "电脑网络" to "Через ПК",
+        "手机网络" to "Сеть телефона",
         "搜索引擎" to "Поисковик",
         "百度" to "Baidu",
         "翻译设置" to "Настройки перевода",
@@ -2475,6 +2499,9 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "网络" to "Rede",
+        "电脑网络" to "Pelo PC",
+        "手机网络" to "Rede do celular",
         "搜索引擎" to "Buscador",
         "百度" to "Baidu",
         "翻译设置" to "Configurações de tradução",
