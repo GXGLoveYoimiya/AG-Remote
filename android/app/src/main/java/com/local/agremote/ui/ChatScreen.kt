@@ -257,7 +257,7 @@ fun ChatScreen(
                         Icon(Icons.Rounded.Language, "内置浏览器")
                     }
                     // 当前模型剩余的 5 小时额度，点开是用量页
-                    vm.fiveHourBucket(selected)?.let { b ->
+                    if (s.id != null || s.pending != null) vm.fiveHourBucket(selected)?.let { b -> // 空白的新对话页不显示
                         IconButton(onClick = { focusManager.clearFocus(); onOpenUsage() }) { QuotaRing(b.remaining) }
                     }
                     if (s.id != null) {
