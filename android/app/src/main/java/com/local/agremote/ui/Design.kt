@@ -106,6 +106,8 @@ fun ListRow(
     onClick: (() -> Unit)? = null,
 ) {
     val click = onClick ?: (end as? RowEnd.Toggle)?.let { t -> { t.onChange(!t.on) } }
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val valueMax = maxWidth * 0.4f // 右边的值最多占这一行四成宽，放不下就省略，标题不会被挤
     Row(Modifier.fillMaxWidth().then(if (click != null) Modifier.clickable(onClick = click) else Modifier)
         .padding(horizontal = 16.dp, vertical = if (desc.isNullOrBlank()) 15.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
@@ -114,13 +116,12 @@ fun ListRow(
                 tint = if (titleColor == MaterialTheme.colorScheme.onSurface) MaterialTheme.colorScheme.primary else titleColor)
             Spacer(Modifier.width(14.dp))
         }
-        Column(Modifier.weight(2f)) {
+        Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = titleColor)
             if (!desc.isNullOrBlank()) Text(desc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (!value.isNullOrBlank()) Text(value, Modifier.weight(1f, fill = false).padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            textAlign = androidx.compose.ui.text.style.TextAlign.End)
+        if (!value.isNullOrBlank()) Text(value, Modifier.padding(start = 8.dp).widthIn(max = valueMax), style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         trailing?.invoke()
         when (end) {
             RowEnd.Chevron -> Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -128,6 +129,7 @@ fun ListRow(
             is RowEnd.Checked -> if (end.on) Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
             RowEnd.None -> {}
         }
+    }
     }
 }
 
