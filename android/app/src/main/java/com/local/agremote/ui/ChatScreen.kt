@@ -1302,10 +1302,14 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
     val curStopKeep by rememberUpdatedState(::stopKeep)
 
     Box(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(start = 12.dp, end = 12.dp, bottom = 10.dp, top = 4.dp)) {
+        // 默认风格（仿 Claude）：白底卡片 + 细边框 + 柔和阴影；其他风格用主题的色块
+        val claudeStyle = LocalUiStyle.current == "default"
         Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = RoundedCornerShape(28.dp),
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+            color = if (claudeStyle) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(if (claudeStyle) 24.dp else 28.dp),
+            border = if (claudeStyle) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+            shadowElevation = if (claudeStyle) 6.dp else 0.dp,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(if (claudeStyle) 24.dp else 28.dp))
                 .onGloballyPositioned { surfacePos = it.positionInRoot() }
                 .pointerInput(Unit) {
                     val stopDragPx = with(density) { 80.dp.toPx() }
@@ -1383,9 +1387,15 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                             }
                         },
                         modifier = Modifier.size(44.dp).onGloballyPositioned { micBounds = it.boundsInRoot() },
-                        colors = if (canStop) IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
-                        else IconButtonDefaults.filledIconButtonColors(),
+                        colors = when {
+                            claudeStyle && (hasContent || canStop) -> IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)
+                            claudeStyle -> IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
+                            canStop -> IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
+                            else -> IconButtonDefaults.filledIconButtonColors()
+                        },
                     ) {
                         Icon(
                             when { hasContent -> Icons.Rounded.ArrowUpward; canStop -> Icons.Rounded.Stop; else -> Icons.Rounded.Mic },

@@ -71,6 +71,7 @@ import com.local.agremote.ThemeConfig
 val LocalUiStyle = compositionLocalOf { "material" }
 
 val PRESET_COLORS = listOf(
+    0xFFD97757.toInt() to "陶土橙",
     0xFF3482FF.toInt() to "小米蓝",
     0xFF0EA5E9.toInt() to "天空蓝",
     0xFF06B6D4.toInt() to "青碧",
@@ -83,6 +84,7 @@ val PRESET_COLORS = listOf(
     0xFF8B5CF6.toInt() to "罗兰紫",
     0xFF6366F1.toInt() to "靛蓝",
     0xFF64748B.toInt() to "高级灰",
+    0xFF1F1E1D.toInt() to "墨黑",
 )
 
 private fun bestOnColor(bg: Color): Color = if (bg.luminance() > 0.45f) Color(0xFF111111) else Color.White
@@ -171,6 +173,61 @@ private fun materialSchemeFromSeed(seed: Color, dark: Boolean): ColorScheme {
     }
 }
 
+/**
+ * 默认（仿 Claude 移动端）：暖色纸感的中性底色，气泡和标签用米灰而不是强调色，
+ * 强调色只用在图标、链接、开关上；深色模式是暖调深灰。强调色可调。
+ */
+private fun claudeScheme(accent: Color, dark: Boolean): ColorScheme {
+    val tert = hueShift(accent, -150f)
+    return if (!dark) {
+        val primary = if (accent.luminance() > 0.6f) lerp(accent, Color.Black, 0.25f) else accent
+        lightColorScheme(
+            primary = primary, onPrimary = bestOnColor(primary),
+            primaryContainer = Color(0xFFF0EEE6), onPrimaryContainer = Color(0xFF1F1E1D),
+            secondary = Color(0xFF5E5D59), onSecondary = Color.White,
+            secondaryContainer = Color(0xFFE8E6DC), onSecondaryContainer = Color(0xFF1F1E1D),
+            tertiary = tert, onTertiary = bestOnColor(tert),
+            tertiaryContainer = lerp(Color(0xFFFAF9F5), tert, 0.16f), onTertiaryContainer = Color(0xFF1F1E1D),
+            background = Color(0xFFFAF9F5), onBackground = Color(0xFF1F1E1D),
+            surface = Color(0xFFFAF9F5), onSurface = Color(0xFF1F1E1D),
+            surfaceVariant = Color(0xFFEDEBE3), onSurfaceVariant = Color(0xFF73726C),
+            surfaceContainerLowest = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFF5F4EE),
+            surfaceContainer = Color(0xFFF0EEE6), surfaceContainerHigh = Color(0xFFE8E6DC),
+            surfaceContainerHighest = Color(0xFFDEDCD1),
+            outline = Color(0xFFB5B3AA), outlineVariant = Color(0xFFE3E1D8),
+        )
+    } else {
+        val primary = if (accent.luminance() < 0.2f) lerp(accent, Color.White, 0.4f) else accent
+        darkColorScheme(
+            primary = primary, onPrimary = bestOnColor(primary),
+            primaryContainer = Color(0xFF393937), onPrimaryContainer = Color(0xFFF0EEE6),
+            secondary = Color(0xFFC2C0B6), onSecondary = Color(0xFF1F1E1D),
+            secondaryContainer = Color(0xFF3E3E3A), onSecondaryContainer = Color(0xFFF0EEE6),
+            tertiary = lerp(tert, Color.White, 0.25f), onTertiary = Color(0xFF1F1E1D),
+            tertiaryContainer = lerp(Color(0xFF262624), tert, 0.3f), onTertiaryContainer = Color(0xFFF0EEE6),
+            background = Color(0xFF262624), onBackground = Color(0xFFF0EEE6),
+            surface = Color(0xFF262624), onSurface = Color(0xFFF0EEE6),
+            surfaceVariant = Color(0xFF3A3A37), onSurfaceVariant = Color(0xFFA6A39A),
+            surfaceContainerLowest = Color(0xFF1F1E1D), surfaceContainerLow = Color(0xFF2B2B29),
+            surfaceContainer = Color(0xFF30302E), surfaceContainerHigh = Color(0xFF393937),
+            surfaceContainerHighest = Color(0xFF44443F),
+            outline = Color(0xFF7A7870), outlineVariant = Color(0xFF3F3F3B),
+        )
+    }
+}
+
+/** 默认风格的标题（问候语、大标题）用衬线体，正文保持无衬线。 */
+private fun claudeTypography(): androidx.compose.material3.Typography {
+    val t = androidx.compose.material3.Typography()
+    val serif = androidx.compose.ui.text.font.FontFamily.Serif
+    return t.copy(
+        displaySmall = t.displaySmall.copy(fontFamily = serif),
+        headlineLarge = t.headlineLarge.copy(fontFamily = serif),
+        headlineMedium = t.headlineMedium.copy(fontFamily = serif),
+        headlineSmall = t.headlineSmall.copy(fontFamily = serif),
+    )
+}
+
 /** Miuix（HyperOS 风格）：纯净中性黑白层次 + 高对比纯色卡片 + 清晰主题强调色。 */
 private fun miuixScheme(accent: Color, dark: Boolean): ColorScheme {
     val tert = hueShift(accent, 30f)
@@ -252,6 +309,12 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
     }
     val hasDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val scheme = when (cfg.style) {
+        "default" -> {
+            val accent = if (cfg.colorMode == "system" && hasDynamic) {
+                (if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)).primary
+            } else Color(cfg.seedColor)
+            claudeScheme(accent, dark)
+        }
         "miuix" -> {
             val accent = if (cfg.colorMode == "system" && hasDynamic) {
                 (if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)).primary
@@ -278,7 +341,8 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
     }
 
     CompositionLocalProvider(LocalUiStyle provides cfg.style) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        if (cfg.style == "default") MaterialTheme(colorScheme = scheme, typography = claudeTypography(), content = content)
+        else MaterialTheme(colorScheme = scheme, content = content)
     }
 }
 
@@ -294,13 +358,22 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            // 1. 主题风格：Material You / Miuix
+            // 1. 主题风格：默认（仿 Claude）/ Material You / Miuix
             Text(tr("主题风格"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 StyleOptionCard(
+                    title = tr("默认"),
+                    desc = tr("温暖纸感 · 简洁克制"),
+                    selected = cfg.style == "default",
+                    previewBg = Color(0xFFFAF9F5),
+                    previewCard = Color(0xFFF0EEE6),
+                    previewAccent = Color(0xFFD97757),
+                    modifier = Modifier.weight(1f),
+                ) { onChange(cfg.copy(style = "default")) }
+                StyleOptionCard(
                     title = "Material You",
                     desc = tr("动态色调 · 柔和圆润"),
-                    selected = cfg.style != "miuix",
+                    selected = cfg.style == "material",
                     previewBg = Color(0xFFF4EFF8),
                     previewCard = Color(0xFFE7DFF0),
                     previewAccent = Color(0xFF6750A4),

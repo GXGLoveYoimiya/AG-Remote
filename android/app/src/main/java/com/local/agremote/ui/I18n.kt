@@ -115,6 +115,7 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "温暖纸感 · 简洁克制" to "溫暖紙感 · 簡潔克制",
         "来聊聊，{0}" to "來聊聊，{0}",
         "来聊聊" to "來聊聊",
         "按住说话，松开发送" to "按住說話，放開送出",
@@ -272,6 +273,7 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "温暖纸感 · 简洁克制" to "温かみのある紙の質感 · シンプル",
         "来聊聊，{0}" to "話しましょう、{0}",
         "来聊聊" to "話しましょう",
         "按住说话，松开发送" to "押している間だけ話し、離すと送信",
@@ -406,6 +408,7 @@ object I18n {
     )
 
     private val en = mapOf(
+        "温暖纸感 · 简洁克制" to "Warm paper · Calm and simple",
         "来聊聊，{0}" to "Let’s talk, {0}",
         "来聊聊" to "Let’s talk",
         "按住说话，松开发送" to "Hold to talk, release to send",
@@ -540,6 +543,7 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "温暖纸感 · 简洁克制" to "따뜻한 종이 질감 · 간결함",
         "来聊聊，{0}" to "이야기해요, {0}",
         "来聊聊" to "이야기해요",
         "按住说话，松开发送" to "누르고 말하고, 떼면 전송",
@@ -588,6 +592,7 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "温暖纸感 · 简洁克制" to "Papel cálido · Sencillo",
         "来聊聊，{0}" to "Hablemos, {0}",
         "来聊聊" to "Hablemos",
         "按住说话，松开发送" to "Mantén pulsado para hablar, suelta para enviar",
@@ -632,6 +637,7 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "温暖纸感 · 简洁克制" to "Papier chaleureux · Sobre",
         "来聊聊，{0}" to "Discutons, {0}",
         "来聊聊" to "Discutons",
         "按住说话，松开发送" to "Maintenez pour parler, relâchez pour envoyer",
@@ -676,6 +682,7 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "温暖纸感 · 简洁克制" to "Warmes Papier · Schlicht",
         "来聊聊，{0}" to "Lass uns reden, {0}",
         "来聊聊" to "Lass uns reden",
         "按住说话，松开发送" to "Gedrückt halten zum Sprechen, loslassen zum Senden",
@@ -720,6 +727,7 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "温暖纸感 · 简洁克制" to "Тёплая бумага · Просто",
         "来聊聊，{0}" to "Давай поговорим, {0}",
         "来聊聊" to "Давай поговорим",
         "按住说话，松开发送" to "Удерживайте, чтобы говорить, отпустите, чтобы отправить",
@@ -764,6 +772,7 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "温暖纸感 · 简洁克制" to "Papel quente · Simples",
         "来聊聊，{0}" to "Vamos conversar, {0}",
         "来聊聊" to "Vamos conversar",
         "按住说话，松开发送" to "Mantenha premido para falar, solte para enviar",

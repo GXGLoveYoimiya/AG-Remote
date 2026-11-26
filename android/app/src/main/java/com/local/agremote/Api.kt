@@ -183,10 +183,10 @@ class ApiException(val code: Int, message: String) : IOException(message)
 
 /** 外观与主题配置：风格（Material You / Miuix）、深色模式、配色（跟随系统 / 自定义颜色）。 */
 data class ThemeConfig(
-    val style: String = "material",      // material / miuix
+    val style: String = "default",       // default（仿 Claude）/ material / miuix
     val darkMode: String = "system",     // system / light / dark
-    val colorMode: String = "system",    // system / custom
-    val seedColor: Int = 0xFF3482FF.toInt(),
+    val colorMode: String = "custom",    // system / custom
+    val seedColor: Int = 0xFFD97757.toInt(),
 )
 
 /** 已保存的电脑端设备（支持多设备切换，每个设备可自定义名称和 IP/端口）。 */
@@ -283,7 +283,7 @@ class Prefs(ctx: Context) {
         }
     var themeConfig: ThemeConfig
         get() = ThemeConfig(
-            style = sp.getString("theme_style", "material") ?: "material",
+            style = sp.getString("theme_style", "default") ?: "default",
             darkMode = sp.getString("theme_dark", "system") ?: "system",
             colorMode = sp.getString("theme_color_mode", "system") ?: "system",
             seedColor = sp.getInt("theme_seed", 0xFF3482FF.toInt()),

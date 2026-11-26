@@ -132,6 +132,7 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
     val finals = lines.filter { !it.interim }
     val interim = lines.lastOrNull { it.user && it.interim }?.text
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val claude = LocalUiStyle.current == "default"
 
     Dialog(onDismissRequest = { vm.endVoiceCall() },
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnClickOutside = false)) {
@@ -205,9 +206,11 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
                     val scale by animateFloatAsState(if (ptt && holding) 1.12f else 1f + mic * 0.12f, tween(100), label = "mic")
                     Surface(
                         shape = CircleShape,
-                        color = if (micOn) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                        contentColor = if (micOn) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size((72 * scale).dp)
+                        color = when { !micOn -> MaterialTheme.colorScheme.surfaceContainerHighest; claude -> MaterialTheme.colorScheme.surfaceContainerLowest
+                            else -> MaterialTheme.colorScheme.primaryContainer },
+                        contentColor = if (micOn && !claude) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                        shadowElevation = if (claude && micOn) 8.dp else 0.dp,
+                        modifier = Modifier.size(((if (claude) 64 else 72) * scale).dp)
                             .then(if (ptt) Modifier.pointerInput(Unit) {
                                 awaitEachGesture { awaitFirstDown(); call.setHolding(true); waitForUpOrCancellation(); call.setHolding(false) }
                             } else Modifier.clickable(enabled = !ended) { call.setMuted(!muted) }),
@@ -224,8 +227,9 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
                     verticalAlignment = Alignment.CenterVertically) {
                     CircleButton(Icons.Rounded.Add, tr("添加到会话"), size = 44, enabled = !ended) { sheet = "add" }
                     Spacer(Modifier.width(10.dp))
-                    Surface(onClick = { sheet = "model" }, shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.height(44.dp)) {
+                    Surface(onClick = { sheet = "model" }, shape = RoundedCornerShape(50),
+                        color = if (claude) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shadowElevation = if (claude) 3.dp else 0.dp, modifier = Modifier.height(44.dp)) {
                         Row(Modifier.padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(vm.modelChipLabel(selected), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                             Spacer(Modifier.width(4.dp))
@@ -236,8 +240,9 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
                     CircleButton(if (speaker) Icons.AutoMirrored.Rounded.VolumeUp else Icons.Rounded.Hearing,
                         if (speaker) tr("扬声器") else tr("听筒"), size = 44, enabled = !ended) { call.setSpeaker(!speaker) }
                     Spacer(Modifier.width(10.dp))
-                    Surface(onClick = { vm.endVoiceCall() }, shape = CircleShape, color = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError, modifier = Modifier.size(48.dp)) {
+                    Surface(onClick = { vm.endVoiceCall() }, shape = CircleShape,
+                        color = if (claude) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                        contentColor = if (claude) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onError, modifier = Modifier.size(48.dp)) {
                         Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Close, tr("结束通话")) }
                     }
                 }
@@ -276,8 +281,10 @@ private fun BottomGlow(level: Float, warm: Boolean, active: Boolean, dark: Boole
 
 @Composable
 private fun CircleButton(icon: ImageVector, label: String, size: Int, enabled: Boolean = true, onClick: () -> Unit) {
-    Surface(onClick = onClick, enabled = enabled, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        modifier = Modifier.size(size.dp)) {
+    val claude = LocalUiStyle.current == "default"
+    Surface(onClick = onClick, enabled = enabled, shape = CircleShape,
+        color = if (claude) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainerHighest,
+        shadowElevation = if (claude) 3.dp else 0.dp, modifier = Modifier.size(size.dp)) {
         Box(contentAlignment = Alignment.Center) { Icon(icon, label, Modifier.size(22.dp)) }
     }
 }
