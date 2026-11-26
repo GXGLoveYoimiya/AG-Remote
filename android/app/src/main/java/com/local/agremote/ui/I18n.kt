@@ -115,6 +115,11 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "关于" to "關於",
+        "版本" to "版本",
+        "源代码" to "原始碼",
+        "许可证" to "授權條款",
+        "帮助与支持" to "說明與支援",
         "自定义" to "自訂",
         "关于 {0}，我能帮你做些什么？" to "關於 {0}，我能幫你做些什麼？",
         "搜索项目" to "搜尋專案",
@@ -300,6 +305,11 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "关于" to "情報",
+        "版本" to "バージョン",
+        "源代码" to "ソースコード",
+        "许可证" to "ライセンス",
+        "帮助与支持" to "ヘルプとサポート",
         "自定义" to "カスタマイズ",
         "关于 {0}，我能帮你做些什么？" to "{0} について、何をお手伝いしましょうか？",
         "搜索项目" to "プロジェクトを検索",
@@ -462,6 +472,11 @@ object I18n {
     )
 
     private val en = mapOf(
+        "关于" to "About",
+        "版本" to "Version",
+        "源代码" to "Source code",
+        "许可证" to "License",
+        "帮助与支持" to "Help & support",
         "自定义" to "Customize",
         "关于 {0}，我能帮你做些什么？" to "How can I help with {0}?",
         "搜索项目" to "Search projects",

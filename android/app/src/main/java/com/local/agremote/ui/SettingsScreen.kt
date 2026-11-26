@@ -61,6 +61,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.Box
 import com.local.agremote.AppViewModel
 import com.local.agremote.Conversation
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -115,7 +120,8 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
 
     Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
         AppTopBar(title, onBack = { if (page == startPage) onBack() else page = startPage }) {
-            if (page == "main" || page == "usage") IconButton(onClick = { vm.loadAccount(); vm.refreshList() }) { Icon(Icons.Rounded.Refresh, tr("刷新")) }
+            if (page == "usage") IconButton(onClick = { vm.loadAccount() }) { Icon(Icons.Rounded.Refresh, tr("刷新")) }
+            if (page == "main") AboutMenu()
         }
     }) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -481,5 +487,35 @@ private fun NotifySettings(vm: AppViewModel) {
         }
         Text(tr("为了锁屏后也能收到，请在系统设置里把本 App 的省电策略设为“无限制”，并允许自启动。"), Modifier.padding(horizontal = 6.dp),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private const val REPO = "https://github.com/GXGLoveYoimiya/AGRemote"
+
+/** 设置页右上角的“关于”菜单（照 Claude）：版本号、源代码、许可证、帮助与支持。 */
+@Composable
+private fun AboutMenu() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var open by remember { mutableStateOf(false) }
+    val version = remember {
+        runCatching {
+            val pi = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
+            "${pi.versionName} (${androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(pi)})"
+        }.getOrDefault("")
+    }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Outlined.Info, tr("关于")) }
+        DropdownMenu(open, { open = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
+            DropdownMenuItem(text = { Text(tr("版本") + " " + version) }, onClick = {}, enabled = false,
+                colors = androidx.compose.material3.MenuDefaults.itemColors(disabledTextColor = MaterialTheme.colorScheme.onSurface))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+            listOf(tr("源代码") to REPO, tr("许可证") + " · GPL-3.0" to "$REPO/blob/main/LICENSE").forEach { (label, url) ->
+                DropdownMenuItem(text = { Text(label) }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
+                    onClick = { open = false; openWebLink(ctx, url) })
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+            DropdownMenuItem(text = { Text(tr("帮助与支持")) }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
+                onClick = { open = false; openWebLink(ctx, "$REPO/issues") })
+        }
     }
 }
