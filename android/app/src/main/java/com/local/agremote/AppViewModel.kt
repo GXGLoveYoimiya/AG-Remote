@@ -902,6 +902,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** 浏览器首页里删掉的“当前对话中的链接”（这次打开 App 期间不再显示）。 */
+    private val _hiddenLinks = MutableStateFlow<Set<String>>(emptySet())
+    val hiddenLinks = _hiddenLinks.asStateFlow()
+    fun hideLink(url: String) { _hiddenLinks.value = _hiddenLinks.value + url }
+
     /** 静默刷新额度（顶栏的 5 小时额度圆环用），失败不提示。 */
     fun refreshQuota() {
         viewModelScope.launch { runCatching { api.account() }.onSuccess { _account.value = it } }

@@ -1,5 +1,10 @@
 package com.local.agremote.ui
 
+import kotlinx.coroutines.launch
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
@@ -404,45 +409,11 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
             val isFreeActive = showPicker || (cfg.colorMode == "custom" && !isPreset)
             CardBox {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(
-                    onClick = { showPicker = false; onChange(cfg.copy(colorMode = "system")) },
-                    color = if (isSys) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(12.dp),
-                    border = if (isSys) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Row(
-                        Modifier.padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp),
-                            tint = if (isSys) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(6.dp))
-                        Text(tr("系统"), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            color = if (isSys) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                    }
+                ColorModePill(Icons.Rounded.AutoAwesome, tr("系统"), isSys, Modifier.weight(1f)) {
+                    showPicker = false; onChange(cfg.copy(colorMode = "system"))
                 }
-                Surface(
-                    onClick = { showPicker = !showPicker },
-                    color = if (isFreeActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(12.dp),
-                    border = if (isFreeActive) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Rounded.Palette, null, Modifier.size(16.dp),
-                            tint = if (isFreeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (showPicker) tr("收回调色") else tr("自由调色"), style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            color = if (isFreeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                    }
+                ColorModePill(Icons.Rounded.Palette, if (showPicker) tr("收回调色") else tr("自由调色"), isFreeActive, Modifier.weight(1f)) {
+                    showPicker = !showPicker
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -566,58 +537,43 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onSave: (Int) 
         )
     }
 
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // 彩虹色相滑条
-            Text(tr("色相"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(30.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(hueBrush)
-                    .pointerInput(Unit) {
-                        detectTapGestures { off ->
-                            h = (off.x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f) * 360f
-                            syncHex()
-                        }
-                    }
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures { ch, _ ->
-                            ch.consume()
-                            h = (ch.position.x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f) * 360f
-                            syncHex()
-                        }
-                    },
-            ) {
-                Canvas(Modifier.fillMaxSize()) {
-                    val cx = (h / 360f).coerceIn(0f, 1f) * size.width
-                    val cy = size.height / 2f
-                    drawCircle(Color.White, radius = 11.dp.toPx(), center = Offset(cx, cy))
-                    drawCircle(preview, radius = 8.dp.toPx(), center = Offset(cx, cy))
+    val bottomPart = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+        // 色相：彩虹条，圆形把手
+        Text(tr("色相"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(
+            Modifier.fillMaxWidth().height(28.dp).clip(RoundedCornerShape(14.dp)).background(hueBrush)
+                .pointerInput(Unit) {
+                    detectTapGestures { off -> h = (off.x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f) * 360f; syncHex() }
                 }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures { ch, _ ->
+                        ch.consume(); h = (ch.position.x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f) * 360f; syncHex()
+                    }
+                },
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val r = size.height / 2f
+                val cx = ((h / 360f).coerceIn(0f, 1f) * size.width).coerceIn(r, size.width - r)
+                drawCircle(Color.White, radius = r - 2.dp.toPx(), center = Offset(cx, r))
+                drawCircle(preview, radius = r - 5.dp.toPx(), center = Offset(cx, r))
             }
-
-            // 饱和度
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("饱和度"), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                AppSlider(value = s, onValueChange = { s = it; syncHex() }, valueRange = 0f..1f, modifier = Modifier.weight(1f), color = preview)
-            }
-
-            // 明度
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("亮度"), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                AppSlider(value = v, onValueChange = { v = it; syncHex() }, valueRange = 0.15f..1f, modifier = Modifier.weight(1f), color = preview)
-            }
-
-            // 预览色块 + HEX 输入
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(preview)
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp)))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(tr("饱和度"), Modifier.width(56.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppSlider(value = s, onValueChange = { s = it; syncHex() }, valueRange = 0f..1f, modifier = Modifier.weight(1f), color = preview)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(tr("亮度"), Modifier.width(56.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppSlider(value = v, onValueChange = { v = it; syncHex() }, valueRange = 0.15f..1f, modifier = Modifier.weight(1f), color = preview)
+        }
+        Column(Modifier.bringIntoViewRequester(bottomPart), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // 预览色块 + HEX（# 固定）
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(preview)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp)))
                 OutlinedTextField(
                     value = hex,
                     onValueChange = { raw ->
@@ -632,24 +588,45 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onSave: (Int) 
                         }
                     },
                     singleLine = true,
-                    prefix = { Text("#") }, // 固定的 #，删不掉
+                    prefix = { Text("#") },
                     label = { Text(tr("自定义色值 (HEX)")) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).onFocusChanged { f ->
+                        // 键盘弹起后，把输入框和下面的按钮一起滚到键盘上方，留出空隙
+                        if (f.isFocused) scope.launch { kotlinx.coroutines.delay(350); bottomPart.bringIntoView() }
+                    },
                 )
             }
-
-            // 取消 / 使用；下面一行“保存到我的配色”
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text(tr("取消")) }
-                Button(
-                    onClick = { onConfirm(previewArgb) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = preview, contentColor = bestOnColor(preview)),
-                ) { Text(tr("使用")) }
+                FilledTonalButton(onClick = onCancel, modifier = Modifier.weight(1f).height(44.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface)) { Text(tr("取消")) }
+                Button(onClick = { onConfirm(previewArgb) }, modifier = Modifier.weight(1f).height(44.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = preview, contentColor = bestOnColor(preview))) { Text(tr("使用")) }
             }
-            OutlinedButton(onClick = { onSave(previewArgb) }, modifier = Modifier.fillMaxWidth()) {
+            FilledTonalButton(onClick = { onSave(previewArgb) }, modifier = Modifier.fillMaxWidth().height(44.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface)) {
                 Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("保存到我的配色"))
             }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+/** 配色方式的胶囊按钮：选中浅灰底，没选中白底细边。 */
+@Composable
+private fun ColorModePill(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick, shape = RoundedCornerShape(50),
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else sheetCardColor(),
+        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.height(44.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
     }
 }

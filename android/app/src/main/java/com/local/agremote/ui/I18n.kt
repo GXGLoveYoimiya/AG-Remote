@@ -115,6 +115,8 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "新建标签页" to "新增分頁",
+        "翻译此页" to "翻譯此頁",
         "每小时第" to "每小時第",
         "分" to "分",
         "晴空蓝" to "晴空藍",
@@ -395,6 +397,8 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "新建标签页" to "新しいタブ",
+        "翻译此页" to "このページを翻訳",
         "每小时第" to "毎時",
         "分" to "分",
         "晴空蓝" to "スカイブルー",
@@ -652,6 +656,8 @@ object I18n {
     )
 
     private val en = mapOf(
+        "新建标签页" to "New tab",
+        "翻译此页" to "Translate page",
         "每小时第" to "Every hour at",
         "分" to "min",
         "晴空蓝" to "Sky Blue",
@@ -909,6 +915,8 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "新建标签页" to "새 탭",
+        "翻译此页" to "이 페이지 번역",
         "每小时第" to "매시",
         "分" to "분",
         "晴空蓝" to "하늘색",
@@ -1183,6 +1191,8 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "新建标签页" to "Nueva pestaña",
+        "翻译此页" to "Traducir página",
         "每小时第" to "Cada hora en",
         "分" to "min",
         "晴空蓝" to "Azul cielo",
@@ -1464,6 +1474,8 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "新建标签页" to "Nouvel onglet",
+        "翻译此页" to "Traduire la page",
         "每小时第" to "Chaque heure à",
         "分" to "min",
         "晴空蓝" to "Bleu ciel",
@@ -1745,6 +1757,8 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "新建标签页" to "Neuer Tab",
+        "翻译此页" to "Seite übersetzen",
         "每小时第" to "Jede Stunde um",
         "分" to "Min.",
         "晴空蓝" to "Himmelblau",
@@ -2026,6 +2040,8 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "新建标签页" to "Новая вкладка",
+        "翻译此页" to "Перевести страницу",
         "每小时第" to "Каждый час в",
         "分" to "мин",
         "晴空蓝" to "Небесный",
@@ -2307,6 +2323,8 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "新建标签页" to "Nova aba",
+        "翻译此页" to "Traduzir página",
         "每小时第" to "A cada hora em",
         "分" to "min",
         "晴空蓝" to "Azul-céu",

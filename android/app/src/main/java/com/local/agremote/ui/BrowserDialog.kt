@@ -1,5 +1,7 @@
 package com.local.agremote.ui
 
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -356,6 +358,18 @@ fun BrowserDialog(
         }
     }
 
+    val hiddenLinks by vm.hiddenLinks.collectAsState()
+
+    /** 新建标签页：回到浏览器首页，下一个打开的网址会开成新的标签页。 */
+    fun newTab() {
+        activeTabId = ""
+        activeUrl = ""
+        urlInput = ""
+        webError = null
+        webEverMounted = true
+        viewMode = "web"
+    }
+
     fun openUrl(raw: String, manual: Boolean = true, tabId: String = "") {
         val u = normalizeUrl(raw, vm.prefs.host)
         if (u.isBlank()) return
@@ -533,7 +547,20 @@ fun BrowserDialog(
                                 onClick = { topMenu = false; livePaused = !livePaused })
                             DropdownMenuItem(text = { Text(tr("刷新画面")) }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
                                 onClick = { topMenu = false; liveTick++ })
+                            DropdownMenuItem(text = { Text(tr("新建标签页")) }, leadingIcon = { Icon(Icons.Rounded.Add, null) },
+                                onClick = { topMenu = false; newTab() })
                         } else {
+                            DropdownMenuItem(text = { Text(tr("新建标签页")) }, leadingIcon = { Icon(Icons.Rounded.Add, null) },
+                                onClick = { topMenu = false; newTab() })
+                            if (activeUrl.isNotBlank() && !activeUrl.contains("translate.goog") && !activeUrl.contains("translate.google.")) {
+                                DropdownMenuItem(text = { Text(tr("翻译此页")) }, leadingIcon = { Icon(Icons.Rounded.Translate, null) },
+                                    onClick = {
+                                        topMenu = false
+                                        // 用谷歌翻译打开当前网页（走电脑网络），翻成界面语言
+                                        val lang = when (val l = I18n.currentLang) { "zh-HK" -> "zh-TW"; else -> l }
+                                        openUrl("https://translate.google.com/translate?sl=auto&tl=$lang&u=" + java.net.URLEncoder.encode(activeUrl, "UTF-8"))
+                                    })
+                            }
                             if (activeUrl.isNotBlank()) {
                                 DropdownMenuItem(text = { Text(if (loading) tr("停止加载") else tr("刷新")) },
                                     leadingIcon = { Icon(if (loading) Icons.Rounded.Close else Icons.Rounded.Refresh, null) },
@@ -629,7 +656,8 @@ fun BrowserDialog(
                                 BrowserSyncHome(
                                     pcTabs = pcData.tabs,
                                     otherPcTabs = pcData.otherTabs,
-                                    quickLinks = quickLinks,
+                                    quickLinks = quickLinks.filter { it !in hiddenLinks },
+                                    onRemoveLink = { vm.hideLink(it) },
                                     syncing = pcLoading,
                                     onOpen = { openUrl(it) },
                                     onCloseTab = { t -> vm.closeBrowserTab(t, chatId) },
@@ -1643,6 +1671,7 @@ private fun BrowserSyncHome(
     syncing: Boolean,
     onOpen: (String) -> Unit,
     onCloseTab: (BrowserTab) -> Unit,
+    onRemoveLink: (String) -> Unit = {},
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1693,11 +1722,14 @@ private fun BrowserSyncHome(
             CardGroup {
                 quickLinks.take(8).forEachIndexed { i, u ->
                     if (i > 0) CardDivider()
-                    Row(Modifier.fillMaxWidth().clickable { onOpen(u) }.padding(horizontal = 16.dp, vertical = 13.dp),
+                    Row(Modifier.fillMaxWidth().clickable { onOpen(u) }.padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.Link, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(14.dp))
-                        Text(u, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(u, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        IconButton(onClick = { onRemoveLink(u) }) {
+                            Icon(Icons.Rounded.Close, tr("删除"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }

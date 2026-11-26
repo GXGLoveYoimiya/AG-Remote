@@ -132,10 +132,12 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
 
     Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
         AppTopBar(tr("自定义"), onBack = onBack) {
-                androidx.compose.material3.FilledTonalIconToggleButton(checked = translateOn, onCheckedChange = { translateOn = it },
-                    colors = androidx.compose.material3.IconButtonDefaults.filledTonalIconToggleButtonColors(
-                        containerColor = androidx.compose.ui.graphics.Color.Transparent)) {
-                    Icon(Icons.Rounded.Translate, if (translateOn) tr("显示原文") else tr("Google 翻译"))
+                TextButton(onClick = { translateOn = !translateOn }) {
+                    Icon(Icons.Rounded.Translate, null, Modifier.size(18.dp),
+                        tint = if (translateOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(4.dp))
+                    Text(if (translateOn) tr("显示原文") else tr("Google 翻译"), maxLines = 1, softWrap = false,
+                        color = if (translateOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
         }
     }) { pad ->
