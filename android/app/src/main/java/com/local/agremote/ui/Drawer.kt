@@ -78,6 +78,8 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material.icons.rounded.SpaceDashboard
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.graphics.asImageBitmap
 import com.local.agremote.AppViewModel
 import com.local.agremote.Conversation
 
@@ -94,6 +96,8 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
     val activeHostId by vm.activeHostId.collectAsState()
     val activeHost = hosts.find { it.id == activeHostId } ?: hosts.firstOrNull()
     var pickHostMenu by remember { mutableStateOf(false) }
+    val avatar by vm.avatar.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(link) { if (avatar == null && link == com.local.agremote.Link.Online) vm.loadAvatar() }
 
     ModalDrawerSheet(Modifier.fillMaxHeight().width(316.dp), drawerContainerColor = MaterialTheme.colorScheme.surface) {
         // 顶部：标题 + 命令面板；下面一行是连接状态和当前电脑
@@ -133,7 +137,8 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                 }
             }
         }
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 80.dp)) {
             item {
                 DrawerRow(Icons.Outlined.Inventory2, tr("项目")) { onOpen("projects"); onClose() }
                 DrawerRow(Icons.Rounded.Extension, tr("自定义")) { onOpen("customizations"); onClose() }
@@ -152,21 +157,27 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                 Text(tr("还没有对话"), Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        // 底部：设置 + 新建对话
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            FilledTonalIconButton(onClick = { onOpen("settings"); onClose() }, modifier = Modifier.size(42.dp),
-                colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
-                Icon(Icons.Rounded.Settings, tr("设置"))
+        // 底部：设置 + 新建对话，悬浮在列表上（带阴影，列表从下面滑过）
+        Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Surface(onClick = { onOpen("settings"); onClose() }, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                shadowElevation = 6.dp, modifier = Modifier.size(46.dp)) {
+                val av = avatar
+                if (av != null) androidx.compose.foundation.Image(av.asImageBitmap(), tr("设置"),
+                    Modifier.fillMaxSize().clip(CircleShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                else Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Settings, tr("设置")) }
             }
             Spacer(Modifier.weight(1f))
             // 新建对话：右下角一颗小胶囊（照 Claude）
-            Button(onClick = { vm.newChat(); onClose() }, modifier = Modifier.height(42.dp),
-                contentPadding = PaddingValues(start = 14.dp, end = 18.dp),
+            Button(onClick = { vm.newChat(); onClose() }, modifier = Modifier.height(46.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 20.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp, pressedElevation = 3.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
                 Icon(Icons.Rounded.EditNote, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(tr("新建对话"), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+        }
         }
     }
 }

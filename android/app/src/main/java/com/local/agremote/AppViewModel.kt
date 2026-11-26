@@ -814,6 +814,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** 账号头像（侧边栏左下角，点开是设置）。 */
+    private val _avatar = MutableStateFlow<android.graphics.Bitmap?>(null)
+    val avatar = _avatar.asStateFlow()
+    fun loadAvatar() {
+        viewModelScope.launch {
+            runCatching { api.avatar() }.getOrNull()?.let { b ->
+                withContext(Dispatchers.Default) { android.graphics.BitmapFactory.decodeByteArray(b, 0, b.size) }?.let { _avatar.value = it }
+            }
+        }
+    }
+
     /** 静默刷新额度（顶栏的 5 小时额度圆环用），失败不提示。 */
     fun refreshQuota() {
         viewModelScope.launch { runCatching { api.account() }.onSuccess { _account.value = it } }

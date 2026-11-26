@@ -663,6 +663,11 @@ class Api(private val prefs: Prefs) {
         }
     }
 
+    /** Antigravity 账号头像（没有时返回 null）。 */
+    suspend fun avatar(): ByteArray? = withContext(Dispatchers.IO) {
+        client.newCall(req("/api/avatar").build()).execute().use { r -> if (r.isSuccessful) r.body.bytes() else null }
+    }
+
     // ---------- 自定义扩展 ----------
     suspend fun customizations(): List<Customization> {
         val a = call(req("/api/customizations").build()).optJSONArray("items") ?: JSONArray()

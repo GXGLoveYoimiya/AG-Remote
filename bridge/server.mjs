@@ -2251,6 +2251,20 @@ async function dl(){
       log(`删除插件 ${b.id}`);
       return send(res, 200, { ok: true });
     }
+    // 账号头像：Antigravity 的 profilePictureUrl（一般是 data: 图片，也可能是 https 地址）
+    if (path === '/api/avatar') {
+      const pic = String((await rpc('GetUserStatus', {})).userStatus?.profilePictureUrl || '');
+      let type = '', data = null;
+      const m = /^data:(image\/[\w.+-]+);base64,(.+)$/s.exec(pic);
+      if (m) { type = m[1]; data = Buffer.from(m[2], 'base64'); }
+      else if (/^https:\/\//.test(pic)) {
+        const r = await pcFetch(pic, { timeoutMs: 15000 });
+        if (r.ok && /^image\//.test(r.contentType || '')) { type = r.contentType; data = r.data; }
+      }
+      if (!data) return send(res, 404, { error: 'no avatar' });
+      res.writeHead(200, { 'Content-Type': type, 'Content-Length': data.length, 'Cache-Control': 'max-age=3600' });
+      return res.end(data);
+    }
     // 插件图标：由电脑去取（走电脑网络 + 系统代理），只允许 https 图片
     if (path === '/api/logo') {
       const u = String(url.searchParams.get('u') || '');
