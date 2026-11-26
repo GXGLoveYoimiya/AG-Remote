@@ -493,13 +493,60 @@ private fun MarkwonText(text: String, modifier: Modifier = Modifier, sizeSp: Flo
             tv.setTextColor(fg)
             tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
             if (tv.tag != processed) {
-                markwon.setMarkdown(tv, processed)
+                markwon.setParsedMarkdown(tv, alignInlineMath(markwon, markwon.toMarkdown(processed)))
                 tv.tag = processed
             }
         },
     )
 }
 
+
+/**
+ * 行内公式对齐：公式插件把公式的中心对在文字基线上（看起来往下掉半格），还会改这一行的行高。
+ * 换成 [InlineMathSpan]：公式中心对准这一行文字的中线，只有公式比字高时才撑开行距。
+ */
+private fun alignInlineMath(markwon: Markwon, src: android.text.Spanned): android.text.Spanned {
+    val spans = src.getSpans(0, src.length, io.noties.markwon.ext.latex.JLatexAsyncDrawableSpan::class.java)
+        .filter { it.javaClass != io.noties.markwon.ext.latex.JLatexAsyncDrawableSpan::class.java } // 子类 = 行内公式；本类 = 公式块
+    if (spans.isEmpty()) return src
+    val out = android.text.SpannableStringBuilder(src)
+    val theme = markwon.configuration().theme()
+    for (s in spans) {
+        val st = out.getSpanStart(s); val en = out.getSpanEnd(s); val fl = out.getSpanFlags(s)
+        out.removeSpan(s)
+        out.setSpan(InlineMathSpan(theme, s.drawable), st, en, fl)
+    }
+    return out
+}
+
+private class InlineMathSpan(theme: io.noties.markwon.core.MarkwonTheme, private val d: io.noties.markwon.image.AsyncDrawable) :
+    io.noties.markwon.image.AsyncDrawableSpan(theme, d, ALIGN_CENTER, false) {
+
+    override fun getSize(paint: android.graphics.Paint, text: CharSequence?, start: Int, end: Int, fm: android.graphics.Paint.FontMetricsInt?): Int {
+        if (!d.hasResult()) return (paint.measureText(text, start, end) + 0.5f).toInt()
+        val b = d.bounds
+        if (fm != null) {
+            val p = paint.fontMetricsInt
+            val center = (p.ascent + p.descent) / 2
+            val top = center - b.height() / 2
+            val bottom = top + b.height()
+            fm.ascent = minOf(p.ascent, top); fm.top = minOf(p.top, top)
+            fm.descent = maxOf(p.descent, bottom); fm.bottom = maxOf(p.bottom, bottom)
+        }
+        return b.right
+    }
+
+    override fun draw(canvas: android.graphics.Canvas, text: CharSequence?, start: Int, end: Int, x: Float,
+                      top: Int, y: Int, bottom: Int, paint: android.graphics.Paint) {
+        if (!d.hasResult()) return
+        val p = paint.fontMetricsInt
+        val center = y + (p.ascent + p.descent) / 2f
+        val save = canvas.save()
+        canvas.translate(x, center - d.bounds.height() / 2f)
+        d.draw(canvas)
+        canvas.restoreToCount(save)
+    }
+}
 
 /**
  * 把模型常用的几种公式写法统一成 Markwon 公式插件认识的格式：

@@ -1493,6 +1493,20 @@ function i18nTable() {
 // ---------------- 谷歌翻译（走电脑网络 + 系统代理） ----------------
 const trCache = new Map();
 const trInflight = new Map();
+// 插件简介、技能说明这类基本不变的译文存到硬盘，电脑重启后也不用再翻（思考过程这类一次性的不存）
+const TR_FILE = join(DATA, 'translations.json');
+let trDisk = {};
+try { trDisk = JSON.parse(readFileSync(TR_FILE, 'utf8')) || {}; } catch {}
+let trSaveTimer = null;
+function trRemember(key, val) {
+  trDisk[key] = val;
+  clearTimeout(trSaveTimer);
+  trSaveTimer = setTimeout(() => {
+    const keys = Object.keys(trDisk);
+    if (keys.length > 20000) for (const k of keys.slice(0, keys.length - 20000)) delete trDisk[k];
+    try { writeFileSync(TR_FILE, JSON.stringify(trDisk)); } catch (e) { log('保存译文失败', e.message); }
+  }, 3000);
+}
 const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36';
 let trActive = 0;
 const trQueue = [];
@@ -1607,9 +1621,10 @@ async function translateOne(q, to) {
   });
 }
 
-async function translate(text, to = 'zh-CN') {
+async function translate(text, to = 'zh-CN', keep = false) {
   const key = to + '\n' + text;
-  if (trCache.has(key)) return trCache.get(key);
+  if (trDisk[key] !== undefined) return trDisk[key];
+  if (trCache.has(key)) { if (keep) trRemember(key, trCache.get(key)); return trCache.get(key); }
   if (trInflight.has(key)) return trInflight.get(key);
   const p = (async () => {
     // 太长就按段落切开分批翻
@@ -1625,6 +1640,7 @@ async function translate(text, to = 'zh-CN') {
     const res = out.join('\n');
     if (trCache.size > 2000) trCache.clear();
     trCache.set(key, res);
+    if (keep && res) trRemember(key, res);
     return res;
   })().finally(() => trInflight.delete(key));
   trInflight.set(key, p);
@@ -2084,6 +2100,15 @@ async function dl(){
     }
     if (path === '/api/conversations' && req.method === 'GET') return send(res, 200, { conversations: await listConversations() });
     if (path === '/api/models') return send(res, 200, await listModels());
+    // 批量翻译不常变的内容（插件简介、技能说明…），译文会存到硬盘
+    if (path === '/api/translate/many' && req.method === 'POST') {
+      const b = await readBody(req);
+      const to = String(b.to || 'zh-CN');
+      const texts = [...new Set((Array.isArray(b.texts) ? b.texts : []).map(String).filter(Boolean))].slice(0, 500);
+      const map = {};
+      await Promise.all(texts.map(async x => { try { map[x] = await translate(x, to, true); } catch {} }));
+      return send(res, 200, { map });
+    }
     if (path === '/api/translate' && req.method === 'POST') {
       const b = await readBody(req);
       return send(res, 200, { text: await translate(String(b.text || ''), String(b.to || 'zh-CN')) });

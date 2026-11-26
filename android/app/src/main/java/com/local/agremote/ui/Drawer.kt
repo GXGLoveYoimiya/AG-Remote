@@ -70,7 +70,6 @@ import androidx.compose.material.icons.rounded.KeyboardCommandKey
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -229,12 +228,13 @@ private fun ConvItem(vm: AppViewModel, c: Conversation, selected: Boolean, onCli
             .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); menu = true })
             .padding(start = 12.dp, end = 12.dp, top = 11.dp, bottom = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Rounded.Chat, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.width(14.dp))
             Text(c.title, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (c.unread) FontWeight.SemiBold else FontWeight.Normal)
             Spacer(Modifier.width(8.dp))
+            // 右侧：距上次聊天多久（刚刚 / 5 分钟前 / 2 小时前…），后面跟状态标记
+            Text(relTime(c.updated), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            if (c.waiting || isRunning(c.status) || c.unread || c.pinned) Spacer(Modifier.width(8.dp))
             when {
                 c.waiting -> Icon(Icons.Rounded.TouchApp, "等待确认", Modifier.size(16.dp), tint = Amber)
                 running -> StatusDot(true)

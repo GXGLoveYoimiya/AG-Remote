@@ -156,7 +156,7 @@ private fun decodeFavicon(dataUrl: String): Bitmap? {
 
 /**
  * 与电脑 Antigravity 内置浏览器同步的全屏浏览器：
- * - 「电脑实况」模式（点右上角地球图标默认进入）：实时同步电脑 Antigravity 客户端内置浏览器的真实画面（含 Gemini 操作过程、登录态与页面变化），支持双指缩放与切换右侧浏览器/全窗口，并附带 Gemini 浏览器动态与截图；
+ * - 「电脑实况」模式（点右上角地球图标默认进入）：实时同步电脑 Antigravity 客户端内置浏览器的真实画面（含 Gemini 操作过程、登录态与页面变化），支持双指缩放，并附带 Gemini 浏览器动态与截图；
  * - 「网页浏览」模式（点消息里的网页链接默认进入，也可随时一键切换）：走电脑网络的交互式 WebView，导航栏置于上方，强制跟随 App 浅色/深色主题。
  */
 @SuppressLint("SetJavaScriptEnabled")
@@ -182,7 +182,7 @@ fun BrowserDialog(
     LaunchedEffect(viewMode) { if (viewMode == "web") webEverMounted = true }
 
     // 「电脑实况」状态（默认截取实时电脑屏幕 + 默认开启虚拟鼠标操控）
-    var captureCrop by remember { mutableStateOf("screen") } // screen(实时电脑画面) / pane(仅右侧浏览器)
+    val captureCrop = "screen" // 始终显示整个电脑屏幕
     var controlMode by remember { mutableStateOf("mouse") } // mouse(鼠标操控) / touch(直接触控) / view(仅查看)
     var livePaused by remember { mutableStateOf(false) }
     var liveFrame by remember { mutableStateOf<Bitmap?>(null) }
@@ -877,7 +877,7 @@ fun BrowserDialog(
                 // 2) 电脑实况层（覆盖在 WebView 上方，切换时瞬间显隐零闪烁）
                 if (viewMode == "live") {
                     Column(Modifier.fillMaxSize().zIndex(3f).background(surfaceColor)) {
-                // 「电脑实况」顶部控制条：触控操控开关 + 全窗口/右侧浏览器 + 实时状态点
+                // 「电脑实况」顶部控制条：触控操控开关 + 实时状态点
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 2.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -902,18 +902,6 @@ fun BrowserDialog(
                         label = {
                             Text(when (controlMode) { "mouse" -> tr("鼠标操控"); "touch" -> tr("直接触控"); else -> tr("仅查看") })
                         },
-                    )
-                    FilterChip(
-                        selected = captureCrop == "screen",
-                        onClick = { captureCrop = "screen"; scale = 1f; offset = Offset.Zero; liveTick++ },
-                        leadingIcon = { Icon(Icons.Rounded.Computer, null, Modifier.size(16.dp)) },
-                        label = { Text(tr("电脑屏幕")) },
-                    )
-                    FilterChip(
-                        selected = captureCrop == "pane",
-                        onClick = { captureCrop = "pane"; scale = 1f; offset = Offset.Zero; liveTick++ },
-                        leadingIcon = { Icon(Icons.Rounded.Web, null, Modifier.size(16.dp)) },
-                        label = { Text(tr("右侧浏览器")) },
                     )
                     if (controlMode == "mouse") {
                         FilterChip(

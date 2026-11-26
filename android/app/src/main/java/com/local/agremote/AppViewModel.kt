@@ -466,6 +466,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { runCatching { api.skills() }.onSuccess { _skills.value = it } }
         viewModelScope.launch { runCatching { api.mcpServers() }.onSuccess { _mcp.value = it }.onFailure { _mcp.value = emptyList() } }
     }
+    /**
+     * 提前把插件简介、分类、技能说明这些基本不变的内容翻译好并存下来（思考过程除外），
+     * 打开“自定义”页、点翻译时直接显示，不用现等谷歌翻译。
+     */
+    private suspend fun prefetchTranslations() {
+        val lang = com.local.agremote.ui.I18n.currentLang
+        val m = marketAll ?: runCatching { api.market("") }.getOrNull()?.also { marketAll = it; if (_market.value == null) _market.value = it }
+        val sk = _skills.value.ifEmpty { runCatching { api.skills() }.getOrNull()?.also { _skills.value = it } ?: emptyList() }
+        val texts = buildList {
+            m?.items?.forEach { add(zh(it.description)) }
+            m?.groups?.forEach { add(zh(it.name)); add(zh(it.description)) }
+            sk.forEach { add(zh(it.description)) }
+        }.filter { t ->
+            // 和页面上的判断一致：目标是英文时翻非英文的，其他语言时翻英文的
+            t.isNotBlank() && (if (lang == "en") !com.local.agremote.ui.needsGoogleTranslate(t) else com.local.agremote.ui.needsGoogleTranslate(t))
+        }
+        runCatching { Translator.prefetch(texts, lang) }
+    }
+
     fun toggleMcp(name: String, enabled: Boolean) {
         viewModelScope.launch {
             runCatching { api.mcpToggle(name, enabled) }.onFailure { _toast.tryEmit("操作失败：" + err(it)) }
@@ -670,7 +689,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refreshList()
         loadModels()
         loadSync()
-        if (_i18n.value.isEmpty()) viewModelScope.launch { runCatching { api.i18n() }.onSuccess { _i18n.value = it } }
+        Translator.init(getApplication<Application>().filesDir)
+        viewModelScope.launch {
+            if (_i18n.value.isEmpty()) runCatching { api.i18n() }.onSuccess { _i18n.value = it }
+            prefetchTranslations()
+        }
         if (_account.value == null) viewModelScope.launch { runCatching { api.account() }.onSuccess { _account.value = it } }
         loadVoiceConfig()
         _chat.value.id?.let { reloadChat(it, full = false) }

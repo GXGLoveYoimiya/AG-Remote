@@ -702,6 +702,12 @@ class Api(private val prefs: Prefs) {
     suspend fun translate(text: String, to: String): String =
         post("/api/translate", JSONObject().put("text", text).put("to", to)).optString("text")
 
+    /** 批量翻译（电脑会把译文存到硬盘），返回 原文 -> 译文。 */
+    suspend fun translateMany(texts: List<String>, to: String): Map<String, String> {
+        val m = post("/api/translate/many", JSONObject().put("texts", JSONArray(texts)).put("to", to)).optJSONObject("map") ?: return emptyMap()
+        return m.keys().asSequence().associateWith { m.optString(it) }
+    }
+
     suspend fun feedback(id: String, stepIndex: Int, vote: Int) {
         post("/api/conversations/$id/feedback", JSONObject().put("stepIndex", stepIndex).put("vote", vote))
     }
