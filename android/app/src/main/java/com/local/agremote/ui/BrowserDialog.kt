@@ -1,5 +1,12 @@
 package com.local.agremote.ui
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.rounded.Translate
@@ -449,6 +456,20 @@ fun BrowserDialog(
         vm.showToast(if (add.isEmpty()) "电脑上没有新的标签页" else "已从电脑复制 ${add.size} 个标签页")
     }
 
+    // 标签页切换页（照 Chrome 的布局，用我们自己的样式）和每个标签页的缩略图
+    var showTabs by remember { mutableStateOf(false) }
+    val thumbs = remember { androidx.compose.runtime.mutableStateMapOf<String, Bitmap>() }
+    fun snapThumb() {
+        val wv = webViewRef ?: return
+        if (activeTabId.isBlank() || wv.width <= 0 || wv.height <= 0) return
+        runCatching {
+            val full = Bitmap.createBitmap(wv.width, wv.height, Bitmap.Config.ARGB_8888)
+            wv.draw(android.graphics.Canvas(full))
+            thumbs[activeTabId] = Bitmap.createScaledBitmap(full, wv.width / 3, wv.height / 3, true)
+            full.recycle()
+        }
+    }
+
     // 网页翻译：取出页面上的文字，交给电脑整批翻译，再替换回页面
     var pageTranslated by remember { mutableStateOf(false) }
     var translating by remember { mutableStateOf(false) }
@@ -489,6 +510,7 @@ fun BrowserDialog(
             val wv = webViewRef
             val pv = popupView
             when {
+                showTabs -> showTabs = false
                 pv != null && pv.canGoBack() -> pv.goBack()
                 pv != null -> popupView = null
                 viewMode == "web" && wv != null && wv.canGoBack() -> wv.goBack()
@@ -528,36 +550,14 @@ fun BrowserDialog(
                         }
                     }
                 }
-                IconButton(onClick = { newTab() }, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 48.dp)) {
-                    Icon(Icons.Rounded.Add, tr("新建标签页"))
-                }
-                Box(Modifier.align(Alignment.CenterEnd)) {
+                if (viewMode == "live") Box(Modifier.align(Alignment.CenterEnd)) {
                     IconButton(onClick = { topMenu = true }) { Icon(Icons.Rounded.MoreHoriz, tr("更多操作")) }
                     DropdownMenu(topMenu, { topMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
-                        if (viewMode == "live") {
-                            DropdownMenuItem(text = { Text(if (livePaused) tr("继续实时同步") else tr("暂停同步")) },
-                                leadingIcon = { Icon(if (livePaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, null) },
-                                onClick = { topMenu = false; livePaused = !livePaused })
-                            DropdownMenuItem(text = { Text(tr("刷新画面")) }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
-                                onClick = { topMenu = false; liveTick++ })
-                        } else {
-                            if (activeUrl.isNotBlank()) {
-                                DropdownMenuItem(text = { Text(if (pageTranslated) tr("显示原文") else tr("翻译此页")) },
-                                    leadingIcon = { Icon(Icons.Rounded.Translate, null) }, enabled = !translating,
-                                    onClick = { topMenu = false; if (pageTranslated) showOriginal() else translatePage() })
-                            }
-                            if (activeUrl.isNotBlank()) {
-                                DropdownMenuItem(text = { Text(if (loading) tr("停止加载") else tr("刷新")) },
-                                    leadingIcon = { Icon(if (loading) Icons.Rounded.Close else Icons.Rounded.Refresh, null) },
-                                    onClick = { topMenu = false; if (loading) webViewRef?.stopLoading() else webViewRef?.reload() })
-                                DropdownMenuItem(text = { Text(tr("复制网址")) }, leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) },
-                                    onClick = { topMenu = false; vm.copy(activeUrl, "已复制网址") })
-                                DropdownMenuItem(text = { Text(tr("在外部浏览器打开")) }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
-                                    onClick = { topMenu = false; openWebLink(ctx, activeUrl) })
-                            }
-                            DropdownMenuItem(text = { Text(tr("同步电脑标签页")) }, leadingIcon = { Icon(Icons.Rounded.Sync, null) },
-                                onClick = { topMenu = false; importPcTabs = true; vm.refreshBrowserTabs(chatId) })
-                        }
+                        DropdownMenuItem(text = { Text(if (livePaused) tr("继续实时同步") else tr("暂停同步")) },
+                            leadingIcon = { Icon(if (livePaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, null) },
+                            onClick = { topMenu = false; livePaused = !livePaused })
+                        DropdownMenuItem(text = { Text(tr("刷新画面")) }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
+                            onClick = { topMenu = false; liveTick++ })
                     }
                 }
             }
@@ -573,15 +573,12 @@ fun BrowserDialog(
                             .graphicsLayer { alpha = if (viewMode == "web") 1f else 0f }
                             .background(surfaceColor),
                     ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 2.dp, bottom = 6.dp),
+                        if (!showTabs) Row(
+                            Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            IconButton(onClick = { webViewRef?.goBack() }, enabled = canBack, modifier = Modifier.size(40.dp)) {
-                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, tr("后退"), Modifier.size(20.dp))
-                            }
-                            IconButton(onClick = { webViewRef?.goForward() }, enabled = canForward, modifier = Modifier.size(40.dp)) {
-                                Icon(Icons.AutoMirrored.Rounded.ArrowForward, tr("前进"), Modifier.size(20.dp))
+                            IconButton(onClick = { snapThumb(); newTab() }, modifier = Modifier.size(44.dp)) {
+                                Icon(Icons.Rounded.Home, tr("主页"))
                             }
                             Surface(
                                 shape = RoundedCornerShape(50),
@@ -617,26 +614,69 @@ fun BrowserDialog(
                                     }
                                 }
                             }
+                            // 翻译：翻过后图标亮起，再点显示原文
+                            IconButton(onClick = { if (pageTranslated) showOriginal() else translatePage() },
+                                enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)) {
+                                Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
+                                    tint = if (pageTranslated) accent() else LocalContentColor.current)
+                            }
+                            // 标签页数：点开标签页切换页
+                            IconButton(onClick = { snapThumb(); showTabs = true }, modifier = Modifier.size(44.dp)) {
+                                Box(Modifier.size(22.dp).border(1.8.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(6.dp)),
+                                    contentAlignment = Alignment.Center) {
+                                    Text("${localTabs.size.coerceAtMost(99)}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            // ⋮：上面一排圆形按钮（后退 / 前进 / 刷新），下面几项常用操作
+                            Box {
+                                var webMenu by remember { mutableStateOf(false) }
+                                IconButton(onClick = { webMenu = true }, modifier = Modifier.size(44.dp)) { Icon(Icons.Rounded.MoreVert, tr("更多操作")) }
+                                DropdownMenu(webMenu, { webMenu = false }, shape = RoundedCornerShape(24.dp), containerColor = sheetCardColor()) {
+                                    Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        RoundAction(Icons.AutoMirrored.Rounded.ArrowBack, tr("后退"), canBack) { webMenu = false; webViewRef?.goBack() }
+                                        RoundAction(Icons.AutoMirrored.Rounded.ArrowForward, tr("前进"), canForward) { webMenu = false; webViewRef?.goForward() }
+                                        RoundAction(if (loading) Icons.Rounded.Close else Icons.Rounded.Refresh, if (loading) tr("停止加载") else tr("刷新"),
+                                            activeUrl.isNotBlank()) { webMenu = false; if (loading) webViewRef?.stopLoading() else webViewRef?.reload() }
+                                    }
+                                    HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                                    DropdownMenuItem(text = { Text(tr("新建标签页")) }, leadingIcon = { Icon(Icons.Rounded.Add, null) },
+                                        onClick = { webMenu = false; snapThumb(); newTab() })
+                                    DropdownMenuItem(text = { Text(tr("同步电脑标签页")) }, leadingIcon = { Icon(Icons.Rounded.Sync, null) },
+                                        onClick = { webMenu = false; importPcTabs = true; vm.refreshBrowserTabs(chatId) })
+                                    if (activeUrl.isNotBlank()) {
+                                        HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                                        DropdownMenuItem(text = { Text(tr("复制网址")) }, leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) },
+                                            onClick = { webMenu = false; vm.copy(activeUrl, "已复制网址") })
+                                        DropdownMenuItem(text = { Text(tr("分享")) }, leadingIcon = { Icon(Icons.Rounded.Share, null) },
+                                            onClick = {
+                                                webMenu = false
+                                                val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
+                                                    .putExtra(android.content.Intent.EXTRA_TEXT, activeUrl)
+                                                runCatching { ctx.startActivity(android.content.Intent.createChooser(send, null)) }
+                                            })
+                                        DropdownMenuItem(text = { Text(tr("在外部浏览器打开")) }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
+                                            onClick = { webMenu = false; openWebLink(ctx, activeUrl) })
+                                    }
+                                }
+                            }
                         }
 
-                        if (allSyncedTabs.isNotEmpty()) {
-                            SyncedTabsRow(
-                                tabs = allSyncedTabs,
-                                activeTabId = activeTabId,
-                                activeUrl = activeUrl,
-                                pcHost = vm.prefs.host,
-                                onSelect = { t -> if (t.url.isNotBlank()) openUrl(t.url, tabId = t.id) },
-                                onCloseTab = ::handleCloseTab,
-                            )
-                        }
 
-                        if (activeUrl.isNotBlank() && loading && progress in 1..99) {
+                        if (showTabs) {
+                        } else if (activeUrl.isNotBlank() && loading && progress in 1..99) {
                             LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth().height(2.dp))
                         } else {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                         }
+                        if (showTabs) TabSwitcher(
+                            tabs = localTabs, activeId = activeTabId, thumbs = thumbs,
+                            onNew = { showTabs = false; newTab() },
+                            onSelect = { tab -> showTabs = false; if (tab.id != activeTabId) openUrl(tab.url, tabId = tab.id) },
+                            onClose = { tab -> thumbs.remove(tab.id); handleCloseTab(tab) },
+                            onDismiss = { showTabs = false },
+                        )
 
-                        Box(Modifier.weight(1f).fillMaxWidth().clipToBounds().background(surfaceColor)) {
+                        Box(Modifier.weight(if (showTabs) 0.0001f else 1f).fillMaxWidth().clipToBounds().background(surfaceColor)) {
                             if (activeUrl.isBlank()) {
                                 BrowserSyncHome(
                                     pcTabs = emptyList(),
@@ -972,18 +1012,6 @@ fun BrowserDialog(
                             Text(tr("已暂停"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                }
-
-                // 同步标签栏：点一下即可切到「网页浏览」互动打开该页面，点 × 与电脑同步关闭
-                if (allSyncedTabs.isNotEmpty()) {
-                    SyncedTabsRow(
-                        tabs = allSyncedTabs,
-                        activeTabId = activeTabId,
-                        activeUrl = activeUrl,
-                        pcHost = vm.prefs.host,
-                        onSelect = { t -> if (t.url.isNotBlank()) openUrl(t.url, tabId = t.id) },
-                        onCloseTab = ::handleCloseTab,
-                    )
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
@@ -1585,6 +1613,73 @@ private fun TogglePill(selected: Boolean, onClick: () -> Unit, label: @Composabl
 @Composable
 private fun ToolPill(onClick: () -> Unit, label: @Composable () -> Unit, leadingIcon: (@Composable () -> Unit)? = null) =
     TogglePill(selected = false, onClick = onClick, label = label, leadingIcon = leadingIcon)
+
+/** 菜单最上面那排圆形按钮。 */
+@Composable
+private fun RoundAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+    Surface(onClick = onClick, enabled = enabled, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.size(46.dp)) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, label, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.35f))
+        }
+    }
+}
+
+/** 标签页切换页：上面“新建标签页”，下面两列卡片（标题 + 关闭 + 页面缩略图），当前标签页边框加粗。 */
+@Composable
+private fun ColumnScope.TabSwitcher(
+    tabs: List<BrowserTab>, activeId: String, thumbs: Map<String, Bitmap>,
+    onNew: () -> Unit, onSelect: (BrowserTab) -> Unit, onClose: (BrowserTab) -> Unit, onDismiss: () -> Unit,
+) {
+    Column(Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = onNew, modifier = Modifier.height(42.dp), contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
+                Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("新建标签页"))
+            }
+            Spacer(Modifier.weight(1f))
+            Text(tr("{0} 个标签页", tabs.size), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, tr("关闭")) }
+        }
+        if (tabs.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(tr("还没有标签页"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2), modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(tabs.size, key = { tabs[it].id }) { i ->
+                val tab = tabs[i]
+                val cur = tab.id == activeId
+                Surface(onClick = { onSelect(tab) }, shape = RoundedCornerShape(20.dp), color = sheetCardColor(),
+                    border = BorderStroke(if (cur) 2.dp else 1.dp, if (cur) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)) {
+                    Column {
+                        Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Language, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(6.dp))
+                            Text(tab.title.ifBlank { tab.url }, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            IconButton(onClick = { onClose(tab) }, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Rounded.Close, tr("关闭标签页"), Modifier.size(16.dp))
+                            }
+                        }
+                        Box(Modifier.fillMaxWidth().height(190.dp).padding(start = 6.dp, end = 6.dp, bottom = 6.dp)
+                            .clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow),
+                            contentAlignment = Alignment.Center) {
+                            val th = thumbs[tab.id]
+                            if (th != null) Image(th.asImageBitmap(), null, Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop, alignment = Alignment.TopCenter)
+                            else Text(runCatching { android.net.Uri.parse(tab.url).host ?: tab.url }.getOrElse { tab.url },
+                                Modifier.padding(10.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun SyncedTabsRow(

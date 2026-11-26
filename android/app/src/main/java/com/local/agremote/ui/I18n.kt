@@ -115,6 +115,9 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "主页" to "首頁",
+        "{0} 个标签页" to "{0} 個分頁",
+        "还没有标签页" to "還沒有分頁",
         "这个页面没有可翻译的文字" to "這個頁面沒有可翻譯的文字",
         "电脑上没有新的标签页" to "電腦上沒有新的分頁",
         "正在翻译…" to "正在翻譯…",
@@ -404,6 +407,9 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "主页" to "ホーム",
+        "{0} 个标签页" to "タブ {0} 件",
+        "还没有标签页" to "タブはまだありません",
         "这个页面没有可翻译的文字" to "このページには翻訳する文字がありません",
         "电脑上没有新的标签页" to "PC に新しいタブはありません",
         "正在翻译…" to "翻訳中…",
@@ -670,6 +676,9 @@ object I18n {
     )
 
     private val en = mapOf(
+        "主页" to "Home",
+        "{0} 个标签页" to "{0} tabs",
+        "还没有标签页" to "No tabs yet",
         "这个页面没有可翻译的文字" to "Nothing to translate on this page",
         "电脑上没有新的标签页" to "No new tabs on your PC",
         "正在翻译…" to "Translating…",
@@ -936,6 +945,9 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "主页" to "홈",
+        "{0} 个标签页" to "탭 {0}개",
+        "还没有标签页" to "아직 탭이 없습니다",
         "这个页面没有可翻译的文字" to "이 페이지에는 번역할 텍스트가 없습니다",
         "电脑上没有新的标签页" to "PC에 새 탭이 없습니다",
         "正在翻译…" to "번역 중…",
@@ -1219,6 +1231,9 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "主页" to "Inicio",
+        "{0} 个标签页" to "{0} pestañas",
+        "还没有标签页" to "Aún no hay pestañas",
         "这个页面没有可翻译的文字" to "No hay texto que traducir en esta página",
         "电脑上没有新的标签页" to "No hay pestañas nuevas en el PC",
         "正在翻译…" to "Traduciendo…",
@@ -1509,6 +1524,9 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "主页" to "Accueil",
+        "{0} 个标签页" to "{0} onglets",
+        "还没有标签页" to "Aucun onglet",
         "这个页面没有可翻译的文字" to "Rien à traduire sur cette page",
         "电脑上没有新的标签页" to "Aucun nouvel onglet sur le PC",
         "正在翻译…" to "Traduction…",
@@ -1799,6 +1817,9 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "主页" to "Startseite",
+        "{0} 个标签页" to "{0} Tabs",
+        "还没有标签页" to "Noch keine Tabs",
         "这个页面没有可翻译的文字" to "Auf dieser Seite gibt es nichts zu übersetzen",
         "电脑上没有新的标签页" to "Keine neuen Tabs am PC",
         "正在翻译…" to "Wird übersetzt…",
@@ -2089,6 +2110,9 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "主页" to "Главная",
+        "{0} 个标签页" to "Вкладок: {0}",
+        "还没有标签页" to "Вкладок пока нет",
         "这个页面没有可翻译的文字" to "На странице нечего переводить",
         "电脑上没有新的标签页" to "На ПК нет новых вкладок",
         "正在翻译…" to "Перевод…",
@@ -2379,6 +2403,9 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "主页" to "Início",
+        "{0} 个标签页" to "{0} abas",
+        "还没有标签页" to "Ainda não há abas",
         "这个页面没有可翻译的文字" to "Não há texto para traduzir nesta página",
         "电脑上没有新的标签页" to "Nenhuma aba nova no PC",
         "正在翻译…" to "Traduzindo…",
