@@ -232,6 +232,16 @@ class Prefs(ctx: Context) {
     var votesJson: String
         get() = sp.getString("votes_json", "{}") ?: "{}"
         set(v) = sp.edit().putString("votes_json", v).apply()
+    /** 网页翻译偏好：一律翻译的语言、一律不翻译的语言、一律不翻译的网站（逗号分隔）。 */
+    var trAutoLangs: Set<String>
+        get() = (sp.getString("tr_auto_langs", "") ?: "").split(',').filter { it.isNotBlank() }.toSet()
+        set(v) = sp.edit().putString("tr_auto_langs", v.joinToString(",")).apply()
+    var trNeverLangs: Set<String>
+        get() = (sp.getString("tr_never_langs", "") ?: "").split(',').filter { it.isNotBlank() }.toSet()
+        set(v) = sp.edit().putString("tr_never_langs", v.joinToString(",")).apply()
+    var trNeverHosts: Set<String>
+        get() = (sp.getString("tr_never_hosts", "") ?: "").split(',').filter { it.isNotBlank() }.toSet()
+        set(v) = sp.edit().putString("tr_never_hosts", v.joinToString(",")).apply()
     /** 手机浏览器自己的标签页（JSON：tabs、active、mode），关掉浏览器或重启 App 都能恢复。 */
     var browserTabs: String
         get() = sp.getString("browser_tabs", "") ?: ""

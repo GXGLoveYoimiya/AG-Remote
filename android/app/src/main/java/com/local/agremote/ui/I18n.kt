@@ -115,6 +115,13 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "翻译设置" to "翻譯設定",
+        "一律翻译{0}网页" to "一律翻譯{0}網頁",
+        "一律不翻译{0}网页" to "一律不翻譯{0}網頁",
+        "一律不翻译此网站" to "一律不翻譯此網站",
+        "翻译网页吗？" to "翻譯網頁嗎？",
+        "翻译成{0}" to "翻譯成{0}",
+        "从{0}到{1}" to "從{0}到{1}",
         "主页" to "首頁",
         "{0} 个标签页" to "{0} 個分頁",
         "还没有标签页" to "還沒有分頁",
@@ -407,6 +414,13 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "翻译设置" to "翻訳の設定",
+        "一律翻译{0}网页" to "{0}のページを常に翻訳",
+        "一律不翻译{0}网页" to "{0}のページは翻訳しない",
+        "一律不翻译此网站" to "このサイトは翻訳しない",
+        "翻译网页吗？" to "このページを翻訳しますか？",
+        "翻译成{0}" to "{0}に翻訳",
+        "从{0}到{1}" to "{0}から{1}へ",
         "主页" to "ホーム",
         "{0} 个标签页" to "タブ {0} 件",
         "还没有标签页" to "タブはまだありません",
@@ -676,6 +690,13 @@ object I18n {
     )
 
     private val en = mapOf(
+        "翻译设置" to "Translation settings",
+        "一律翻译{0}网页" to "Always translate {0}",
+        "一律不翻译{0}网页" to "Never translate {0}",
+        "一律不翻译此网站" to "Never translate this site",
+        "翻译网页吗？" to "Translate this page?",
+        "翻译成{0}" to "To {0}",
+        "从{0}到{1}" to "{0} to {1}",
         "主页" to "Home",
         "{0} 个标签页" to "{0} tabs",
         "还没有标签页" to "No tabs yet",
@@ -945,6 +966,13 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "翻译设置" to "번역 설정",
+        "一律翻译{0}网页" to "{0} 페이지 항상 번역",
+        "一律不翻译{0}网页" to "{0} 페이지 번역 안 함",
+        "一律不翻译此网站" to "이 사이트 번역 안 함",
+        "翻译网页吗？" to "이 페이지를 번역할까요?",
+        "翻译成{0}" to "{0}(으)로 번역",
+        "从{0}到{1}" to "{0}에서 {1}(으)로",
         "主页" to "홈",
         "{0} 个标签页" to "탭 {0}개",
         "还没有标签页" to "아직 탭이 없습니다",
@@ -1231,6 +1259,13 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "翻译设置" to "Ajustes de traducción",
+        "一律翻译{0}网页" to "Traducir siempre {0}",
+        "一律不翻译{0}网页" to "No traducir nunca {0}",
+        "一律不翻译此网站" to "No traducir nunca este sitio",
+        "翻译网页吗？" to "¿Traducir esta página?",
+        "翻译成{0}" to "Al {0}",
+        "从{0}到{1}" to "Del {0} al {1}",
         "主页" to "Inicio",
         "{0} 个标签页" to "{0} pestañas",
         "还没有标签页" to "Aún no hay pestañas",
@@ -1524,6 +1559,13 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "翻译设置" to "Paramètres de traduction",
+        "一律翻译{0}网页" to "Toujours traduire : {0}",
+        "一律不翻译{0}网页" to "Ne jamais traduire : {0}",
+        "一律不翻译此网站" to "Ne jamais traduire ce site",
+        "翻译网页吗？" to "Traduire cette page ?",
+        "翻译成{0}" to "En {0}",
+        "从{0}到{1}" to "Du {0} vers le {1}",
         "主页" to "Accueil",
         "{0} 个标签页" to "{0} onglets",
         "还没有标签页" to "Aucun onglet",
@@ -1817,6 +1859,13 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "翻译设置" to "Übersetzungseinstellungen",
+        "一律翻译{0}网页" to "{0} immer übersetzen",
+        "一律不翻译{0}网页" to "{0} nie übersetzen",
+        "一律不翻译此网站" to "Diese Website nie übersetzen",
+        "翻译网页吗？" to "Seite übersetzen?",
+        "翻译成{0}" to "Ins {0}",
+        "从{0}到{1}" to "{0} → {1}",
         "主页" to "Startseite",
         "{0} 个标签页" to "{0} Tabs",
         "还没有标签页" to "Noch keine Tabs",
@@ -2110,6 +2159,13 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "翻译设置" to "Настройки перевода",
+        "一律翻译{0}网页" to "Всегда переводить: {0}",
+        "一律不翻译{0}网页" to "Никогда не переводить: {0}",
+        "一律不翻译此网站" to "Никогда не переводить этот сайт",
+        "翻译网页吗？" to "Перевести страницу?",
+        "翻译成{0}" to "На {0}",
+        "从{0}到{1}" to "{0} → {1}",
         "主页" to "Главная",
         "{0} 个标签页" to "Вкладок: {0}",
         "还没有标签页" to "Вкладок пока нет",
@@ -2403,6 +2459,13 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "翻译设置" to "Configurações de tradução",
+        "一律翻译{0}网页" to "Sempre traduzir {0}",
+        "一律不翻译{0}网页" to "Nunca traduzir {0}",
+        "一律不翻译此网站" to "Nunca traduzir este site",
+        "翻译网页吗？" to "Traduzir esta página?",
+        "翻译成{0}" to "Para {0}",
+        "从{0}到{1}" to "Do {0} para o {1}",
         "主页" to "Início",
         "{0} 个标签页" to "{0} abas",
         "还没有标签页" to "Ainda não há abas",

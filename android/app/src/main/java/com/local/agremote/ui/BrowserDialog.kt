@@ -1,5 +1,6 @@
 package com.local.agremote.ui
 
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.ColumnScope
@@ -496,6 +497,31 @@ fun BrowserDialog(
         }
     }
 
+    // 打开外语网页时自动问要不要翻译（像 Chrome 那样）；关掉后这个网站这次不再问
+    var offerTranslate by remember { mutableStateOf<String?>(null) } // 网页的语言名（空 = 不确定）
+    var offerLangCode by remember { mutableStateOf("") }
+    val noOfferHosts = remember { mutableSetOf<String>() }
+    fun checkTranslateOffer() {
+        val wv = webViewRef ?: return
+        val host = runCatching { android.net.Uri.parse(activeUrl).host }.getOrNull() ?: return
+        if (host in noOfferHosts || host in vm.prefs.trNeverHosts || pageTranslated) return
+        wv.evaluateJavascript(LANG_SAMPLE_JS) { res ->
+            val arr = runCatching { org.json.JSONArray(org.json.JSONTokener(res).nextValue() as String) }.getOrNull() ?: return@evaluateJavascript
+            val declared = arr.optString(0).lowercase().substringBefore('-').substringBefore('_')
+            val sample = arr.optString(1)
+            val app = I18n.currentLang
+            val (foreign, guessed) = mostlyForeign(sample, declared, app)
+            val pageBase = declared.ifBlank { guessed }
+            if (foreign && !pageTranslated) {
+                if (pageBase.isNotBlank() && pageBase in vm.prefs.trNeverLangs) return@evaluateJavascript
+                if (pageBase.isNotBlank() && pageBase in vm.prefs.trAutoLangs) { translatePage(); return@evaluateJavascript } // 一律翻译这种语言
+                offerLangCode = pageBase
+                offerTranslate = if (pageBase.isBlank()) "" else
+                    java.util.Locale.forLanguageTag(pageBase).getDisplayLanguage(java.util.Locale.forLanguageTag(app))
+            }
+        }
+    }
+
     /** 显示原文：把保存的原文换回去，不刷新页面。 */
     fun showOriginal() {
         webViewRef?.evaluateJavascript(RESTORE_TEXT_JS, null)
@@ -615,10 +641,10 @@ fun BrowserDialog(
                                 }
                             }
                             // 翻译：翻过后图标亮起，再点显示原文
-                            IconButton(onClick = { if (pageTranslated) showOriginal() else translatePage() },
+                            IconButton(onClick = { offerTranslate = null; if (pageTranslated) showOriginal() else translatePage() },
                                 enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)) {
                                 Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
-                                    tint = if (pageTranslated) accent() else LocalContentColor.current)
+                                    tint = if (pageTranslated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline) // 已翻译：默认主题深黑、其他主题强调色；未翻译：浅灰
                             }
                             // 标签页数：点开标签页切换页
                             IconButton(onClick = { snapThumb(); showTabs = true }, modifier = Modifier.size(44.dp)) {
@@ -763,6 +789,7 @@ fun BrowserDialog(
                                                 }
                                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                                     pageTranslated = false
+                                                    offerTranslate = null
                                                     loading = true
                                                     webError = null
                                                     url?.let { urlInput = it; activeUrl = it }
@@ -777,6 +804,7 @@ fun BrowserDialog(
                                                     url?.let { urlInput = it; activeUrl = it }
                                                     pageTitle = view?.title.orEmpty()
                                                     updateActiveLocalTab(newUrl = url, newTitle = view?.title)
+                                                    checkTranslateOffer()
                                                     canBack = view?.canGoBack() == true
                                                     canForward = view?.canGoForward() == true
                                                 }
@@ -866,6 +894,51 @@ fun BrowserDialog(
                                     onRelease = { wv -> if (webViewRef === wv) webViewRef = null; wv.stopLoading(); wv.destroy() },
                                 )
                               }
+                                offerTranslate?.let { src ->
+                                    val app = I18n.currentLang
+                                    val target = java.util.Locale.forLanguageTag(app).getDisplayLanguage(java.util.Locale.forLanguageTag(app))
+                                    Surface(
+                                        shape = RoundedCornerShape(20.dp), color = sheetCardColor(), shadowElevation = 6.dp,
+                                        modifier = Modifier.align(Alignment.TopCenter).zIndex(4f).padding(top = 8.dp, start = 12.dp, end = 12.dp).fillMaxWidth(),
+                                    ) {
+                                        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Rounded.Translate, null, tint = accent())
+                                            Spacer(Modifier.width(12.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Text(tr("翻译网页吗？"), style = MaterialTheme.typography.bodyLarge)
+                                                Text(if (src.isBlank()) tr("翻译成{0}", target) else tr("从{0}到{1}", src, target),
+                                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                            Box {
+                                                var gear by remember { mutableStateOf(false) }
+                                                IconButton(onClick = { gear = true }) { Icon(Icons.Rounded.Settings, tr("翻译设置"), Modifier.size(20.dp)) }
+                                                DropdownMenu(gear, { gear = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
+                                                    val code = offerLangCode
+                                                    val host = runCatching { android.net.Uri.parse(activeUrl).host }.getOrNull().orEmpty()
+                                                    if (code.isNotBlank()) {
+                                                        DropdownMenuItem(text = { Text(tr("一律翻译{0}网页", src)) }, onClick = {
+                                                            gear = false; vm.prefs.trAutoLangs = vm.prefs.trAutoLangs + code
+                                                            vm.prefs.trNeverLangs = vm.prefs.trNeverLangs - code
+                                                            offerTranslate = null; translatePage()
+                                                        })
+                                                        DropdownMenuItem(text = { Text(tr("一律不翻译{0}网页", src)) }, onClick = {
+                                                            gear = false; vm.prefs.trNeverLangs = vm.prefs.trNeverLangs + code
+                                                            vm.prefs.trAutoLangs = vm.prefs.trAutoLangs - code; offerTranslate = null
+                                                        })
+                                                    }
+                                                    if (host.isNotBlank()) DropdownMenuItem(text = { Text(tr("一律不翻译此网站")) }, onClick = {
+                                                        gear = false; vm.prefs.trNeverHosts = vm.prefs.trNeverHosts + host; offerTranslate = null
+                                                    })
+                                                }
+                                            }
+                                            androidx.compose.material3.TextButton(onClick = { offerTranslate = null; translatePage() }) { Text(tr("翻译")) }
+                                            IconButton(onClick = {
+                                                runCatching { android.net.Uri.parse(activeUrl).host }.getOrNull()?.let { noOfferHosts += it }
+                                                offerTranslate = null
+                                            }) { Icon(Icons.Rounded.Close, tr("关闭"), Modifier.size(18.dp)) }
+                                        }
+                                    }
+                                }
                                 if (webError != null) {
                                     Surface(
                                         shape = RoundedCornerShape(16.dp),
@@ -1862,3 +1935,44 @@ private const val APPLY_TEXT_JS = """function(m){var ns=window.__agr||[];for(var
 
 /** 换回原文。 */
 private const val RESTORE_TEXT_JS = """(function(){var ns=window.__agr||[];for(var i=0;i<ns.length;i++){var n=ns[i];if(n.__o!=null){n.nodeValue=n.__o;n.__o=null;}}})()"""
+
+/** 网页声明的语言 + 一段正文，用来判断要不要问“翻译网页吗？”。 */
+private const val LANG_SAMPLE_JS = """(function(){var b=document.body;return JSON.stringify([document.documentElement.lang||'',(b&&b.innerText||'').slice(0,2500)]);})()"""
+
+/**
+ * 网页的大部分文字是不是“不是当前界面语言”：按文字的书写系统数（汉字、假名、韩文、西里尔字母、拉丁字母），
+ * 界面语言用的那种文字不到一半才算外语；都是拉丁字母（比如英文界面看法语页面）时再看网页自己声明的语言。
+ * 返回 (是否外语, 猜的语言代码)。
+ */
+private fun mostlyForeign(sample: String, declared: String, app: String): Pair<Boolean, String> {
+    var han = 0; var kana = 0; var hangul = 0; var cyr = 0; var latin = 0
+    for (ch in sample) {
+        when {
+            ch in '\u4e00'..'\u9fff' -> han++
+            ch in '\u3040'..'\u30ff' -> kana++
+            ch in '\uac00'..'\ud7af' -> hangul++
+            ch in '\u0400'..'\u04ff' -> cyr++
+            ch.isLetter() && ch.code < 0x250 -> latin++
+        }
+    }
+    val total = han + kana + hangul + cyr + latin
+    if (total < 60) return false to "" // 字太少，不问
+    val guessed = when (maxOf(han, kana, hangul, cyr, latin)) {
+        hangul -> "ko"; cyr -> "ru"; latin -> "en"
+        else -> if (kana > total / 10) "ja" else "zh"
+    }
+    val appBase = app.lowercase().substringBefore('-')
+    val mine = when (appBase) {
+        "zh" -> if (kana > total / 10) 0 else han          // 假名多就是日文
+        "ja" -> han + kana
+        "ko" -> hangul
+        "ru" -> cyr
+        else -> latin
+    }
+    if (mine * 2 >= total) {
+        // 主要文字和界面语言同一种书写系统：只有拉丁字母的语言之间才需要看网页声明的语言
+        val latinApp = appBase !in setOf("zh", "ja", "ko", "ru")
+        return (latinApp && declared.isNotBlank() && declared != appBase) to declared
+    }
+    return true to guessed
+}
