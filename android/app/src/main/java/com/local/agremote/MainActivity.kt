@@ -156,15 +156,15 @@ private fun Root(vm: AppViewModel) {
                 val exitSpec = tween<IntOffset>(260, easing = FastOutSlowInEasing)
                 when {
                     targetState != null && initialState == null ->
-                        (slideInHorizontally(enterSpec) { it } togetherWith ExitTransition.None).apply {
-                            targetContentZIndex = 1f
-                        }
+                        (slideInHorizontally(enterSpec) { it } togetherWith ExitTransition.None)
+                            .using(null)
+                            .apply { targetContentZIndex = 1f }
                     targetState == null && initialState != null ->
-                        (EnterTransition.None togetherWith slideOutHorizontally(exitSpec) { it }).apply {
-                            targetContentZIndex = -1f
-                        }
+                        (EnterTransition.None togetherWith slideOutHorizontally(exitSpec) { it })
+                            .using(null)
+                            .apply { targetContentZIndex = -1f }
                     else ->
-                        fadeIn(tween(180)) togetherWith fadeOut(tween(180))
+                        (fadeIn(tween(180)) togetherWith fadeOut(tween(180))).using(null)
                 }
             },
         ) { s ->
@@ -178,6 +178,8 @@ private fun Root(vm: AppViewModel) {
                         "projects" -> com.local.agremote.ui.ProjectsScreen(vm, onBack = { screen = "chat" }, onOpenChat = { screen = "chat" })
                     }
                 }
+            } else {
+                Box(androidx.compose.ui.Modifier.fillMaxSize())
             }
         }
     }
