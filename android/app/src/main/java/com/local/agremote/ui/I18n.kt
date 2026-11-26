@@ -115,6 +115,15 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "来聊聊，{0}" to "來聊聊，{0}",
+        "来聊聊" to "來聊聊",
+        "按住说话，松开发送" to "按住說話，放開送出",
+        "按住说话" to "按住說話",
+        "模式" to "模式",
+        "免提" to "免持",
+        "最适合安静的环境" to "最適合安靜的環境",
+        "对话还没建好，稍等一下再加附件" to "對話還沒建立好，稍等一下再加附件",
+        "已发送附件" to "已傳送附件",
         "实时语音" to "即時語音",
         "正在连接…" to "正在連線…",
         "网络不稳，正在重连…" to "網路不穩，正在重新連線…",
@@ -263,6 +272,15 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "来聊聊，{0}" to "話しましょう、{0}",
+        "来聊聊" to "話しましょう",
+        "按住说话，松开发送" to "押している間だけ話し、離すと送信",
+        "按住说话" to "押して話す",
+        "模式" to "モード",
+        "免提" to "ハンズフリー",
+        "最适合安静的环境" to "静かな場所に最適",
+        "对话还没建好，稍等一下再加附件" to "会話の準備中です。少し待ってから添付してください",
+        "已发送附件" to "添付ファイルを送信しました",
         "实时语音" to "リアルタイム音声",
         "正在连接…" to "接続中…",
         "网络不稳，正在重连…" to "接続が不安定です。再接続しています…",
@@ -388,6 +406,15 @@ object I18n {
     )
 
     private val en = mapOf(
+        "来聊聊，{0}" to "Let’s talk, {0}",
+        "来聊聊" to "Let’s talk",
+        "按住说话，松开发送" to "Hold to talk, release to send",
+        "按住说话" to "Hold to talk",
+        "模式" to "Mode",
+        "免提" to "Hands-free",
+        "最适合安静的环境" to "Best for quiet places",
+        "对话还没建好，稍等一下再加附件" to "The conversation isn’t ready yet — try again in a moment",
+        "已发送附件" to "Attachment sent",
         "实时语音" to "Live voice",
         "正在连接…" to "Connecting…",
         "网络不稳，正在重连…" to "Connection unstable, reconnecting…",
@@ -513,6 +540,14 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "来聊聊，{0}" to "이야기해요, {0}",
+        "来聊聊" to "이야기해요",
+        "按住说话，松开发送" to "누르고 말하고, 떼면 전송",
+        "按住说话" to "눌러서 말하기",
+        "模式" to "모드",
+        "免提" to "핸즈프리",
+        "最适合安静的环境" to "조용한 환경에 적합",
+        "已发送附件" to "첨부 파일을 보냈습니다",
         "实时语音" to "실시간 음성",
         "正在连接…" to "연결 중…",
         "网络不稳，正在重连…" to "재연결 중…",
@@ -553,6 +588,14 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "来聊聊，{0}" to "Hablemos, {0}",
+        "来聊聊" to "Hablemos",
+        "按住说话，松开发送" to "Mantén pulsado para hablar, suelta para enviar",
+        "按住说话" to "Mantén para hablar",
+        "模式" to "Modo",
+        "免提" to "Manos libres",
+        "最适合安静的环境" to "Ideal para lugares tranquilos",
+        "已发送附件" to "Adjunto enviado",
         "实时语音" to "Voz en vivo",
         "正在连接…" to "Conectando…",
         "网络不稳，正在重连…" to "Reconectando…",
@@ -589,6 +632,14 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "来聊聊，{0}" to "Discutons, {0}",
+        "来聊聊" to "Discutons",
+        "按住说话，松开发送" to "Maintenez pour parler, relâchez pour envoyer",
+        "按住说话" to "Maintenir pour parler",
+        "模式" to "Mode",
+        "免提" to "Mains libres",
+        "最适合安静的环境" to "Idéal dans un endroit calme",
+        "已发送附件" to "Pièce jointe envoyée",
         "实时语音" to "Voix en direct",
         "正在连接…" to "Connexion…",
         "网络不稳，正在重连…" to "Reconnexion…",
@@ -625,6 +676,14 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "来聊聊，{0}" to "Lass uns reden, {0}",
+        "来聊聊" to "Lass uns reden",
+        "按住说话，松开发送" to "Gedrückt halten zum Sprechen, loslassen zum Senden",
+        "按住说话" to "Zum Sprechen halten",
+        "模式" to "Modus",
+        "免提" to "Freisprechen",
+        "最适合安静的环境" to "Ideal für ruhige Umgebungen",
+        "已发送附件" to "Anhang gesendet",
         "实时语音" to "Live-Sprache",
         "正在连接…" to "Verbinde…",
         "网络不稳，正在重连…" to "Verbinde neu…",
@@ -661,6 +720,14 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "来聊聊，{0}" to "Давай поговорим, {0}",
+        "来聊聊" to "Давай поговорим",
+        "按住说话，松开发送" to "Удерживайте, чтобы говорить, отпустите, чтобы отправить",
+        "按住说话" to "Удерживайте для разговора",
+        "模式" to "Режим",
+        "免提" to "Громкая связь",
+        "最适合安静的环境" to "Лучше всего в тихом месте",
+        "已发送附件" to "Вложение отправлено",
         "实时语音" to "Голосовой чат",
         "正在连接…" to "Подключение…",
         "网络不稳，正在重连…" to "Переподключение…",
@@ -697,6 +764,14 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "来聊聊，{0}" to "Vamos conversar, {0}",
+        "来聊聊" to "Vamos conversar",
+        "按住说话，松开发送" to "Mantenha premido para falar, solte para enviar",
+        "按住说话" to "Manter para falar",
+        "模式" to "Modo",
+        "免提" to "Mãos livres",
+        "最适合安静的环境" to "Ideal para locais silenciosos",
+        "已发送附件" to "Anexo enviado",
         "实时语音" to "Voz em tempo real",
         "正在连接…" to "A ligar…",
         "网络不稳，正在重连…" to "A religar…",

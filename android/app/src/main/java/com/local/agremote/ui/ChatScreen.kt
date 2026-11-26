@@ -117,7 +117,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MoreVert
@@ -195,13 +195,7 @@ fun ChatScreen(
     val sendingQueuedIds by vm.sendingQueuedIds.collectAsState()
     var pickModel by remember { mutableStateOf(false) }
     var moreMenu by remember { mutableStateOf(false) }
-    // 实时语音（电脑上 Antigravity 2.35+ 才有）：先要麦克风权限
-    val voiceCfg by vm.voiceCfg.collectAsState()
     val voiceCall by vm.voiceCall.collectAsState()
-    val voiceCtx = LocalContext.current
-    val askVoiceMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) vm.startVoiceCall() else Toast.makeText(voiceCtx, I18n.t("需要麦克风权限才能语音通话"), Toast.LENGTH_SHORT).show()
-    }
     val curConv = s.conv ?: s.id?.let { id -> list.find { it.id == id } }
     val focusManager = LocalFocusManager.current
     val visible = remember(s.steps) { s.steps.filter { it.kind != "hidden" } }
@@ -236,11 +230,6 @@ fun ChatScreen(
                         style = MaterialTheme.typography.titleMedium)
                 },
                 actions = {
-                    if (voiceCfg.available) IconButton(onClick = {
-                        focusManager.clearFocus()
-                        if (ContextCompat.checkSelfPermission(voiceCtx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) vm.startVoiceCall()
-                        else askVoiceMic.launch(Manifest.permission.RECORD_AUDIO)
-                    }) { Icon(Icons.Rounded.Call, tr("实时语音")) }
                     IconButton(onClick = { focusManager.clearFocus(); vm.openBrowser() }) {
                         Icon(Icons.Rounded.Language, "内置浏览器")
                     }
@@ -358,7 +347,7 @@ private fun WorkingRow(canceling: Boolean) {
 /** 模型选择：主力模型一组，下面是思考强度和更多模型。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ModelSheet(models: List<ModelInfo>, selected: String, onPick: (String) -> Unit, onClose: () -> Unit) {
+internal fun ModelSheet(models: List<ModelInfo>, selected: String, onPick: (String) -> Unit, onClose: () -> Unit) {
     val families = remember(models) { models.groupBy { it.family }.toList() }
     // 有思考强度分组的放上面，Antigravity 没归组的放进“更多模型”
     fun isMain(levels: List<ModelInfo>) = levels.first().grouped
@@ -1237,6 +1226,17 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
     }
     val hasContent = text.isNotBlank() || atts.isNotEmpty()
     val canStop = id != null && working && !hasContent
+    // 实时语音入口（电脑上 Antigravity 2.35+ 才有）：输入框为空时，在听写麦克风旁边
+    val voiceCfg by vm.voiceCfg.collectAsState()
+    val showVoiceMode = voiceCfg.available && !hasContent && !canStop
+    val askVoiceMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) vm.startVoiceCall() else Toast.makeText(ctx, I18n.t("需要麦克风权限才能语音通话"), Toast.LENGTH_SHORT).show()
+    }
+    fun startVoiceMode() {
+        focusManager.clearFocus()
+        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) vm.startVoiceCall()
+        else askVoiceMic.launch(Manifest.permission.RECORD_AUDIO)
+    }
 
     val curVoiceActive by rememberUpdatedState(voiceActive)
     val curExpanded by rememberUpdatedState(expanded)
@@ -1374,7 +1374,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                 val progress = maxOf(imeFrac, stayProgress)
                 val showTopField = !holdMode || text.isNotBlank() || sttText.isNotBlank() || holdImeAtStart
                 if (!voiceActive) {
-                    val endCollapsed = if (canStop) 104.dp else 52.dp
+                    val endCollapsed = if (canStop || showVoiceMode) 104.dp else 52.dp
                     val startPad = lerp(48.dp, 12.dp, progress)
                     val endPad = lerp(endCollapsed, 12.dp, progress)
                     val topPad = lerp(0.dp, 6.dp, progress)
@@ -1446,6 +1446,14 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 Spacer(Modifier.width(8.dp))
                             }
                             primary()
+                            if (showVoiceMode) {
+                                Spacer(Modifier.width(8.dp))
+                                FilledIconButton(onClick = { startVoiceMode() }, modifier = Modifier.size(44.dp),
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
+                                    Icon(Icons.Rounded.GraphicEq, tr("实时语音"))
+                                }
+                            }
                         }
                     }
                 } else {
