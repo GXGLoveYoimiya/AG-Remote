@@ -115,15 +115,6 @@ object I18n {
     }
 
     private val zhTW = mapOf(
-        "字体" to "字型",
-        "标题" to "標題",
-        "正文" to "內文",
-        "字号" to "字級",
-        "跟随风格" to "跟隨風格",
-        "无衬线" to "無襯線",
-        "衬线" to "襯線",
-        "等宽" to "等寬",
-        "字体预览：正文是这样显示的。The quick brown fox 0123" to "字型預覽：內文會這樣顯示。The quick brown fox 0123",
         "已选" to "已選",
         "温暖纸感 · 简洁克制" to "溫暖紙感 · 簡潔克制",
         "来聊聊，{0}" to "來聊聊，{0}",
@@ -283,15 +274,6 @@ object I18n {
     )
 
     private val ja = mapOf(
-        "字体" to "フォント",
-        "标题" to "見出し",
-        "正文" to "本文",
-        "字号" to "文字サイズ",
-        "跟随风格" to "スタイルに合わせる",
-        "无衬线" to "ゴシック",
-        "衬线" to "明朝",
-        "等宽" to "等幅",
-        "字体预览：正文是这样显示的。The quick brown fox 0123" to "フォントのプレビュー：本文はこのように表示されます。The quick brown fox 0123",
         "已选" to "選択中",
         "温暖纸感 · 简洁克制" to "温かみのある紙の質感 · シンプル",
         "来聊聊，{0}" to "話しましょう、{0}",
@@ -428,15 +410,6 @@ object I18n {
     )
 
     private val en = mapOf(
-        "字体" to "Font",
-        "标题" to "Headings",
-        "正文" to "Body",
-        "字号" to "Size",
-        "跟随风格" to "Match style",
-        "无衬线" to "Sans",
-        "衬线" to "Serif",
-        "等宽" to "Mono",
-        "字体预览：正文是这样显示的。The quick brown fox 0123" to "Font preview: body text looks like this. The quick brown fox 0123",
         "已选" to "Selected",
         "温暖纸感 · 简洁克制" to "Warm paper · Calm and simple",
         "来聊聊，{0}" to "Let’s talk, {0}",
@@ -573,15 +546,6 @@ object I18n {
     )
 
     private val ko = en + mapOf(
-        "字体" to "글꼴",
-        "标题" to "제목",
-        "正文" to "본문",
-        "字号" to "글자 크기",
-        "跟随风格" to "스타일 따름",
-        "无衬线" to "고딕",
-        "衬线" to "명조",
-        "等宽" to "고정폭",
-        "字体预览：正文是这样显示的。The quick brown fox 0123" to "글꼴 미리보기: 본문은 이렇게 보입니다. The quick brown fox 0123",
         "已选" to "선택됨",
         "温暖纸感 · 简洁克制" to "따뜻한 종이 질감 · 간결함",
         "来聊聊，{0}" to "이야기해요, {0}",
@@ -632,15 +596,6 @@ object I18n {
     )
 
     private val es = en + mapOf(
-        "字体" to "Fuente",
-        "标题" to "Títulos",
-        "正文" to "Texto",
-        "字号" to "Tamaño",
-        "跟随风格" to "Según estilo",
-        "无衬线" to "Sans",
-        "衬线" to "Serif",
-        "等宽" to "Mono",
-        "字体预览：正文是这样显示的。The quick brown fox 0123" to "Vista previa: así se ve el texto. The quick brown fox 0123",
         "已选" to "Seleccionado",
         "温暖纸感 · 简洁克制" to "Papel cálido · Sencillo",
         "来聊聊，{0}" to "Hablemos, {0}",
@@ -687,15 +642,6 @@ object I18n {
     )
 
     private val fr = en + mapOf(
-        "字体" to "Police",
-        "标题" to "Titres",
-        "正文" to "Texte",
-        "字号" to "Taille",
-        "跟随风格" to "Selon le style",
-        "无衬线" to "Sans",
-        "衬线" to "Serif",
-        "等宽" to "Mono",
-        "字体预览：正文是这样显示的。The quick brown fox 0123" to "Aperçu : le texte s’affiche ainsi. The quick brown fox 0123",
         "已选" to "Sélectionné",
         "温暖纸感 · 简洁克制" to "Papier chaleureux · Sobre",
         "来聊聊，{0}" to "Discutons, {0}",
@@ -742,15 +688,6 @@ object I18n {
     )
 
     private val de = en + mapOf(
-        "字体" to "Schrift",
-        "标题" to "Überschriften",
-        "正文" to "Text",
-        "字号" to "Größe",
-        "跟随风格" to "Wie Stil",
-        "无衬线" to "Sans",
-        "衬线" to "Serif",
-        "等宽" to "Mono",
-        "字体预览：正文是这样显示的。The quick brown fox 0123" to "Vorschau: So sieht der Text aus. The quick brown fox 0123",
         "已选" to "Ausgewählt",
         "温暖纸感 · 简洁克制" to "Warmes Papier · Schlicht",
         "来聊聊，{0}" to "Lass uns reden, {0}",
@@ -797,15 +734,6 @@ object I18n {
     )
 
     private val ru = en + mapOf(
-        "字体" to "Шрифт",
-        "标题" to "Заголовки",
-        "正文" to "Текст",
-        "字号" to "Размер",
-        "跟随风格" to "Как в стиле",
-        "无衬线" to "Без засечек",
-        "衬线" to "С засечками",
-        "等宽" to "Моно",
-        "字体预览：正文是这样显示的。The quick brown fox 0123" to "Предпросмотр: так выглядит текст. The quick brown fox 0123",
         "已选" to "Выбрано",
         "温暖纸感 · 简洁克制" to "Тёплая бумага · Просто",
         "来聊聊，{0}" to "Давай поговорим, {0}",
@@ -852,15 +780,6 @@ object I18n {
     )
 
     private val pt = en + mapOf(
-        "字体" to "Tipo de letra",
-        "标题" to "Títulos",
-        "正文" to "Texto",
-        "字号" to "Tamanho",
-        "跟随风格" to "Conforme o estilo",
-        "无衬线" to "Sans",
-        "衬线" to "Serif",
-        "等宽" to "Mono",
-        "字体预览：正文是这样显示的。The quick brown fox 0123" to "Pré-visualização: o texto fica assim. The quick brown fox 0123",
         "已选" to "Selecionado",
         "温暖纸感 · 简洁克制" to "Papel quente · Simples",
         "来聊聊，{0}" to "Vamos conversar, {0}",

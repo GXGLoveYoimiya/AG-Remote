@@ -90,7 +90,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
     LaunchedEffect(Unit) { vm.loadExtras(); vm.loadCustomizations() }
 
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        containerColor = if (LocalUiStyle.current == "default") MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
             Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
                 IconButton(onClick = { if (page == "main") onClose() else page = "main" }, modifier = Modifier.align(Alignment.CenterStart)) {
@@ -291,7 +291,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
 
 @Composable
 private fun BigButton(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, color = MaterialTheme.colorScheme.surfaceContainerHighest, shape = RoundedCornerShape(24.dp), modifier = modifier) {
+    Surface(onClick = onClick, color = sheetCardColor(), shape = RoundedCornerShape(24.dp), modifier = modifier) {
         Column(Modifier.padding(vertical = 18.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = CircleShape) {
                 Icon(icon, null, Modifier.padding(14.dp).size(26.dp))
@@ -304,7 +304,7 @@ private fun BigButton(icon: ImageVector, label: String, modifier: Modifier, onCl
 
 @Composable
 private fun Group(content: @Composable () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerHighest, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+    Surface(color = sheetCardColor(), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
         Column { content() }
     }
 }

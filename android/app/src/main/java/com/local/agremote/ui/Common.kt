@@ -55,6 +55,11 @@ fun StatusDot(running: Boolean, color: Color = MaterialTheme.colorScheme.primary
     }
 }
 
+/** 底部面板里的选项卡片：默认风格（仿 Claude）用纯白，其他风格用主题的色块。 */
+@androidx.compose.runtime.Composable
+fun sheetCardColor() = if (LocalUiStyle.current == "default") androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLowest
+    else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHighest
+
 fun isRunning(status: String?) = status == "running" || status == "busy" || status == "canceling"
 
 fun relTime(iso: String): String {

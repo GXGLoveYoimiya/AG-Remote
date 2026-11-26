@@ -175,7 +175,7 @@ private fun materialSchemeFromSeed(seed: Color, dark: Boolean): ColorScheme {
 
 /**
  * 默认（仿 Claude 移动端）：暖色纸感的中性底色，气泡和标签用米灰而不是强调色，
- * 强调色只用在图标、链接、开关上；深色模式是暖调深灰。强调色可调。
+ * 强调色只用在图标、链接、开关和发送按钮上；深色模式是暖调深灰。强调色可调；字体统一用系统字体。
  */
 private fun claudeScheme(accent: Color, dark: Boolean): ColorScheme {
     val tert = hueShift(accent, -150f)
@@ -183,18 +183,19 @@ private fun claudeScheme(accent: Color, dark: Boolean): ColorScheme {
         val primary = if (accent.luminance() > 0.6f) lerp(accent, Color.Black, 0.25f) else accent
         lightColorScheme(
             primary = primary, onPrimary = bestOnColor(primary),
-            primaryContainer = Color(0xFFF0EEE6), onPrimaryContainer = Color(0xFF1F1E1D),
-            secondary = Color(0xFF5E5D59), onSecondary = Color.White,
-            secondaryContainer = Color(0xFFE8E6DC), onSecondaryContainer = Color(0xFF1F1E1D),
+            // 取自 Claude 移动端：偏暖的浅灰底、纯白卡片、浅灰按钮和标签、近黑文字
+            primaryContainer = Color(0xFFEFEEEA), onPrimaryContainer = Color(0xFF141413),
+            secondary = Color(0xFF6B6A65), onSecondary = Color.White,
+            secondaryContainer = Color(0xFFEFEEEA), onSecondaryContainer = Color(0xFF141413),
             tertiary = tert, onTertiary = bestOnColor(tert),
-            tertiaryContainer = lerp(Color(0xFFFAF9F5), tert, 0.16f), onTertiaryContainer = Color(0xFF1F1E1D),
-            background = Color(0xFFFAF9F5), onBackground = Color(0xFF1F1E1D),
-            surface = Color(0xFFFAF9F5), onSurface = Color(0xFF1F1E1D),
-            surfaceVariant = Color(0xFFEDEBE3), onSurfaceVariant = Color(0xFF73726C),
-            surfaceContainerLowest = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFF5F4EE),
-            surfaceContainer = Color(0xFFF0EEE6), surfaceContainerHigh = Color(0xFFE8E6DC),
-            surfaceContainerHighest = Color(0xFFDEDCD1),
-            outline = Color(0xFFB5B3AA), outlineVariant = Color(0xFFE3E1D8),
+            tertiaryContainer = lerp(Color(0xFFF8F7F5), tert, 0.16f), onTertiaryContainer = Color(0xFF141413),
+            background = Color(0xFFF8F7F5), onBackground = Color(0xFF141413),
+            surface = Color(0xFFF8F7F5), onSurface = Color(0xFF141413),
+            surfaceVariant = Color(0xFFEFEEEA), onSurfaceVariant = Color(0xFF6B6A65),
+            surfaceContainerLowest = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFF4F4F0),
+            surfaceContainer = Color(0xFFF0EFEB), surfaceContainerHigh = Color(0xFFEFEEEA),
+            surfaceContainerHighest = Color(0xFFE9E8E4),
+            outline = Color(0xFFB9B8B3), outlineVariant = Color(0xFFE4E3DE),
         )
     } else {
         val primary = if (accent.luminance() < 0.2f) lerp(accent, Color.White, 0.4f) else accent
@@ -214,33 +215,6 @@ private fun claudeScheme(accent: Color, dark: Boolean): ColorScheme {
             outline = Color(0xFF7A7870), outlineVariant = Color(0xFF3F3F3B),
         )
     }
-}
-
-/** 字体选项：auto 跟随风格（默认风格的标题用衬线，其余无衬线）。 */
-val FONT_OPTIONS = listOf("auto" to "跟随风格", "sans" to "无衬线", "serif" to "衬线", "mono" to "等宽")
-
-private fun fontFamily(key: String, autoSerif: Boolean) = when (key) {
-    "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
-    "mono" -> androidx.compose.ui.text.font.FontFamily.Monospace
-    "sans" -> androidx.compose.ui.text.font.FontFamily.SansSerif
-    else -> if (autoSerif) androidx.compose.ui.text.font.FontFamily.Serif else androidx.compose.ui.text.font.FontFamily.Default
-}
-
-/** 按设置生成整套字体样式：标题（display/headline/大标题）和正文分开选字体，整体按字号缩放。 */
-fun appTypography(cfg: ThemeConfig): androidx.compose.material3.Typography {
-    val base = androidx.compose.material3.Typography()
-    val head = fontFamily(cfg.headFont, autoSerif = cfg.style == "default")
-    val body = fontFamily(cfg.bodyFont, autoSerif = false)
-    val k = cfg.fontScale.coerceIn(0.85f, 1.3f)
-    fun androidx.compose.ui.text.TextStyle.f(fam: androidx.compose.ui.text.font.FontFamily) =
-        copy(fontFamily = fam, fontSize = fontSize * k, lineHeight = lineHeight * k)
-    return base.copy(
-        displayLarge = base.displayLarge.f(head), displayMedium = base.displayMedium.f(head), displaySmall = base.displaySmall.f(head),
-        headlineLarge = base.headlineLarge.f(head), headlineMedium = base.headlineMedium.f(head), headlineSmall = base.headlineSmall.f(head),
-        titleLarge = base.titleLarge.f(head), titleMedium = base.titleMedium.f(body), titleSmall = base.titleSmall.f(body),
-        bodyLarge = base.bodyLarge.f(body), bodyMedium = base.bodyMedium.f(body), bodySmall = base.bodySmall.f(body),
-        labelLarge = base.labelLarge.f(body), labelMedium = base.labelMedium.f(body), labelSmall = base.labelSmall.f(body),
-    )
 }
 
 /** Miuix（HyperOS 风格）：纯净中性黑白层次 + 高对比纯色卡片 + 清晰主题强调色。 */
@@ -356,27 +330,7 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
     }
 
     CompositionLocalProvider(LocalUiStyle provides cfg.style) {
-        MaterialTheme(colorScheme = scheme, typography = appTypography(cfg), content = content)
-    }
-}
-
-@Composable
-private fun FontChoiceRow(label: String, value: String, onPick: (String) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.width(44.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FONT_OPTIONS.forEach { (k, name) ->
-                val sel = value == k
-                Surface(onClick = { onPick(k) }, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f),
-                    color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh) {
-                    Box(Modifier.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                        Text(tr(name), maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = fontFamily(k, autoSerif = false)),
-                            color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
-                    }
-                }
-            }
-        }
+        MaterialTheme(colorScheme = scheme, content = content)
     }
 }
 
@@ -422,26 +376,6 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                     previewAccent = Color(0xFF3482FF),
                     modifier = Modifier.fillMaxWidth(),
                 ) { onChange(cfg.copy(style = "miuix")) }
-            }
-
-            // 字体：标题 / 正文分开选，加整体字号，带实时预览
-            Text(tr("字体"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            FontChoiceRow(tr("标题"), cfg.headFont) { onChange(cfg.copy(headFont = it)) }
-            FontChoiceRow(tr("正文"), cfg.bodyFont) { onChange(cfg.copy(bodyFont = it)) }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("字号"), Modifier.width(44.dp), style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                var scale by remember(cfg.fontScale) { mutableFloatStateOf(cfg.fontScale) }
-                Slider(value = scale, onValueChange = { scale = it }, onValueChangeFinished = { onChange(cfg.copy(fontScale = scale)) },
-                    valueRange = 0.85f..1.3f, steps = 8, modifier = Modifier.weight(1f))
-                Text("${(scale * 100).toInt()}%", Modifier.width(48.dp), style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-            }
-            Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp)) {
-                    Text(tr("来聊聊"), style = MaterialTheme.typography.headlineSmall)
-                    Text(tr("字体预览：正文是这样显示的。The quick brown fox 0123"), style = MaterialTheme.typography.bodyLarge)
-                }
             }
 
             // 2. 深色模式

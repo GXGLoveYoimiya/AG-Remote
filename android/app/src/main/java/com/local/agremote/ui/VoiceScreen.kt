@@ -294,7 +294,7 @@ private fun CircleButton(icon: ImageVector, label: String, size: Int, enabled: B
 @Composable
 private fun SheetFrame(title: String, onClose: () -> Unit, content: @Composable () -> Unit) {
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        containerColor = if (LocalUiStyle.current == "default") MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 28.dp)) {
             Box(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                 IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterStart)) { Icon(Icons.Rounded.Close, tr("关闭")) }
@@ -329,7 +329,7 @@ private fun VoiceAddSheet(vm: AppViewModel, onClose: () -> Unit) {
 
 @Composable
 private fun AddTile(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = corner(20, 16), color = MaterialTheme.colorScheme.surfaceContainer, modifier = modifier.height(100.dp)) {
+    Surface(onClick = onClick, shape = corner(20, 16), color = sheetCardColor(), modifier = modifier.height(100.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.size(44.dp)) {
                 Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(22.dp)) }
@@ -432,7 +432,7 @@ fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
 
 @Composable
 private fun SettingRowSurface(content: @Composable () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = corner(20, 16), modifier = Modifier.fillMaxWidth()) { content() }
+    Surface(color = sheetCardColor(), shape = corner(20, 16), modifier = Modifier.fillMaxWidth()) { content() }
 }
 
 @Composable

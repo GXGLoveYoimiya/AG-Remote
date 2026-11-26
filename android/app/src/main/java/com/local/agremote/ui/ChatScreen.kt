@@ -368,7 +368,7 @@ internal fun ModelSheet(models: List<ModelInfo>, selected: String, onPick: (Stri
     }
 
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow, dragHandle = null) {
+        containerColor = if (LocalUiStyle.current == "default") MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow, dragHandle = null) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
             Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp)) {
                 IconButton(onClick = { if (page == "main") onClose() else page = "main" }, modifier = Modifier.align(Alignment.CenterStart)) {
@@ -413,7 +413,7 @@ internal fun ModelSheet(models: List<ModelInfo>, selected: String, onPick: (Stri
 
 @Composable
 private fun Group(content: @Composable () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerHighest, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+    Surface(color = sheetCardColor(), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
         Column { content() }
     }
 }
@@ -1406,7 +1406,10 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                 }
 
                 val plusBtn = @Composable {
-                    IconButton(onClick = { plus = true }, modifier = Modifier.size(44.dp)) {
+                    // 默认风格：“+”也有一个浅灰圆底（和麦克风一致）
+                    if (claudeStyle) FilledTonalIconButton(onClick = { plus = true }, modifier = Modifier.size(44.dp)) {
+                        Icon(Icons.Rounded.Add, "添加到会话")
+                    } else IconButton(onClick = { plus = true }, modifier = Modifier.size(44.dp)) {
                         Icon(Icons.Rounded.Add, "添加到会话")
                     }
                 }
@@ -1491,7 +1494,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 Surface(
                                     onClick = { if (expanded) onPickModel() },
                                     shape = RoundedCornerShape(50),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    color = if (claudeStyle) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest,
                                     modifier = Modifier.weight(1f, fill = false).graphicsLayer { alpha = ((progress - 0.15f) / 0.85f).coerceIn(0f, 1f) },
                                 ) {
                                     Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
