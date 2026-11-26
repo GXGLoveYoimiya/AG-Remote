@@ -115,6 +115,7 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "已关闭标签页" to "已關閉分頁",
         "字体" to "字型",
         "系统字体" to "系統字型",
         "导入的字体" to "匯入的字型",
@@ -429,6 +430,7 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "已关闭标签页" to "タブを閉じました",
         "字体" to "フォント",
         "系统字体" to "システムフォント",
         "导入的字体" to "読み込んだフォント",
@@ -720,6 +722,7 @@ object I18n {
     )
 
     private val en = mapOf(
+        "已关闭标签页" to "Tab closed",
         "字体" to "Font",
         "系统字体" to "System font",
         "导入的字体" to "Imported font",
@@ -1011,6 +1014,7 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "已关闭标签页" to "탭을 닫았습니다",
         "字体" to "글꼴",
         "系统字体" to "시스템 글꼴",
         "导入的字体" to "가져온 글꼴",
@@ -1319,6 +1323,7 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "已关闭标签页" to "Pestaña cerrada",
         "字体" to "Fuente",
         "系统字体" to "Fuente del sistema",
         "导入的字体" to "Fuente importada",
@@ -1634,6 +1639,7 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "已关闭标签页" to "Onglet fermé",
         "字体" to "Police",
         "系统字体" to "Police système",
         "导入的字体" to "Police importée",
@@ -1949,6 +1955,7 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "已关闭标签页" to "Tab geschlossen",
         "字体" to "Schriftart",
         "系统字体" to "Systemschrift",
         "导入的字体" to "Importierte Schrift",
@@ -2264,6 +2271,7 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "已关闭标签页" to "Вкладка закрыта",
         "字体" to "Шрифт",
         "系统字体" to "Системный шрифт",
         "导入的字体" to "Импортированный шрифт",
@@ -2579,6 +2587,7 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "已关闭标签页" to "Aba fechada",
         "字体" to "Fonte",
         "系统字体" to "Fonte do sistema",
         "导入的字体" to "Fonte importada",

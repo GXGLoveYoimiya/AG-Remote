@@ -473,8 +473,26 @@ fun BrowserDialog(
         webViewRef?.stopLoading()
     }
 
+    // 关闭标签页后可以撤销（浏览器是单独的窗口，提示条放在这个窗口里）
+    val tabUndoHost = remember { androidx.compose.material3.SnackbarHostState() }
+    val undoLabel = tr("撤销")
+    val closedMsg = tr("已关闭标签页")
+
     fun handleCloseTab(t: BrowserTab) {
         val closingCurrent = t.id == activeTabId
+        val oldIndex = localTabs.indexOfFirst { it.id == t.id }
+        scope.launch {
+            tabUndoHost.currentSnackbarData?.dismiss()
+            val r = tabUndoHost.showSnackbar(closedMsg, actionLabel = undoLabel, duration = androidx.compose.material3.SnackbarDuration.Short)
+            if (r == androidx.compose.material3.SnackbarResult.ActionPerformed && localTabs.none { it.id == t.id }) {
+                // 放回原来的位置；关的是当前标签页就切回去
+                localTabs = localTabs.toMutableList().apply { add(oldIndex.coerceIn(0, size), t) }
+                if (closingCurrent) {
+                    if (viewMode == "web") openUrl(t.url, tabId = t.id)
+                    else { activeTabId = t.id; activeUrl = normalizeUrl(t.url, vm.prefs.host); urlInput = t.url }
+                }
+            }
+        }
         val next = localTabs.filterNot { it.id == t.id }
         localTabs = next
         if (next.isEmpty()) clearToHome()
@@ -626,7 +644,7 @@ fun BrowserDialog(
                     }
                 }
                 if (viewMode == "live") Box(Modifier.align(Alignment.CenterEnd)) {
-                    IconButton(onClick = { topMenu = true }) { Icon(Icons.Rounded.MoreHoriz, tr("更多操作")) }
+                    IconButton(onClick = { topMenu = true }) { Icon(Icons.Rounded.MoreVert, tr("更多操作")) }
                     DropdownMenu(topMenu, { topMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
                         DropdownMenuItem(text = { Text(if (livePaused) tr("继续实时同步") else tr("暂停同步")) },
                             leadingIcon = { Icon(if (livePaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, null) },
@@ -639,6 +657,12 @@ fun BrowserDialog(
 
             // 双页面容器：WebView 一旦挂载就常驻不销毁，切换「电脑实况 ↔ 网页浏览」零闪烁、不重载页面
             Box(Modifier.weight(1f).fillMaxWidth().background(surfaceColor)) {
+                androidx.compose.material3.SnackbarHost(tabUndoHost, Modifier.align(Alignment.BottomCenter).zIndex(20f)
+                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) { d ->
+                    androidx.compose.material3.Snackbar(d, shape = RoundedCornerShape(16.dp),
+                        containerColor = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        actionColor = MaterialTheme.colorScheme.inversePrimary)
+                }
                 // 1) 网页浏览层（常驻保活）
                 if (webEverMounted) {
                     Column(
