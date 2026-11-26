@@ -157,11 +157,15 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                 Text(tr("还没有对话"), Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        // 底部：设置 + 新建对话，悬浮在列表上（带阴影，列表从下面滑过）
+        // 底部：头像（设置）+ 新建对话，压在一层渐变上，列表滑到下面时慢慢淡出（照 Claude）
+        val bg = MaterialTheme.colorScheme.surface
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(96.dp)
+            .background(androidx.compose.ui.graphics.Brush.verticalGradient(
+                0f to bg.copy(alpha = 0f), 0.45f to bg.copy(alpha = 0.92f), 1f to bg)))
         Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Surface(onClick = { onOpen("settings"); onClose() }, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                shadowElevation = 6.dp, modifier = Modifier.size(46.dp)) {
+            Surface(onClick = { onOpen("settings"); onClose() }, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.size(46.dp)) {
                 val av = avatar
                 if (av != null) androidx.compose.foundation.Image(av.asImageBitmap(), tr("设置"),
                     Modifier.fillMaxSize().clip(CircleShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
@@ -171,11 +175,11 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
             // 新建对话：右下角一颗小胶囊（照 Claude）
             Button(onClick = { vm.newChat(); onClose() }, modifier = Modifier.height(46.dp),
                 contentPadding = PaddingValues(start = 16.dp, end = 20.dp),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp, pressedElevation = 3.dp),
+
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
-                Icon(Icons.Rounded.EditNote, null, Modifier.size(18.dp))
+                Icon(Icons.Rounded.Add, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(tr("新建对话"), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(tr("新建对话"), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         }
