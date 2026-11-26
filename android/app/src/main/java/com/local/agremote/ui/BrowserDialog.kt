@@ -1,5 +1,7 @@
 package com.local.agremote.ui
 
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
@@ -249,14 +251,15 @@ fun BrowserDialog(
     }
 
     // 实时电脑画面：优先用视频流（连续推帧），连不上再退回一张张截图
-    LaunchedEffect(viewMode, captureCrop, livePaused, liveTick) {
+    var streamQ by remember { mutableStateOf(vm.prefs.streamQuality) }
+    LaunchedEffect(viewMode, captureCrop, livePaused, liveTick, streamQ) {
         if (viewMode != "live") return@LaunchedEffect
         if (!livePaused) {
             var failures = 0
             while (failures < 3) {
                 var got = false
                 runCatching {
-                    vm.pcScreenStream().collect { bmp -> liveFrame = bmp; liveError = null; streaming = true; got = true }
+                    vm.pcScreenStream(vm.streamPreset()).collect { bmp -> liveFrame = bmp; liveError = null; streaming = true; got = true }
                 }
                 streaming = false
                 if (got) failures = 0 else failures++
@@ -916,6 +919,28 @@ fun BrowserDialog(
                             Text(when (controlMode) { "mouse" -> tr("鼠标操控"); "touch" -> tr("直接触控"); else -> tr("仅查看") })
                         },
                     )
+                    // 画质档位：流畅 / 平衡 / 清晰 / 极致清晰（切换后按新档位重连，并记住）
+                    Box {
+                        var qMenu by remember { mutableStateOf(false) }
+                        val cur = vm.streamPresets.find { it.key == streamQ } ?: vm.streamPresets[1]
+                        TogglePill(selected = false, onClick = { qMenu = true },
+                            leadingIcon = { Icon(Icons.Rounded.HighQuality, null, Modifier.size(16.dp)) },
+                            label = { Text(tr(cur.label)) })
+                        DropdownMenu(qMenu, { qMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
+                            vm.streamPresets.forEach { ps ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(tr(ps.label), style = MaterialTheme.typography.bodyLarge)
+                                            Text(tr(ps.desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    },
+                                    trailingIcon = { if (ps.key == streamQ) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)) },
+                                    onClick = { qMenu = false; vm.prefs.streamQuality = ps.key; streamQ = ps.key },
+                                )
+                            }
+                        }
+                    }
                     if (controlMode == "mouse") {
                         TogglePill(
                             selected = showCursorSlider,

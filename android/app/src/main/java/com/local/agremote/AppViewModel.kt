@@ -173,8 +173,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     /** 电脑实况视频流：连续收帧；断开或出错时结束（调用方再决定重连或退回截图）。 */
-    fun pcScreenStream(width: Int = 1280, fps: Int = 20): kotlinx.coroutines.flow.Flow<android.graphics.Bitmap> = kotlinx.coroutines.flow.flow {
-        val call = api.browserStreamCall(width, fps)
+    /** 电脑实况的画质档位：宽度、每秒帧数、JPEG 质量。 */
+    data class StreamPreset(val key: String, val label: String, val desc: String, val width: Int, val fps: Int, val quality: Int)
+    val streamPresets = listOf(
+        StreamPreset("smooth", "流畅", "省流量，网差时用", 960, 24, 50),
+        StreamPreset("balanced", "平衡", "清晰和流畅兼顾", 1280, 20, 65),
+        StreamPreset("clear", "清晰", "画面更细，帧率稍低", 1600, 15, 80),
+        StreamPreset("ultra", "极致清晰", "原始分辨率，看小字用", 2560, 10, 90),
+    )
+    fun streamPreset(): StreamPreset = streamPresets.find { it.key == prefs.streamQuality } ?: streamPresets[1]
+
+    fun pcScreenStream(preset: StreamPreset = streamPreset()): kotlinx.coroutines.flow.Flow<android.graphics.Bitmap> = kotlinx.coroutines.flow.flow {
+        val call = api.browserStreamCall(preset.width, preset.fps, preset.quality)
         currentCoroutineContext()[Job]?.invokeOnCompletion { call.cancel() } // 离开页面时立刻断开
         call.execute().use { r ->
             if (!r.isSuccessful) return@use

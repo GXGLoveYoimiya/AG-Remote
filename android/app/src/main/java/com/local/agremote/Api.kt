@@ -230,6 +230,10 @@ class Prefs(ctx: Context) {
     var votesJson: String
         get() = sp.getString("votes_json", "{}") ?: "{}"
         set(v) = sp.edit().putString("votes_json", v).apply()
+    /** 电脑实况画质档位：smooth / balanced / clear / ultra。 */
+    var streamQuality: String
+        get() = sp.getString("stream_quality", "balanced") ?: "balanced"
+        set(v) = sp.edit().putString("stream_quality", v).apply()
     /** 远程电脑虚拟光标缩放倍率（默认 1.0，范围 0.4..2.2）。 */
     var cursorScale: Float
         get() = sp.getFloat("cursor_scale", 1.0f).coerceIn(0.4f, 2.2f)
@@ -517,8 +521,8 @@ class Api(private val prefs: Prefs) {
     }
 
     /** 电脑实况视频流：每帧“4 字节长度 + JPEG”。 */
-    fun browserStreamCall(width: Int, fps: Int): okhttp3.Call =
-        streamClient.newCall(req("/api/browser/stream?w=$width&fps=$fps").build())
+    fun browserStreamCall(width: Int, fps: Int, quality: Int): okhttp3.Call =
+        streamClient.newCall(req("/api/browser/stream?w=$width&fps=$fps&q=$quality").build())
 
     suspend fun browserScreen(mode: String): ByteArray? = withContext(Dispatchers.IO) {
         client.newCall(req("/api/browser/screen?mode=$mode").build()).execute().use { r ->

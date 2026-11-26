@@ -115,6 +115,14 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "流畅" to "流暢",
+        "省流量，网差时用" to "省流量，網路差時用",
+        "平衡" to "平衡",
+        "清晰和流畅兼顾" to "兼顧清晰與流暢",
+        "清晰" to "清晰",
+        "画面更细，帧率稍低" to "畫面更細緻，幀率稍低",
+        "极致清晰" to "極致清晰",
+        "原始分辨率，看小字用" to "原始解析度，看小字用",
         "继续实时同步" to "繼續即時同步",
         "暂停同步" to "暫停同步",
         "刷新画面" to "重新整理畫面",
@@ -330,6 +338,14 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "流畅" to "なめらか",
+        "省流量，网差时用" to "データ節約・回線が遅いとき",
+        "平衡" to "バランス",
+        "清晰和流畅兼顾" to "画質となめらかさを両立",
+        "清晰" to "高画質",
+        "画面更细，帧率稍低" to "より精細・フレームレートやや低め",
+        "极致清晰" to "最高画質",
+        "原始分辨率，看小字用" to "元の解像度・小さな文字向け",
         "继续实时同步" to "同期を再開",
         "暂停同步" to "同期を一時停止",
         "刷新画面" to "画面を更新",
@@ -522,6 +538,14 @@ object I18n {
     )
 
     private val en = mapOf(
+        "流畅" to "Smooth",
+        "省流量，网差时用" to "Saves data, for weak networks",
+        "平衡" to "Balanced",
+        "清晰和流畅兼顾" to "Balance of clarity and smoothness",
+        "清晰" to "Clear",
+        "画面更细，帧率稍低" to "Sharper, slightly lower frame rate",
+        "极致清晰" to "Ultra",
+        "原始分辨率，看小字用" to "Native resolution, for small text",
         "继续实时同步" to "Resume live sync",
         "暂停同步" to "Pause sync",
         "刷新画面" to "Refresh view",

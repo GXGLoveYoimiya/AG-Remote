@@ -106,8 +106,8 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                 IconButton(onClick = { onClose(); onCommandPalette() }) { Icon(Icons.Rounded.KeyboardCommandKey, tr("命令面板")) }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) { LinkLine(link) }
-                if (activeHost != null) Box(Modifier.padding(end = 8.dp)) {
+                // 左边是当前电脑，右边紧跟连接状态（绿点）
+                if (activeHost != null) Box(Modifier.padding(end = 10.dp)) {
                     Surface(
                         onClick = { if (hosts.size > 1) pickHostMenu = true else { onOpen("settings"); onClose() } },
                         shape = RoundedCornerShape(50),
@@ -134,6 +134,7 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                         }
                     }
                 }
+                Box(Modifier.weight(1f)) { LinkLine(link) }
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {

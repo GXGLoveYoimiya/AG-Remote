@@ -176,6 +176,7 @@ import androidx.compose.material.icons.rounded.Image
 import com.local.agremote.ModelInfo
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.drawscope.rotate
 import com.local.agremote.AppViewModel
 import com.local.agremote.Step
 import org.json.JSONArray
@@ -366,13 +367,48 @@ private fun greeting(name: String?): String {
 @Composable
 private fun WorkingRow(canceling: Boolean) {
     Row(Modifier.padding(vertical = 10.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        val t = rememberInfiniteTransition(label = "spin")
-        val r by t.animateFloat(0f, 360f, infiniteRepeatable(tween(1400, easing = LinearEasing)), label = "r")
-        Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(20.dp).rotate(r), tint = MaterialTheme.colorScheme.primary)
+        ThinkingSpark(accent(), Modifier.size(22.dp))
         Spacer(Modifier.width(10.dp))
-        Text(if (canceling) tr("正在停止…") else tr("正在运行…"), style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ShimmerText(if (canceling) tr("正在停止…") else tr("正在运行…"))
     }
+}
+
+/** 思考中的小动画：一颗四角星慢慢转、轻轻“呼吸”，右上角一颗小星和它错开节奏一闪一闪。 */
+@Composable
+private fun ThinkingSpark(color: Color, modifier: Modifier = Modifier) {
+    val tr = rememberInfiniteTransition(label = "spark")
+    val ph by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = LinearEasing)), label = "ph")
+    androidx.compose.foundation.Canvas(modifier) {
+        val twoPi = (2 * Math.PI).toFloat()
+        fun star(c: Offset, r: Float, col: Color) {
+            // 四角星：四个尖之间用向中心凹的曲线连起来
+            val p = androidx.compose.ui.graphics.Path().apply {
+                moveTo(c.x, c.y - r)
+                quadraticTo(c.x, c.y, c.x + r, c.y)
+                quadraticTo(c.x, c.y, c.x, c.y + r)
+                quadraticTo(c.x, c.y, c.x - r, c.y)
+                quadraticTo(c.x, c.y, c.x, c.y - r)
+                close()
+            }
+            drawPath(p, col)
+        }
+        val big = size.minDimension * 0.42f * (0.78f + 0.22f * (0.5f - 0.5f * kotlin.math.cos(ph * twoPi)))
+        val mainC = Offset(size.width * 0.44f, size.height * 0.56f)
+        rotate(ph * 90f, pivot = mainC) { star(mainC, big, color) }
+        val tw = kotlin.math.sin((ph + 0.5f) * twoPi).coerceAtLeast(0f) // 小星：主星缩小时它亮起来
+        if (tw > 0.02f) star(Offset(size.width * 0.86f, size.height * 0.16f), size.minDimension * 0.15f * (0.5f + 0.5f * tw), color.copy(alpha = tw))
+    }
+}
+
+/** 文字上有一道高光从左往右扫过（思考中的提示）。 */
+@Composable
+private fun ShimmerText(text: String) {
+    val base = MaterialTheme.colorScheme.onSurfaceVariant
+    val hi = MaterialTheme.colorScheme.onSurface
+    val tr = rememberInfiniteTransition(label = "shimmer")
+    val x by tr.animateFloat(-200f, 600f, infiniteRepeatable(tween(1600, easing = LinearEasing)), label = "x")
+    Text(text, style = MaterialTheme.typography.bodyMedium.copy(
+        brush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(base, hi, base), start = Offset(x, 0f), end = Offset(x + 160f, 0f))))
 }
 
 /** 模型选择：主力模型一组，下面是思考强度和更多模型。 */
@@ -1693,13 +1729,16 @@ private fun cjkSpace(s: String): String = s
     .replace(Regex("([\u4e00-\u9fff\u3040-\u30ff])([A-Za-z0-9])"), "$1 $2")
     .replace(Regex("([A-Za-z0-9])([\u4e00-\u9fff\u3040-\u30ff])"), "$1 $2")
 
-/** 剩余额度圆环：强调色，圈的长度是剩余比例，快用完时变红。 */
+/** 额度圆环：圈的长度是这 5 小时已用掉的比例；用得少是强调色，过 60% 变橙黄，过 85% 变红。 */
 @Composable
 private fun QuotaRing(remaining: Double) {
-    val pct = (remaining * 100).toInt().coerceIn(0, 100)
-    val color = if (pct <= 10) MaterialTheme.colorScheme.error else accent()
-    // 和旁边 24dp 的图标一样大，只画圈不写数字
-    CircularProgressIndicator(progress = { pct / 100f }, modifier = Modifier.size(20.dp), color = color,
+    val used = ((1.0 - remaining) * 100).toInt().coerceIn(0, 100)
+    val color = when {
+        used >= 85 -> MaterialTheme.colorScheme.error
+        used >= 60 -> Color(0xFFF0A030)
+        else -> accent()
+    }
+    CircularProgressIndicator(progress = { used / 100f }, modifier = Modifier.size(20.dp), color = color,
         trackColor = color.copy(alpha = 0.2f), strokeWidth = 2.5.dp, strokeCap = StrokeCap.Round, gapSize = 0.dp)
 }
 

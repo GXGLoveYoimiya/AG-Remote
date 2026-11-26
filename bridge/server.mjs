@@ -2401,8 +2401,9 @@ async function dl(){
       if (!existsSync(WINCAP_EXE)) return send(res, 404, { error: 'NO_WINCAP' });
       const clamp = (v, lo, hi, d) => Math.min(hi, Math.max(lo, Number(v) || d));
       const fps = clamp(url.searchParams.get('fps'), 2, 30, 20);
-      const width = clamp(url.searchParams.get('w'), 480, 1920, 1280);
-      const p = spawn(WINCAP_EXE, ['stream', '65', String(width), String(fps)], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      const width = clamp(url.searchParams.get('w'), 480, 3840, 1280);
+      const quality = clamp(url.searchParams.get('q'), 30, 95, 65);
+      const p = spawn(WINCAP_EXE, ['stream', String(quality), String(width), String(fps)], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
       res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' });
       res.socket?.setNoDelay?.(true);
       let buf = Buffer.alloc(0);
@@ -2414,7 +2415,7 @@ async function dl(){
           if (buf.length < 4 + n) break;
           latest = buf.subarray(0, 4 + n);
           buf = buf.subarray(4 + n);
-          if (res.writableLength < 256 << 10) { res.write(Buffer.from(latest)); latest = null; } // 积压太多就丢这一帧
+          if (res.writableLength < (1 << 20)) { res.write(Buffer.from(latest)); latest = null; } // 积压太多就丢这一帧（高画质帧更大，阈值放宽到 1MB）
         }
       });
       p.on('exit', () => { try { res.end(); } catch {} });
