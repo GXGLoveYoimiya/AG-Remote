@@ -1388,7 +1388,8 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                         },
                         modifier = Modifier.size(44.dp).onGloballyPositioned { micBounds = it.boundsInRoot() },
                         colors = when {
-                            claudeStyle && (hasContent || canStop) -> IconButtonDefaults.filledIconButtonColors(
+                            claudeStyle && hasContent -> IconButtonDefaults.filledIconButtonColors() // 发送：强调色
+                            claudeStyle && canStop -> IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)
                             claudeStyle -> IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)

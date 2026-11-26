@@ -216,15 +216,30 @@ private fun claudeScheme(accent: Color, dark: Boolean): ColorScheme {
     }
 }
 
-/** 默认风格的标题（问候语、大标题）用衬线体，正文保持无衬线。 */
-private fun claudeTypography(): androidx.compose.material3.Typography {
-    val t = androidx.compose.material3.Typography()
-    val serif = androidx.compose.ui.text.font.FontFamily.Serif
-    return t.copy(
-        displaySmall = t.displaySmall.copy(fontFamily = serif),
-        headlineLarge = t.headlineLarge.copy(fontFamily = serif),
-        headlineMedium = t.headlineMedium.copy(fontFamily = serif),
-        headlineSmall = t.headlineSmall.copy(fontFamily = serif),
+/** 字体选项：auto 跟随风格（默认风格的标题用衬线，其余无衬线）。 */
+val FONT_OPTIONS = listOf("auto" to "跟随风格", "sans" to "无衬线", "serif" to "衬线", "mono" to "等宽")
+
+private fun fontFamily(key: String, autoSerif: Boolean) = when (key) {
+    "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
+    "mono" -> androidx.compose.ui.text.font.FontFamily.Monospace
+    "sans" -> androidx.compose.ui.text.font.FontFamily.SansSerif
+    else -> if (autoSerif) androidx.compose.ui.text.font.FontFamily.Serif else androidx.compose.ui.text.font.FontFamily.Default
+}
+
+/** 按设置生成整套字体样式：标题（display/headline/大标题）和正文分开选字体，整体按字号缩放。 */
+fun appTypography(cfg: ThemeConfig): androidx.compose.material3.Typography {
+    val base = androidx.compose.material3.Typography()
+    val head = fontFamily(cfg.headFont, autoSerif = cfg.style == "default")
+    val body = fontFamily(cfg.bodyFont, autoSerif = false)
+    val k = cfg.fontScale.coerceIn(0.85f, 1.3f)
+    fun androidx.compose.ui.text.TextStyle.f(fam: androidx.compose.ui.text.font.FontFamily) =
+        copy(fontFamily = fam, fontSize = fontSize * k, lineHeight = lineHeight * k)
+    return base.copy(
+        displayLarge = base.displayLarge.f(head), displayMedium = base.displayMedium.f(head), displaySmall = base.displaySmall.f(head),
+        headlineLarge = base.headlineLarge.f(head), headlineMedium = base.headlineMedium.f(head), headlineSmall = base.headlineSmall.f(head),
+        titleLarge = base.titleLarge.f(head), titleMedium = base.titleMedium.f(body), titleSmall = base.titleSmall.f(body),
+        bodyLarge = base.bodyLarge.f(body), bodyMedium = base.bodyMedium.f(body), bodySmall = base.bodySmall.f(body),
+        labelLarge = base.labelLarge.f(body), labelMedium = base.labelMedium.f(body), labelSmall = base.labelSmall.f(body),
     )
 }
 
@@ -341,8 +356,27 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
     }
 
     CompositionLocalProvider(LocalUiStyle provides cfg.style) {
-        if (cfg.style == "default") MaterialTheme(colorScheme = scheme, typography = claudeTypography(), content = content)
-        else MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme, typography = appTypography(cfg), content = content)
+    }
+}
+
+@Composable
+private fun FontChoiceRow(label: String, value: String, onPick: (String) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.width(44.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FONT_OPTIONS.forEach { (k, name) ->
+                val sel = value == k
+                Surface(onClick = { onPick(k) }, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f),
+                    color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    Box(Modifier.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        Text(tr(name), maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = fontFamily(k, autoSerif = false)),
+                            color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -360,7 +394,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             // 1. 主题风格：默认（仿 Claude）/ Material You / Miuix
             Text(tr("主题风格"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 StyleOptionCard(
                     title = tr("默认"),
                     desc = tr("温暖纸感 · 简洁克制"),
@@ -368,7 +402,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                     previewBg = Color(0xFFFAF9F5),
                     previewCard = Color(0xFFF0EEE6),
                     previewAccent = Color(0xFFD97757),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                 ) { onChange(cfg.copy(style = "default")) }
                 StyleOptionCard(
                     title = "Material You",
@@ -377,7 +411,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                     previewBg = Color(0xFFF4EFF8),
                     previewCard = Color(0xFFE7DFF0),
                     previewAccent = Color(0xFF6750A4),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                 ) { onChange(cfg.copy(style = "material")) }
                 StyleOptionCard(
                     title = "Miuix",
@@ -386,8 +420,28 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                     previewBg = Color(0xFFF7F7F7),
                     previewCard = Color(0xFFFFFFFF),
                     previewAccent = Color(0xFF3482FF),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                 ) { onChange(cfg.copy(style = "miuix")) }
+            }
+
+            // 字体：标题 / 正文分开选，加整体字号，带实时预览
+            Text(tr("字体"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            FontChoiceRow(tr("标题"), cfg.headFont) { onChange(cfg.copy(headFont = it)) }
+            FontChoiceRow(tr("正文"), cfg.bodyFont) { onChange(cfg.copy(bodyFont = it)) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(tr("字号"), Modifier.width(44.dp), style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                var scale by remember(cfg.fontScale) { mutableFloatStateOf(cfg.fontScale) }
+                Slider(value = scale, onValueChange = { scale = it }, onValueChangeFinished = { onChange(cfg.copy(fontScale = scale)) },
+                    valueRange = 0.85f..1.3f, steps = 8, modifier = Modifier.weight(1f))
+                Text("${(scale * 100).toInt()}%", Modifier.width(48.dp), style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.End)
+            }
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(tr("来聊聊"), style = MaterialTheme.typography.headlineSmall)
+                    Text(tr("字体预览：正文是这样显示的。The quick brown fox 0123"), style = MaterialTheme.typography.bodyLarge)
+                }
             }
 
             // 2. 深色模式
@@ -470,7 +524,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                PRESET_COLORS.chunked(6).forEach { rowColors ->
+                PRESET_COLORS.chunked(7).forEach { rowColors ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         rowColors.forEach { (argb, name) ->
                             val sel = !showPicker && cfg.colorMode == "custom" && cfg.seedColor == argb
@@ -486,6 +540,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                                 if (sel) Icon(Icons.Rounded.Check, name, Modifier.size(18.dp), tint = bestOnColor(Color(argb)))
                             }
                         }
+                        repeat(7 - rowColors.size) { Spacer(Modifier.size(38.dp)) } // 不满一行时占位，圆点不会被拉开
                     }
                 }
             }
@@ -523,23 +578,20 @@ private fun StyleOptionCard(
         border = if (selected) BorderStroke(1.8.dp, MaterialTheme.colorScheme.primary) else null,
         modifier = modifier,
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             // 迷你风格示意图
-            Box(
-                Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(10.dp)).background(previewBg).padding(6.dp)
-            ) {
+            Box(Modifier.width(76.dp).height(40.dp).clip(RoundedCornerShape(10.dp)).background(previewBg).padding(6.dp)) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f).height(24.dp).clip(RoundedCornerShape(7.dp)).background(previewCard))
-                    Box(Modifier.size(22.dp).clip(CircleShape).background(previewAccent))
+                    Box(Modifier.weight(1f).height(22.dp).clip(RoundedCornerShape(7.dp)).background(previewCard))
+                    Box(Modifier.size(20.dp).clip(CircleShape).background(previewAccent))
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    Text(desc, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                }
-                if (selected) Icon(Icons.Rounded.Check, "已选", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            if (selected) Icon(Icons.Rounded.Check, tr("已选"), Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

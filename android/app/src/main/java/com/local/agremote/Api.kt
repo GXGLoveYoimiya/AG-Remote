@@ -187,6 +187,9 @@ data class ThemeConfig(
     val darkMode: String = "system",     // system / light / dark
     val colorMode: String = "custom",    // system / custom
     val seedColor: Int = 0xFFD97757.toInt(),
+    val headFont: String = "auto",       // 标题字体：auto（跟随风格）/ sans / serif / mono
+    val bodyFont: String = "auto",       // 正文字体：同上
+    val fontScale: Float = 1f,           // 字号缩放 0.85 ~ 1.3
 )
 
 /** 已保存的电脑端设备（支持多设备切换，每个设备可自定义名称和 IP/端口）。 */
@@ -285,14 +288,20 @@ class Prefs(ctx: Context) {
         get() = ThemeConfig(
             style = sp.getString("theme_style", "default") ?: "default",
             darkMode = sp.getString("theme_dark", "system") ?: "system",
-            colorMode = sp.getString("theme_color_mode", "system") ?: "system",
-            seedColor = sp.getInt("theme_seed", 0xFF3482FF.toInt()),
+            colorMode = sp.getString("theme_color_mode", "custom") ?: "custom",
+            seedColor = sp.getInt("theme_seed", 0xFFD97757.toInt()),
+            headFont = sp.getString("theme_head_font", "auto") ?: "auto",
+            bodyFont = sp.getString("theme_body_font", "auto") ?: "auto",
+            fontScale = sp.getFloat("theme_font_scale", 1f),
         )
         set(v) = sp.edit()
             .putString("theme_style", v.style)
             .putString("theme_dark", v.darkMode)
             .putString("theme_color_mode", v.colorMode)
             .putInt("theme_seed", v.seedColor)
+            .putString("theme_head_font", v.headFont)
+            .putString("theme_body_font", v.bodyFont)
+            .putFloat("theme_font_scale", v.fontScale)
             .apply()
     val base get() = "http://$host:$port"
 }
