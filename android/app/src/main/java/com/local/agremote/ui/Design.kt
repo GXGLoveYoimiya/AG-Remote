@@ -131,7 +131,7 @@ fun ListRow(
 @Composable
 fun UsageCard(name: String, usedFraction: Double, resetText: String, desc: String = "") {
     val pct = (usedFraction * 100).toInt().coerceIn(0, 100)
-    val color = if (pct >= 90) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val color = if (pct >= 90) MaterialTheme.colorScheme.error else accent()
     CardBox {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
