@@ -188,17 +188,19 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
             }
         }
         // 底部：设置 + 新建对话
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            FilledTonalIconButton(onClick = { onOpen("settings"); onClose() }, modifier = Modifier.size(48.dp),
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            FilledTonalIconButton(onClick = { onOpen("settings"); onClose() }, modifier = Modifier.size(42.dp),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
                 Icon(Icons.Rounded.Settings, tr("设置"))
             }
-            Spacer(Modifier.width(10.dp))
-            Button(onClick = { vm.newChat(); onClose() }, modifier = Modifier.weight(1f).height(48.dp),
+            Spacer(Modifier.weight(1f))
+            // 新建对话：右下角一颗小胶囊（照 Claude）
+            Button(onClick = { vm.newChat(); onClose() }, modifier = Modifier.height(42.dp),
+                contentPadding = PaddingValues(start = 14.dp, end = 18.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
-                Icon(Icons.Rounded.EditNote, null, Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(tr("新建对话"), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Icon(Icons.Rounded.EditNote, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(tr("新建对话"), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

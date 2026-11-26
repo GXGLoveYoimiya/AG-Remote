@@ -551,6 +551,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val sttFinalizing = _sttFinalizing.asStateFlow()
     private val _sttText = MutableStateFlow("")
     val sttText = _sttText.asStateFlow()
+    /** 识别结果里已经确认的前半段（其余是还会变的临时结果）。 */
+    private val _sttStable = MutableStateFlow("")
+    val sttStable = _sttStable.asStateFlow()
     /** 识别结果：text + 是否直接发送。 */
     private val _sttResult = MutableSharedFlow<Pair<String, Boolean>>(extraBufferCapacity = 4)
     val sttResult = _sttResult.asSharedFlow()
@@ -701,7 +704,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     if (wasOffline) { loadSync(); loadDrafts() }
                                 }
                             }
-                            "stt" -> if (ev.optString("sid") == sttSid) _sttText.value = ev.optString("text")
+                            "stt" -> if (ev.optString("sid") == sttSid) { _sttText.value = ev.optString("text"); _sttStable.value = ev.optString("stable") }
                             "draft" -> withContext(Dispatchers.Main) {
                                 val k = ev.optString("cid")
                                 val txt = ev.optString("text")
@@ -938,6 +941,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (_recording.value) return
         _recording.value = true
         _sttText.value = ""
+        _sttStable.value = ""
         _levels.value = emptyList()
         stopMode = "keep"
         recJob = viewModelScope.launch(Dispatchers.IO) {
@@ -990,6 +994,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             sttSid = null
             _sttFinalizing.value = false
             _sttText.value = ""
+            _sttStable.value = ""
             _levels.value = emptyList()
             if (stopMode != "cancel" && text.isNotBlank()) _sttResult.tryEmit(text to (stopMode == "send"))
         }
@@ -1188,6 +1193,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** 停止试听（离开语音设置时调用）。 */
+    fun stopPreview() { previewPlayer?.release(); previewPlayer = null; _previewing.value = null }
+
     /** 开始实时语音：在当前对话里说；新对话时电脑会先建一个，通话里会告诉我们对话 ID。 */
     fun startVoiceCall() {
         if (_voiceCall.value != null) return
@@ -1202,6 +1210,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun pickVoiceModel(model: String) {
         pickModel(model)
         _voiceCfg.value.models[model]?.let { _voiceCall.value?.setModel(it) }
+    }
+
+    /** 通话中把照片/文件发进当前对话（和电脑上 Antigravity 语音模式里加附件一样）。 */
+    fun sendVoiceAttachments(uris: List<android.net.Uri>) {
+        val call = _voiceCall.value ?: return
+        val cid = call.convId.value ?: run { _toast.tryEmit("对话还没建好，稍等一下再加附件"); return }
+        val ctx = getApplication<Application>()
+        viewModelScope.launch {
+            val files = uris.mapNotNull { u -> runCatching { Attachments.load(ctx, u) }.onFailure { _toast.tryEmit("附件读取失败：" + err(it)) }.getOrNull() }
+            if (files.isEmpty()) return@launch
+            runCatching { api.send(cid, "请看附件。", _selected.value, files) }
+                .onSuccess { _toast.tryEmit("已发送附件") }
+                .onFailure { _toast.tryEmit("发送失败：" + err(it)) }
+        }
     }
 
     /** 结束通话并关掉通话界面；新建的对话会出现在列表里并自动打开。 */

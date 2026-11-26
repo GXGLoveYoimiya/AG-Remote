@@ -373,11 +373,19 @@ private fun MarkwonText(text: String, modifier: Modifier = Modifier, sizeSp: Flo
     val codeSizePx = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sizeSp * 0.90f, dm)
     val density = dm.density
     val linkHandler = androidx.compose.runtime.rememberUpdatedState(onLink)
-    val processed = remember(text) { linkifyBareUrls(fixCjkBold(text)) }
+    val processed = remember(text) { linkifyBareUrls(fixCjkBold(normalizeMath(text))) }
     val markwon = remember(fg, link, linkBg, codeBg, sizeSp) {
         Markwon.builder(ctx)
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(ctx))
+            // 数学公式：$$…$$ 独占几行是公式块，行内的 $$…$$ 是行内公式（其他写法先由 normalizeMath 统一）
+            .usePlugin(io.noties.markwon.inlineparser.MarkwonInlineParserPlugin.create())
+            .usePlugin(io.noties.markwon.ext.latex.JLatexMathPlugin.create(
+                android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sizeSp, dm)) { b ->
+                b.inlinesEnabled(true)
+                b.theme().textColor(fg)
+                b.errorHandler { latex, _ -> null.also { android.util.Log.w("AGRemote", "公式渲染失败: $latex") } }
+            })
             .usePlugin(object : AbstractMarkwonPlugin() {
                 override fun configureConfiguration(builder: io.noties.markwon.MarkwonConfiguration.Builder) {
                     builder.linkResolver { view, url ->
@@ -492,6 +500,39 @@ private fun MarkwonText(text: String, modifier: Modifier = Modifier, sizeSp: Flo
     )
 }
 
+
+/**
+ * 把模型常用的几种公式写法统一成 Markwon 公式插件认识的格式：
+ * \[…\] 和 $$…$$ → 独占几行的 $$ 公式块；\(…\) 和 $…$ → 行内 $$…$$。行内代码里的不动；
+ * 像 “$5 和 $10” 这样的金额不会被当成公式（开头结尾不能是空格，后面不能紧跟数字字母）。
+ */
+internal fun normalizeMath(src: String): String {
+    if (!src.contains('$') && !src.contains("\\(") && !src.contains("\\[")) return src
+    // 1) 公式块（可以跨行）
+    var t = Regex("""\\\[([\s\S]+?)\\\]""").replace(src) { "\n$$\n" + it.groupValues[1].trim() + "\n$$\n" }
+    t = Regex("""\$\$([\s\S]+?)\$\$""").replace(t) { m ->
+        val body = m.groupValues[1]
+        val lineStart = m.range.first == 0 || t[m.range.first - 1] == '\n'
+        val lineEnd = m.range.last + 1 >= t.length || t[m.range.last + 1] == '\n'
+        // 独占一行（或本来就跨行）的按公式块显示，句子中间的按行内公式
+        if (body.contains('\n') || (lineStart && lineEnd)) "\n$$\n" + body.trim() + "\n$$\n"
+        else "\u0000" + body.trim() + "\u0001"
+    }
+    // 2) 行内公式：跳过 `行内代码`
+    val out = StringBuilder()
+    var last = 0
+    val inlineDollar = Regex("""(?<![\\$\w])\$(?![\s$])([^$\n]+?)(?<![\s\\])\$(?![\w$])""")
+    val inlineParen = Regex("""\\\((.+?)\\\)""")
+    fun conv(s: String) = inlineDollar.replace(inlineParen.replace(s) { "\u0000" + it.groupValues[1].trim() + "\u0001" }) {
+        "\u0000" + it.groupValues[1] + "\u0001"
+    }
+    for (m in Regex("`+[^`]*`+").findAll(t)) {
+        out.append(conv(t.substring(last, m.range.first))).append(m.value)
+        last = m.range.last + 1
+    }
+    out.append(conv(t.substring(last)))
+    return out.toString().replace("\u0000", "$$").replace("\u0001", "$$").replace(Regex("\n{3,}"), "\n\n")
+}
 
 /** 只打开网页类链接；对 http(s) 优先直接指定系统默认浏览器包名，避免被 B 站/知乎/淘宝等 App Links 劫持。 */
 fun openWebLink(ctx: android.content.Context, url: String) {

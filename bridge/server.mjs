@@ -1650,6 +1650,8 @@ function sttError(e) {
 }
 
 function sttText(s) { return [...s.finals, s.partial].filter(Boolean).join(' ').trim(); }
+/** 已经确认（不会再变）的那部分文字。 */
+function sttStable(s) { return s.finals.filter(Boolean).join(' ').trim(); }
 
 async function sttStart(lang) {
   if (!ls) await rpc('GetAllCascadeTrajectories', {});
@@ -1688,7 +1690,7 @@ async function sttStart(lang) {
             const s = stt.get(sid);
             if (msg.transcription.isFinal) { s.finals.push(msg.transcription.text || ''); s.partial = ''; }
             else s.partial = msg.transcription.text || '';
-            push({ type: 'stt', sid, text: sttText(s), final: false });
+            push({ type: 'stt', sid, text: sttText(s), stable: sttStable(s), final: false });
           } else if (msg.complete && sid) {
             break;
           }
@@ -1698,7 +1700,7 @@ async function sttStart(lang) {
     const s = sid && stt.get(sid);
     if (s) {
       s.done = true;
-      push({ type: 'stt', sid, text: sttText(s), final: true });
+      push({ type: 'stt', sid, text: sttText(s), stable: sttStable(s), final: true });
       s.waiters.forEach(w => w());
       setTimeout(() => stt.delete(sid), 60000);
     }

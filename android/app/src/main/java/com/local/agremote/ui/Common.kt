@@ -45,7 +45,7 @@ fun LinkLine(link: Link) {
 }
 
 @Composable
-fun StatusDot(running: Boolean, color: Color = MaterialTheme.colorScheme.primary) {
+fun StatusDot(running: Boolean, color: Color = accent()) {
     if (running) {
         val t = rememberInfiniteTransition(label = "pulse")
         val a by t.animateFloat(0.3f, 1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "a")

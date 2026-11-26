@@ -30,6 +30,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -103,7 +111,7 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
     val account by vm.account.collectAsState()
     val models by vm.models.collectAsState()
     val selected by vm.selected.collectAsState()
-    var sheet by remember { mutableStateOf<String?>(null) } // settings / model
+    var sheet by remember { mutableStateOf<String?>(null) } // settings / add / model
 
     val view = LocalView.current
     DisposableEffect(Unit) { view.keepScreenOn = true; onDispose { view.keepScreenOn = false } }
@@ -195,9 +203,11 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
                     }
                 }
 
-                // 底栏：模型、外放、挂断
+                // 底栏：附件、模型、外放、挂断
                 Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 14.dp),
                     verticalAlignment = Alignment.CenterVertically) {
+                    CircleButton(Icons.Rounded.Add, tr("添加到会话"), size = 44, enabled = !ended) { sheet = "add" }
+                    Spacer(Modifier.width(10.dp))
                     Surface(onClick = { sheet = "model" }, shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.surfaceContainerLowest,
                         shadowElevation = 3.dp, modifier = Modifier.height(44.dp)) {
@@ -222,6 +232,7 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
 
         when (sheet) {
             "settings" -> SheetFrame(tr("语音设置"), onClose = { sheet = null }) { VoiceSettingsContent(vm, inCall = true) }
+            "add" -> VoiceAddSheet(vm, onClose = { sheet = null })
             "model" -> ModelSheet(models, selected, onPick = { vm.pickVoiceModel(it) }, onClose = { sheet = null })
         }
     }
@@ -231,7 +242,7 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
 @Composable
 private fun BottomGlow(level: Float, warm: Boolean, active: Boolean, dark: Boolean) {
     val strength by animateFloatAsState(if (active) 0.45f + level * 0.55f else 0.25f, tween(160), label = "glow")
-    val listen = MaterialTheme.colorScheme.primary
+    val listen = accent()
     val speak = MaterialTheme.colorScheme.tertiary
     val tint by animateFloatAsState(if (warm) 1f else 0f, tween(400), label = "tint")
     val c = androidx.compose.ui.graphics.lerp(listen, speak, tint)
@@ -245,6 +256,40 @@ private fun BottomGlow(level: Float, warm: Boolean, active: Boolean, dark: Boole
             val r = size.width * 0.75f
             drawCircle(Brush.radialGradient(listOf(speak.copy(alpha = a * tint * 0.6f), Color.Transparent), Offset(0f, h), r), r, Offset(0f, h))
             drawCircle(Brush.radialGradient(listOf(speak.copy(alpha = a * tint * 0.6f), Color.Transparent), Offset(size.width, h), r), r, Offset(size.width, h))
+        }
+    }
+}
+
+@Composable
+private fun VoiceAddSheet(vm: AppViewModel, onClose: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var cameraUri by rememberSaveable { mutableStateOf<String?>(null) }
+    fun done(uris: List<android.net.Uri>) { if (uris.isNotEmpty()) { vm.sendVoiceAttachments(uris); onClose() } }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> if (ok) cameraUri?.let { done(listOf(android.net.Uri.parse(it))) } }
+    val photos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { done(it) }
+    val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { done(it) }
+    SheetFrame(tr("添加到会话"), onClose) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            AddTile(Icons.Rounded.PhotoCamera, tr("相机"), Modifier.weight(1f)) {
+                val u = com.local.agremote.Attachments.cameraUri(ctx); cameraUri = u.toString(); camera.launch(u)
+            }
+            AddTile(Icons.Rounded.PhotoLibrary, tr("照片"), Modifier.weight(1f)) {
+                photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+            }
+            AddTile(Icons.Rounded.Description, tr("文件"), Modifier.weight(1f)) { files.launch(arrayOf("*/*")) }
+        }
+    }
+}
+
+@Composable
+private fun AddTile(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(20.dp), color = sheetCardColor(), modifier = modifier.height(100.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.size(44.dp)) {
+                Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(22.dp)) }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(label, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -283,6 +328,8 @@ fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
     val cfg by vm.voiceCfg.collectAsState()
     val s = cfg.settings
     val voices = cfg.voices
+    // 离开语音设置（返回或关掉面板）时立刻停止试听，不等它说完
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { vm.stopPreview() } }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (voices.isNotEmpty()) {
             SectionLabel(tr("音色") + if (inCall) "（" + tr("下次通话生效") + "）" else "")

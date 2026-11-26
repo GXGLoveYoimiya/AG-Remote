@@ -757,9 +757,11 @@ private fun ProcessBlock(vm: AppViewModel, chatId: String, r: ChatRow.Process) {
             Modifier.clip(RoundedCornerShape(10.dp)).clickable { open = !open }.padding(vertical = 4.dp, horizontal = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Rounded.Lightbulb, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.outline)
+            // 正在思考时用强调色，其余时候是灰色
+            val tint = if (running) accent() else MaterialTheme.colorScheme.outline
+            Icon(Icons.Rounded.Lightbulb, null, Modifier.size(16.dp), tint = tint)
             Spacer(Modifier.width(4.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline,
+            Text(label, style = MaterialTheme.typography.labelMedium, color = tint,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
             Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.outline)
@@ -1175,6 +1177,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
     val recording by vm.recording.collectAsState()
     val finalizing by vm.sttFinalizing.collectAsState()
     val sttText by vm.sttText.collectAsState()
+    val sttStable by vm.sttStable.collectAsState()
     val levels by vm.levels.collectAsState()
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
@@ -1387,7 +1390,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                         },
                         modifier = Modifier.size(44.dp).onGloballyPositioned { micBounds = it.boundsInRoot() },
                         colors = when {
-                            hasContent -> IconButtonDefaults.filledIconButtonColors() // 发送：强调色
+                            hasContent -> IconButtonDefaults.filledIconButtonColors(containerColor = accent(), contentColor = onAccent()) // 发送：强调色
                             canStop -> IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)
                             else -> IconButtonDefaults.filledIconButtonColors(
@@ -1526,13 +1529,16 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                             if (text.isNotBlank() || sttText.isNotBlank()) {
                                 Text(buildAnnotatedString {
                                     if (text.isNotBlank()) append(text.trimEnd() + " ")
-                                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                                        append(sttText.ifBlank { "…" })
+                                    // 已确认的字是正常颜色，还在识别（可能会变）的部分是灰色
+                                    val stable = sttStable.takeIf { it.isNotBlank() && sttText.startsWith(it) } ?: ""
+                                    append(stable)
+                                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
+                                        append(sttText.removePrefix(stable).ifBlank { if (stable.isEmpty()) "…" else "" })
                                     }
-                                }, style = MaterialTheme.typography.bodyLarge)
+                                }, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                             } else if (!holdMode) {
                                 Text("正在识别，请说话…", style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.primary)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
                                 val ai = assistantName(fullLabel)
                                 Text(if (id == null) "与${ai}对话" else "回复${ai}",
@@ -1599,7 +1605,8 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 Icon(Icons.Rounded.Stop, "停止识别")
                             }
                             Spacer(Modifier.width(8.dp))
-                            FilledIconButton(onClick = { vm.stopVoice("send") }, modifier = Modifier.size(44.dp)) {
+                            FilledIconButton(onClick = { vm.stopVoice("send") }, modifier = Modifier.size(44.dp),
+                                colors = IconButtonDefaults.filledIconButtonColors(containerColor = accent(), contentColor = onAccent())) {
                                 Icon(Icons.Rounded.ArrowUpward, "识别完直接发送")
                             }
                         }
@@ -1651,7 +1658,7 @@ private fun AttachmentChip(a: com.local.agremote.Attachment, onOpen: () -> Unit,
 /** 声纹：最近一段时间的音量柱，新的在右边。 */
 @Composable
 private fun Waveform(levels: List<Float>, modifier: Modifier) {
-    val color = MaterialTheme.colorScheme.primary
+    val color = MaterialTheme.colorScheme.onSurface
     val idle = MaterialTheme.colorScheme.outlineVariant
     Canvas(modifier) {
         val bars = 40

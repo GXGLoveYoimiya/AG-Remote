@@ -1,5 +1,8 @@
 package com.local.agremote.ui
 
+import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.BorderStroke
@@ -293,12 +296,16 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
         else -> sysDark
     }
     val hasDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    var accentColor = Color.Unspecified
     val scheme = when (cfg.style) {
         "default" -> {
             val accent = if (cfg.colorMode == "system" && hasDynamic) {
                 (if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)).primary
             } else Color(cfg.seedColor)
-            claudeScheme(accent, dark)
+            // 默认风格：大部分地方用黑色（深色模式下是白色），强调色只留给发送按钮、思考中等少数地方（见 [accent]）
+            val s = claudeScheme(accent, dark)
+            accentColor = s.primary
+            s.copy(primary = s.onSurface, onPrimary = s.surface)
         }
         "miuix" -> {
             val accent = if (cfg.colorMode == "system" && hasDynamic) {
@@ -325,8 +332,19 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
         }
     }
 
-    MaterialTheme(colorScheme = scheme, content = content)
+    CompositionLocalProvider(LocalAccent provides accentColor) {
+        MaterialTheme(colorScheme = scheme, content = content)
+    }
 }
+
+private val LocalAccent = staticCompositionLocalOf { Color.Unspecified }
+
+/** 强调色：默认风格下 primary 是黑色，真正的强调色从这里取；其他风格就是 primary。 */
+@Composable
+fun accent(): Color = LocalAccent.current.takeOrElse { MaterialTheme.colorScheme.primary }
+
+@Composable
+fun onAccent(): Color = bestOnColor(accent())
 
 /** 设置页里的主题风格 + 配色（深色模式在设置首页的“颜色模式”里）。 */
 @Composable
