@@ -424,6 +424,9 @@ function normalizeStep(step, index) {
       mime: m.mimeType || '',
       path: String(m.uri),
     }));
+    // 实时语音里，语音模型把任务转给 agent 时会以“用户消息”的形式插入内部指令和对话转写，
+    // 这不是用户自己发的，不显示（双方说的话由语音记录 voiceChats 单独提供）
+    if (/<voice_instructions>|<talker_agent_context>/.test(out.text)) { out.kind = 'hidden'; out.voice = true; }
   } else if (type === 'planner_response') {
     out.kind = 'assistant';
     out.text = p.modifiedResponse || p.response || '';
@@ -2345,11 +2348,12 @@ async function dl(){
         const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10) || 0);
         const list = await listConversations();
         const c = list.find(x => x.id === id);
-        const [{ steps, model }, queued] = await Promise.all([
+        const [{ steps, model }, queued, voiceChats] = await Promise.all([
           getSteps(id, offset),
           c && c.status !== 'idle' ? getPendingMessages(id) : Promise.resolve([]),
+          getVoiceChats(id),
         ]);
-        return send(res, 200, { conversation: c || null, steps, model, queued });
+        return send(res, 200, { conversation: c || null, steps, model, queued, voiceChats });
       }
       if (action === 'overview' && req.method === 'GET') {
         return send(res, 200, await getOverview(id));
@@ -2515,6 +2519,21 @@ async function writeVoiceSettings(b) {
   jetbox = st;
   push({ type: 'sync', ...syncInfo(st) });
   return voiceSettings(st);
+}
+
+/** 这个对话里的实时语音记录（每次通话一段：开始/结束时间 + 双方说的每句话）。没有语音功能的版本返回空。 */
+async function getVoiceChats(id) {
+  try {
+    if (!ls) return [];
+    const r = await fetch(`${ls.base}/voice/chats?conversation_id=${encodeURIComponent(id)}`,
+      { headers: { 'x-codeium-csrf-token': ls.token }, signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return [];
+    const j = await r.json();
+    return (j.chats || []).filter(c => (c.lines || []).length).map(c => ({
+      startedAt: c.startedAt || '', stoppedAt: c.stoppedAt || '', summary: c.summary || '',
+      lines: c.lines.map(l => ({ user: l.role === 'ROLE_USER', text: String(l.text || '').trim(), time: l.time || '' })).filter(l => l.text),
+    }));
+  } catch { return []; }
 }
 
 /** 手机的 WebSocket 升级请求：/api/voice/ws?conversation_id=&model=&voice=&sample_rate=16000 */

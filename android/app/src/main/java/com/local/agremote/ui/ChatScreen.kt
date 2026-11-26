@@ -117,6 +117,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Menu
@@ -199,7 +200,8 @@ fun ChatScreen(
     val curConv = s.conv ?: s.id?.let { id -> list.find { it.id == id } }
     val focusManager = LocalFocusManager.current
     val visible = remember(s.steps) { s.steps.filter { it.kind != "hidden" } }
-    val rows = remember(visible) { groupRows(visible) }
+    // 实时语音的记录和普通消息分开存：按开始时间插进消息流里
+    val rows = remember(visible, s.voiceChats) { withVoiceChats(groupRows(visible), s.voiceChats) }
     val running = isRunning(s.conv?.status)
     // 正在干活：电脑说在运行、刚发出的消息还没回音、或者最后一条还是我的消息
     val working = running || s.pending != null || (visible.lastOrNull()?.kind == "user" && s.conv?.status != "idle")
@@ -258,7 +260,8 @@ fun ChatScreen(
             when {
                 empty -> Column(Modifier.align(Alignment.Center).padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(44.dp), tint = MaterialTheme.colorScheme.primary)
+                    // App 自己的图标（和桌面图标、语音模式里的一样）
+                    Image(painterResource(com.local.agremote.R.drawable.ic_fg), null, Modifier.size(84.dp))
                     Spacer(Modifier.size(16.dp))
                     Text(
                         greeting(account?.name),
@@ -288,6 +291,7 @@ fun ChatScreen(
                             is ChatRow.Single -> StepItem(vm, chatId, hasWorkspace, r.step)
                             is ChatRow.Process -> ProcessBlock(vm, chatId, r)
                             is ChatRow.Answer -> AnswerBody(vm, r.step)
+                            is ChatRow.Voice -> VoiceChatBlock(vm, r.chat)
                         }
                     }
                     items(s.queued, key = { "q_" + it.id }) { q ->
@@ -664,6 +668,56 @@ private sealed interface ChatRow {
     data class Single(val step: Step) : ChatRow { override val key get() = "s${step.i}" }
     data class Process(val steps: List<Step>, val answer: Step?) : ChatRow { override val key get() = "p${steps.first().i}" }
     data class Answer(val step: Step) : ChatRow { override val key get() = "a${step.i}" }
+    data class Voice(val chat: com.local.agremote.VoiceChatRec) : ChatRow { override val key get() = "v${chat.startedAt}" }
+}
+
+private fun rowTime(r: ChatRow): String = when (r) {
+    is ChatRow.Single -> r.step.time
+    is ChatRow.Process -> r.steps.first().time
+    is ChatRow.Answer -> r.step.time
+    is ChatRow.Voice -> r.chat.startedAt
+}
+
+/** 把每次语音通话插到它开始之后的第一条消息前面（时间都是 ISO 格式，可以直接比较）。 */
+private fun withVoiceChats(rows: List<ChatRow>, chats: List<com.local.agremote.VoiceChatRec>): List<ChatRow> {
+    if (chats.isEmpty()) return rows
+    val out = rows.toMutableList()
+    for (c in chats.sortedBy { it.startedAt }) {
+        val at = out.indexOfFirst { it !is ChatRow.Voice && rowTime(it).isNotBlank() && rowTime(it) > c.startedAt }
+        if (at < 0) out += ChatRow.Voice(c) else out.add(at, ChatRow.Voice(c))
+    }
+    return out
+}
+
+/** 一次实时语音通话：标题行（时长）+ 双方说的话，样式和普通消息一致。 */
+@Composable
+private fun VoiceChatBlock(vm: AppViewModel, c: com.local.agremote.VoiceChatRec) {
+    val secs = runCatching {
+        (java.time.Instant.parse(c.stoppedAt).toEpochMilli() - java.time.Instant.parse(c.startedAt).toEpochMilli()) / 1000
+    }.getOrNull()
+    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.GraphicEq, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(6.dp))
+            Text(tr("实时语音") + (secs?.let { " · %d:%02d".format(it / 60, it % 60) } ?: ""),
+                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        c.lines.forEach { l ->
+            if (l.user) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp),
+                    modifier = Modifier.widthIn(max = 320.dp)) {
+                    SelectionContainer {
+                        Text(l.text, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                }
+            } else Row(Modifier.fillMaxWidth().padding(end = 24.dp)) {
+                Icon(Icons.Rounded.GraphicEq, null, Modifier.padding(top = 4.dp).size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(8.dp))
+                SelectionContainer { Text(l.text, style = MaterialTheme.typography.bodyLarge) }
+            }
+        }
+    }
 }
 
 private fun groupRows(steps: List<Step>): List<ChatRow> {

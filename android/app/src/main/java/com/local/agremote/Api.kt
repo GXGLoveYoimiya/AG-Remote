@@ -98,6 +98,10 @@ data class Customization(val type: String, val name: String, val path: String, v
 
 data class McpServer(val name: String, val status: String, val error: String, val tools: Int, val enabled: Boolean)
 
+/** 对话里的一次实时语音通话记录（双方说的话；和普通消息分开存，按时间插进聊天显示）。 */
+data class VoiceLine(val user: Boolean, val text: String, val time: String)
+data class VoiceChatRec(val startedAt: String, val stoppedAt: String, val lines: List<VoiceLine>)
+
 /** 实时语音：电脑上 Antigravity 的音色列表、语速选项、当前设置（和电脑同步）。 */
 data class VoiceInfo(val name: String, val tone: String)
 data class VoiceSettings(val name: String = "", val speed: Double = 1.0, val volume: Int = 100)
@@ -330,7 +334,8 @@ class Api(private val prefs: Prefs) {
         return (0 until a.length()).map { parseConv(a.getJSONObject(it)) }
     }
 
-    data class ConvDetail(val conv: Conversation?, val steps: List<Step>, val model: String, val queued: List<QueuedMsg> = emptyList())
+    data class ConvDetail(val conv: Conversation?, val steps: List<Step>, val model: String, val queued: List<QueuedMsg> = emptyList(),
+                          val voiceChats: List<VoiceChatRec> = emptyList())
 
     suspend fun conversation(id: String, offset: Int): ConvDetail {
         val o = call(req("/api/conversations/$id?offset=$offset").build())
@@ -341,7 +346,13 @@ class Api(private val prefs: Prefs) {
             val x = q.getJSONObject(it)
             QueuedMsg(x.optString("id"), x.optString("text"), x.optString("time"), x.optBoolean("immediate"))
         }
-        return ConvDetail(c, (0 until a.length()).map { parseStep(a.getJSONObject(it)) }, o.optString("model"), queued)
+        val vc = o.optJSONArray("voiceChats") ?: JSONArray()
+        val voiceChats = (0 until vc.length()).map { k ->
+            val x = vc.getJSONObject(k); val ls = x.optJSONArray("lines") ?: JSONArray()
+            VoiceChatRec(x.optString("startedAt"), x.optString("stoppedAt"),
+                (0 until ls.length()).map { j -> ls.getJSONObject(j).let { l -> VoiceLine(l.optBoolean("user"), l.optString("text"), l.optString("time")) } })
+        }
+        return ConvDetail(c, (0 until a.length()).map { parseStep(a.getJSONObject(it)) }, o.optString("model"), queued, voiceChats)
     }
 
     suspend fun send(id: String, text: String, model: String, attachments: List<Attachment> = emptyList(),

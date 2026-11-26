@@ -75,7 +75,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -94,6 +93,10 @@ import com.local.agremote.AppViewModel
 import com.local.agremote.R
 import com.local.agremote.VoiceCall
 import kotlinx.coroutines.flow.drop
+
+/** 圆角跟随 App 的主题风格：MIUIX 偏方，Material You 偏圆（和设置页一致）。 */
+@Composable
+private fun corner(material: Int, miuix: Int) = RoundedCornerShape((if (LocalUiStyle.current == "miuix") miuix else material).dp)
 
 private fun speedLabel(s: Double) = (if (s % 1.0 == 0.0) s.toInt().toString() else s.toString()) + "×"
 
@@ -164,8 +167,8 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
                             verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             itemsIndexed(finals, key = { i, l -> "${l.user}-${l.seq}-$i" }) { _, l ->
                                 if (l.user) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = RoundedCornerShape(18.dp),
-                                        modifier = Modifier.widthIn(max = 300.dp)) {
+                                    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = corner(20, 16),
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.widthIn(max = 300.dp)) {
                                         Text(l.text, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyLarge)
                                     }
                                 } else Column {
@@ -202,8 +205,9 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
                     val scale by animateFloatAsState(if (ptt && holding) 1.12f else 1f + mic * 0.12f, tween(100), label = "mic")
                     Surface(
                         shape = CircleShape,
-                        color = if (micOn) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.size((64 * scale).dp).shadow(10.dp, CircleShape)
+                        color = if (micOn) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = if (micOn) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size((72 * scale).dp)
                             .then(if (ptt) Modifier.pointerInput(Unit) {
                                 awaitEachGesture { awaitFirstDown(); call.setHolding(true); waitForUpOrCancellation(); call.setHolding(false) }
                             } else Modifier.clickable(enabled = !ended) { call.setMuted(!muted) }),
@@ -220,8 +224,8 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
                     verticalAlignment = Alignment.CenterVertically) {
                     CircleButton(Icons.Rounded.Add, tr("添加到会话"), size = 44, enabled = !ended) { sheet = "add" }
                     Spacer(Modifier.width(10.dp))
-                    Surface(onClick = { sheet = "model" }, shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.height(44.dp).shadow(4.dp, RoundedCornerShape(50))) {
+                    Surface(onClick = { sheet = "model" }, shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.height(44.dp)) {
                         Row(Modifier.padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(vm.modelChipLabel(selected), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                             Spacer(Modifier.width(4.dp))
@@ -232,11 +236,9 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
                     CircleButton(if (speaker) Icons.AutoMirrored.Rounded.VolumeUp else Icons.Rounded.Hearing,
                         if (speaker) tr("扬声器") else tr("听筒"), size = 44, enabled = !ended) { call.setSpeaker(!speaker) }
                     Spacer(Modifier.width(10.dp))
-                    Surface(onClick = { vm.endVoiceCall() }, shape = CircleShape, color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(48.dp)) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.Close, tr("结束通话"), tint = MaterialTheme.colorScheme.surface)
-                        }
+                    Surface(onClick = { vm.endVoiceCall() }, shape = CircleShape, color = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError, modifier = Modifier.size(48.dp)) {
+                        Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Close, tr("结束通话")) }
                     }
                 }
             }
@@ -250,18 +252,15 @@ fun VoiceCallScreen(vm: AppViewModel, call: VoiceCall) {
     }
 }
 
-/** 底部柔光：你说话时偏蓝，AI 说话时偏暖；随音量起伏。 */
+/** 底部柔光：颜色跟随 App 当前主题——你说话时用主色，AI 说话时用第三色；随音量起伏。 */
 @Composable
 private fun BottomGlow(level: Float, warm: Boolean, active: Boolean, dark: Boolean) {
     val strength by animateFloatAsState(if (active) 0.45f + level * 0.55f else 0.25f, tween(160), label = "glow")
-    val blue = Color(0xFF7FA6DE)
-    val orange = Color(0xFFF0A07E)
+    val listen = MaterialTheme.colorScheme.primary
+    val speak = MaterialTheme.colorScheme.tertiary
     val tint by animateFloatAsState(if (warm) 1f else 0f, tween(400), label = "tint")
-    val c = Color(
-        red = blue.red + (orange.red - blue.red) * tint, green = blue.green + (orange.green - blue.green) * tint,
-        blue = blue.blue + (orange.blue - blue.blue) * tint,
-    )
-    val a = strength * (if (dark) 0.55f else 0.9f)
+    val c = androidx.compose.ui.graphics.lerp(listen, speak, tint)
+    val a = strength * (if (dark) 0.5f else 0.6f)
     Canvas(Modifier.fillMaxSize()) {
         val h = size.height
         drawRect(Brush.verticalGradient(listOf(Color.Transparent, c.copy(alpha = a * 0.55f), c.copy(alpha = a)),
@@ -269,16 +268,16 @@ private fun BottomGlow(level: Float, warm: Boolean, active: Boolean, dark: Boole
         // AI 说话时两侧边缘也泛起暖光
         if (tint > 0.01f) {
             val r = size.width * 0.75f
-            drawCircle(Brush.radialGradient(listOf(orange.copy(alpha = a * tint * 0.6f), Color.Transparent), Offset(0f, h), r), r, Offset(0f, h))
-            drawCircle(Brush.radialGradient(listOf(orange.copy(alpha = a * tint * 0.6f), Color.Transparent), Offset(size.width, h), r), r, Offset(size.width, h))
+            drawCircle(Brush.radialGradient(listOf(speak.copy(alpha = a * tint * 0.6f), Color.Transparent), Offset(0f, h), r), r, Offset(0f, h))
+            drawCircle(Brush.radialGradient(listOf(speak.copy(alpha = a * tint * 0.6f), Color.Transparent), Offset(size.width, h), r), r, Offset(size.width, h))
         }
     }
 }
 
 @Composable
 private fun CircleButton(icon: ImageVector, label: String, size: Int, enabled: Boolean = true, onClick: () -> Unit) {
-    Surface(onClick = onClick, enabled = enabled, shape = CircleShape, color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.size(size.dp).shadow(4.dp, CircleShape)) {
+    Surface(onClick = onClick, enabled = enabled, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        modifier = Modifier.size(size.dp)) {
         Box(contentAlignment = Alignment.Center) { Icon(icon, label, Modifier.size(22.dp)) }
     }
 }
@@ -323,7 +322,7 @@ private fun VoiceAddSheet(vm: AppViewModel, onClose: () -> Unit) {
 
 @Composable
 private fun AddTile(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface, modifier = modifier.height(100.dp)) {
+    Surface(onClick = onClick, shape = corner(20, 16), color = MaterialTheme.colorScheme.surfaceContainer, modifier = modifier.height(100.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.size(44.dp)) {
                 Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(22.dp)) }
@@ -358,8 +357,8 @@ fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
                 modifier = Modifier.fillMaxWidth().height(170.dp)) { i ->
                 val v = voices[i]
                 val cur = i == pager.currentPage
-                Surface(onClick = { if (cur) vm.previewVoice(v.name) }, shape = RoundedCornerShape(28.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                Surface(onClick = { if (cur) vm.previewVoice(v.name) }, shape = corner(28, 20),
+                    color = if (cur) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.fillMaxSize().padding(vertical = if (cur) 0.dp else 18.dp)) {
                     Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                         Text(v.name, style = MaterialTheme.typography.titleLarge, fontWeight = if (cur) FontWeight.SemiBold else FontWeight.Normal)
@@ -426,7 +425,7 @@ fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
 
 @Composable
 private fun SettingRowSurface(content: @Composable () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) { content() }
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = corner(20, 16), modifier = Modifier.fillMaxWidth()) { content() }
 }
 
 @Composable
@@ -445,7 +444,7 @@ private fun ModeRow(title: String, desc: String, checked: Boolean, onClick: () -
 @Composable
 fun VoiceSettingsCard(vm: AppViewModel) {
     val cfg by vm.voiceCfg.collectAsState()
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = corner(20, 16), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             if (!cfg.available) {
                 Text(tr("电脑上的 Antigravity 不支持实时语音（需要 2.35 或更新版本）"), Modifier.padding(4.dp),

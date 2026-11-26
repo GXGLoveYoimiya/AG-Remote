@@ -36,6 +36,7 @@ data class ChatState(
     val pendingFiles: List<Attachment> = emptyList(),
     val pendingMentions: List<Mention> = emptyList(),
     val pendingBase: Int = 0, // 发送时已有的用户消息条数
+    val voiceChats: List<VoiceChatRec> = emptyList(), // 这个对话里的实时语音记录
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -878,7 +879,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             markViewed(id, force = conv.status == "idle")
                             conv.copy(unread = false)
                         } else conv
-                        _chat.value = now.copy(conv = finalConv, steps = steps, queued = d.queued,
+                        _chat.value = now.copy(conv = finalConv, steps = steps, queued = d.queued, voiceChats = d.voiceChats,
                             pendingFiles = if (pending == null) emptyList() else now.pendingFiles,
                             loading = false, error = null, model = model, pending = pending)
                         // 模型默认始终跟随电脑端同步；仅在还没拿到电脑端模型时才兜底用本对话历史模型
