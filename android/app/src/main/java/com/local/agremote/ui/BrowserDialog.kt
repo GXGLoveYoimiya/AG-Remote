@@ -825,8 +825,6 @@ fun BrowserDialog(
                         Box(Modifier.weight(if (showTabs) 0.0001f else 1f).fillMaxWidth().clipToBounds().background(surfaceColor)) {
                             if (activeUrl.isBlank()) {
                                 BrowserSyncHome(
-                                    pcTabs = emptyList(),
-                                    otherPcTabs = emptyList(),
                                     quickLinks = quickLinks.filter { it !in hiddenLinks },
                                     onRemoveLink = { vm.hideLink(it) },
                                     onCopyLink = { vm.copy(it, "已复制链接") },
@@ -1901,75 +1899,9 @@ private fun ColumnScope.TabSwitcher(
     }
 }
 
-@Composable
-private fun SyncedTabsRow(
-    tabs: List<BrowserTab>,
-    activeTabId: String,
-    activeUrl: String,
-    pcHost: String,
-    onSelect: (BrowserTab) -> Unit,
-    onCloseTab: (BrowserTab) -> Unit,
-) {
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        tabs.forEach { t ->
-            val selected = (activeTabId.isNotBlank() && t.id == activeTabId) ||
-                (activeUrl.isNotBlank() && normalizeUrl(t.url, pcHost) == activeUrl)
-            val fav = remember(t.favicon) { decodeFavicon(t.favicon) }
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = if (selected) MaterialTheme.colorScheme.secondaryContainer else sheetCardColor(),
-                border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.widthIn(max = 220.dp).clip(RoundedCornerShape(50)).clickable { onSelect(t) },
-            ) {
-                Row(
-                    Modifier.padding(start = 12.dp, end = 6.dp, top = 7.dp, bottom = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (fav != null) {
-                        Image(fav.asImageBitmap(), null, Modifier.size(14.dp))
-                    } else {
-                        Icon(Icons.Rounded.Computer, null, Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        t.title.ifBlank { t.url },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Box(
-                        Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .clickable { onCloseTab(t) },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.Rounded.Close,
-                            "关闭标签页",
-                            Modifier.size(13.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun BrowserSyncHome(
-    pcTabs: List<BrowserTab>,
-    otherPcTabs: List<BrowserTab>,
     quickLinks: List<String>,
     syncing: Boolean,
     onOpen: (String) -> Unit,
@@ -1981,31 +1913,6 @@ private fun BrowserSyncHome(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        if (otherPcTabs.isNotEmpty()) {
-            SectionLabel(tr("电脑上已打开的标签页"))
-            CardGroup {
-                otherPcTabs.forEachIndexed { i, t ->
-                    if (i > 0) CardDivider()
-                    val fav = remember(t.favicon) { decodeFavicon(t.favicon) }
-                    Row(Modifier.fillMaxWidth().clickable { if (t.url.isNotBlank()) onOpen(t.url) }
-                        .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (fav != null) Image(fav.asImageBitmap(), null, Modifier.size(22.dp))
-                        else Icon(Icons.Rounded.Language, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(14.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(t.title.ifBlank { t.url }, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(listOfNotNull(t.convTitle.takeIf { it.isNotBlank() }, t.url).joinToString(" · "),
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        IconButton(onClick = { onCloseTab(t) }) {
-                            Icon(Icons.Rounded.Close, tr("关闭标签页"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-        }
-
         if (quickLinks.isNotEmpty()) {
             SectionLabel(tr("当前对话中的链接"))
             CardGroup {
