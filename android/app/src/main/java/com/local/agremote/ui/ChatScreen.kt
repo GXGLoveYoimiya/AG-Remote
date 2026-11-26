@@ -1491,6 +1491,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                             verticalAlignment = Alignment.CenterVertically) {
                             plusBtn()
                             if (progress > 0.02f) {
+                                if (claudeStyle) Spacer(Modifier.width(8.dp)) // “+”有圆底时和模型按钮隔开
                                 Surface(
                                     onClick = { if (expanded) onPickModel() },
                                     shape = RoundedCornerShape(50),
