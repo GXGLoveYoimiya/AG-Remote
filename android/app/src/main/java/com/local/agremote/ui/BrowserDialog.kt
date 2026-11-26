@@ -1,5 +1,6 @@
 package com.local.agremote.ui
 
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.foundation.border
@@ -163,15 +164,20 @@ internal val SEARCH_ENGINES = listOf(
 /** 当前搜索引擎的网址前缀（打开浏览器时按设置更新）。 */
 private var searchPrefix = SEARCH_ENGINES[0].third
 
+/** 地址栏里的输入是不是网址：带协议的、域名、IP、localhost 都算；别的才去搜索。 */
+private val URL_SCHEME = Regex("^[a-zA-Z][a-zA-Z0-9+.-]*://\\S+$")
+private val URL_IP = Regex("^\\d{1,3}(\\.\\d{1,3}){3}(:\\d+)?([/?#]\\S*)?$")
+private val URL_HOST = Regex("^(localhost|[\\p{L}\\p{N}-]+(\\.[\\p{L}\\p{N}-]+)*\\.[\\p{L}]{2,63})(:\\d+)?([/?#]\\S*)?$", RegexOption.IGNORE_CASE)
+
 private fun normalizeUrl(raw: String, pcHost: String): String {
-    val s = raw.trim()
+    // 中文输入法打出来的全角标点先换成半角（“x。com”“https：／／…”也能当网址打开）
+    val s = raw.trim().replace('。', '.').replace('：', ':').replace('／', '/').replace('．', '.')
     if (s.isEmpty()) return ""
     val withScheme = when {
-        s.startsWith("http://", true) || s.startsWith("https://", true) -> s
-        s.contains(' ') || (!s.contains('.') && !s.startsWith("localhost", true)) ->
-            searchPrefix + java.net.URLEncoder.encode(s, "UTF-8")
-        s.startsWith("localhost", true) || s.startsWith("127.0.0.1") || s.startsWith("100.") || s.startsWith("192.168.") -> "http://$s"
-        else -> "https://$s"
+        URL_SCHEME.matches(s) || s.startsWith("about:") || s.startsWith("data:") -> s
+        URL_IP.matches(s) || s.startsWith("localhost", true) -> "http://$s"
+        URL_HOST.matches(s) -> "https://$s"
+        else -> searchPrefix + java.net.URLEncoder.encode(raw.trim(), "UTF-8")
     }
     if (pcHost.isNotBlank()) {
         return withScheme.replace(Regex("^(https?://)(?:localhost|127\\.0\\.0\\.1)(?=[:/]|$)", RegexOption.IGNORE_CASE), "$1$pcHost")
@@ -644,11 +650,15 @@ fun BrowserDialog(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                         BasicTextField(
+                                            // 网址被页面跳转改写时光标放在开头：长网址显示前面、隐去后面；点进来编辑时整段选中，直接输入就替换
                                             value = if (urlField.text == urlInput) urlField
-                                                else TextFieldValue(urlInput, TextRange(urlInput.length)),
+                                                else TextFieldValue(urlInput, TextRange(0)),
                                             onValueChange = { urlField = it; urlInput = it.text },
                                             singleLine = true,
-                                            modifier = Modifier.fillMaxWidth(),
+                                            modifier = Modifier.fillMaxWidth().onFocusChanged { f ->
+                                                urlField = if (f.isFocused) TextFieldValue(urlInput, TextRange(0, urlInput.length))
+                                                    else TextFieldValue(urlInput, TextRange(0))
+                                            },
                                             textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
@@ -664,10 +674,13 @@ fun BrowserDialog(
                             }
                             // 翻译：翻过后图标亮起，再点显示原文
                             IconButton(onClick = { offerTranslate = null; if (pageTranslated) showOriginal() else translatePage() },
-                                enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)
-                                    .then(if (pageTranslated) Modifier.padding(4.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape) else Modifier)) { // 36dp 圆形底色，居中、不贴地址栏 // 已翻译：和输入框“+”一样的圆形底色
-                                Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
-                                    tint = if (pageTranslated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) // 未翻译：黑色；已翻译：默认主题黑色，其他主题强调色
+                                enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)) {
+                                // 已翻译：图标外面一个 32dp 的圆形底色（和输入框“+”同一种颜色）；未翻译：只有黑色图标
+                                Box(Modifier.size(32.dp).then(if (pageTranslated) Modifier.background(MaterialTheme.colorScheme.secondaryContainer, CircleShape) else Modifier),
+                                    contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"), Modifier.size(20.dp),
+                                        tint = if (pageTranslated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                }
                             }
                             // 标签页数：点开标签页切换页
                             IconButton(onClick = { snapThumb(); showTabs = true }, modifier = Modifier.size(44.dp)) {

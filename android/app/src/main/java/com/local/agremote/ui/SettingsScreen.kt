@@ -1,5 +1,6 @@
 package com.local.agremote.ui
 
+import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.foundation.shape.CircleShape
@@ -119,7 +120,7 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
     val activeHost = hosts.find { it.id == activeHostId }
     val title = when (page) {
         "usage" -> tr("用量"); "archived" -> tr("已归档的对话"); "hosts" -> tr("连接的电脑"); "voice" -> tr("实时语音")
-        "notify" -> tr("消息推送"); "link" -> tr("链接打开方式"); "theme" -> tr("主题风格与配色"); else -> tr("设置")
+        "notify" -> tr("消息推送"); "link" -> tr("链接打开方式"); "theme" -> tr("主题风格与配色"); "font" -> tr("字体"); else -> tr("设置")
     }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
@@ -186,6 +187,9 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
                             ListRow(tr("主题风格与配色"), Icons.Rounded.Palette, value = when (themeCfg.style) {
                                 "material" -> "Material You"; "miuix" -> "Miuix"; else -> tr("默认") }) { page = "theme" }
                             CardDivider()
+                            ListRow(tr("字体"), Icons.Rounded.TextFields,
+                                value = if (themeCfg.useCustomFont && themeCfg.fontName.isNotBlank()) themeCfg.fontName else tr("系统字体")) { page = "font" }
+                            CardDivider()
                             ListRow(tr("语言"), Icons.Rounded.Language, value = appLanguageDisplayName(langCode, currentLang)) { pickLang = true }
                         }
                     }
@@ -249,6 +253,7 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
                 "voice" -> item { VoiceSettingsCard(vm) }
                 "notify" -> item { NotifySettings(vm) }
                 "theme" -> item { ThemeSettingsCard(themeCfg) { vm.updateTheme(it) } }
+                "font" -> item { FontSettings(vm, themeCfg) }
 
                 "link" -> item {
                     CardGroup {
@@ -540,3 +545,30 @@ private fun AboutMenu() {
 
 /** 套餐名只留 Pro / Ultra 这样的档位（去掉“Google AI”）。 */
 internal fun shortPlan(plan: String?): String = (plan ?: "").replace(Regex("(?i)^\\s*google\\s+ai\\s*"), "").trim()
+
+/** 字体：系统字体，或导入的 TTF / OTF 字体（全 App 生效）。 */
+@Composable
+private fun FontSettings(vm: AppViewModel, cfg: com.local.agremote.ThemeConfig) {
+    val pick = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) vm.importFont(uri) }
+    val hasCustom = cfg.fontFile.isNotBlank() && java.io.File(cfg.fontFile).exists()
+    androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        CardBox {
+            Text(tr("预览"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("敏捷的棕色狐狸跳过了懒狗", style = MaterialTheme.typography.titleLarge)
+            Text("The quick brown fox jumps over the lazy dog. 0123456789", style = MaterialTheme.typography.bodyLarge)
+        }
+        CardGroup {
+            ListRow(tr("系统字体"), end = RowEnd.Checked(!cfg.useCustomFont || !hasCustom)) { vm.updateTheme(cfg.copy(useCustomFont = false)) }
+            if (hasCustom) {
+                CardDivider(indent = false)
+                ListRow(cfg.fontName.ifBlank { tr("导入的字体") }, end = RowEnd.Checked(cfg.useCustomFont)) { vm.updateTheme(cfg.copy(useCustomFont = true)) }
+            }
+        }
+        CardGroup {
+            ListRow(if (hasCustom) tr("更换字体文件") else tr("导入字体文件"), Icons.Rounded.Add, desc = tr("支持 TTF / OTF"), end = RowEnd.None) {
+                pick.launch(arrayOf("font/*", "application/x-font-ttf", "application/x-font-otf", "application/vnd.ms-opentype", "application/octet-stream"))
+            }
+        }
+    }
+}

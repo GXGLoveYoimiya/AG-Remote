@@ -229,6 +229,31 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 外观与主题配置（即时生效并持久化）。 */
     private val _theme = MutableStateFlow(prefs.themeConfig)
     val theme = _theme.asStateFlow()
+    /** 导入字体文件（TTF / OTF）：复制进 App 私有目录并检查能不能用，成功后切到这个字体。 */
+    fun importFont(uri: android.net.Uri) {
+        val ctx = getApplication<Application>()
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val name = ctx.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "font.ttf"
+                    val ext = name.substringAfterLast('.', "ttf").lowercase().take(5)
+                    val dir = java.io.File(ctx.filesDir, "fonts").apply { mkdirs() }
+                    val out = java.io.File(dir, "custom_${System.currentTimeMillis()}.$ext")
+                    ctx.contentResolver.openInputStream(uri)!!.use { i -> out.outputStream().use { i.copyTo(it) } }
+                    val ok = runCatching { android.graphics.Typeface.createFromFile(out) }.getOrNull()
+                        ?.let { it != android.graphics.Typeface.DEFAULT } == true
+                    if (!ok) { out.delete(); null } else out.absolutePath to name.substringBeforeLast('.')
+                }.getOrNull()
+            }
+            if (result == null) { _toast.tryEmit("这个文件不是可用的字体（支持 TTF / OTF）"); return@launch }
+            val old = _theme.value.fontFile
+            if (old.isNotBlank() && old != result.first) runCatching { java.io.File(old).delete() }
+            updateTheme(_theme.value.copy(fontFile = result.first, fontName = result.second, useCustomFont = true))
+            _toast.tryEmit("已导入字体")
+        }
+    }
+
     fun updateTheme(cfg: ThemeConfig) {
         _theme.value = cfg
         prefs.themeConfig = cfg

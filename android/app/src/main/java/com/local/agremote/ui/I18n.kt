@@ -115,6 +115,15 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "字体" to "字型",
+        "系统字体" to "系統字型",
+        "导入的字体" to "匯入的字型",
+        "导入字体文件" to "匯入字型檔",
+        "更换字体文件" to "更換字型檔",
+        "支持 TTF / OTF" to "支援 TTF / OTF",
+        "预览" to "預覽",
+        "这个文件不是可用的字体（支持 TTF / OTF）" to "這個檔案不是可用的字型（支援 TTF / OTF）",
+        "已导入字体" to "已匯入字型",
         "搜索或输入网址" to "搜尋或輸入網址",
         "网络" to "網路",
         "电脑网络" to "電腦網路",
@@ -420,6 +429,15 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "字体" to "フォント",
+        "系统字体" to "システムフォント",
+        "导入的字体" to "読み込んだフォント",
+        "导入字体文件" to "フォントファイルを読み込む",
+        "更换字体文件" to "フォントファイルを変更",
+        "支持 TTF / OTF" to "TTF / OTF に対応",
+        "预览" to "プレビュー",
+        "这个文件不是可用的字体（支持 TTF / OTF）" to "このファイルは使えるフォントではありません（TTF / OTF に対応）",
+        "已导入字体" to "フォントを読み込みました",
         "搜索或输入网址" to "検索または URL を入力",
         "网络" to "ネットワーク",
         "电脑网络" to "PC のネットワーク",
@@ -702,6 +720,15 @@ object I18n {
     )
 
     private val en = mapOf(
+        "字体" to "Font",
+        "系统字体" to "System font",
+        "导入的字体" to "Imported font",
+        "导入字体文件" to "Import font file",
+        "更换字体文件" to "Replace font file",
+        "支持 TTF / OTF" to "TTF / OTF supported",
+        "预览" to "Preview",
+        "这个文件不是可用的字体（支持 TTF / OTF）" to "This file isn’t a usable font (TTF / OTF)",
+        "已导入字体" to "Font imported",
         "搜索或输入网址" to "Search or enter URL",
         "网络" to "Network",
         "电脑网络" to "Via PC",
@@ -984,6 +1011,15 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "字体" to "글꼴",
+        "系统字体" to "시스템 글꼴",
+        "导入的字体" to "가져온 글꼴",
+        "导入字体文件" to "글꼴 파일 가져오기",
+        "更换字体文件" to "글꼴 파일 바꾸기",
+        "支持 TTF / OTF" to "TTF / OTF 지원",
+        "预览" to "미리보기",
+        "这个文件不是可用的字体（支持 TTF / OTF）" to "사용할 수 있는 글꼴 파일이 아닙니다 (TTF / OTF)",
+        "已导入字体" to "글꼴을 가져왔습니다",
         "搜索或输入网址" to "검색 또는 URL 입력",
         "网络" to "네트워크",
         "电脑网络" to "PC 네트워크",
@@ -1283,6 +1319,15 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "字体" to "Fuente",
+        "系统字体" to "Fuente del sistema",
+        "导入的字体" to "Fuente importada",
+        "导入字体文件" to "Importar archivo de fuente",
+        "更换字体文件" to "Cambiar archivo de fuente",
+        "支持 TTF / OTF" to "Admite TTF / OTF",
+        "预览" to "Vista previa",
+        "这个文件不是可用的字体（支持 TTF / OTF）" to "Este archivo no es una fuente válida (TTF / OTF)",
+        "已导入字体" to "Fuente importada",
         "搜索或输入网址" to "Busca o escribe una URL",
         "网络" to "Red",
         "电脑网络" to "A través del PC",
@@ -1589,6 +1634,15 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "字体" to "Police",
+        "系统字体" to "Police système",
+        "导入的字体" to "Police importée",
+        "导入字体文件" to "Importer un fichier de police",
+        "更换字体文件" to "Changer de fichier de police",
+        "支持 TTF / OTF" to "TTF / OTF pris en charge",
+        "预览" to "Aperçu",
+        "这个文件不是可用的字体（支持 TTF / OTF）" to "Ce fichier n’est pas une police utilisable (TTF / OTF)",
+        "已导入字体" to "Police importée",
         "搜索或输入网址" to "Rechercher ou saisir une URL",
         "网络" to "Réseau",
         "电脑网络" to "Via le PC",
@@ -1895,6 +1949,15 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "字体" to "Schriftart",
+        "系统字体" to "Systemschrift",
+        "导入的字体" to "Importierte Schrift",
+        "导入字体文件" to "Schriftdatei importieren",
+        "更换字体文件" to "Schriftdatei ersetzen",
+        "支持 TTF / OTF" to "TTF / OTF unterstützt",
+        "预览" to "Vorschau",
+        "这个文件不是可用的字体（支持 TTF / OTF）" to "Keine verwendbare Schrift (TTF / OTF)",
+        "已导入字体" to "Schrift importiert",
         "搜索或输入网址" to "Suchen oder URL eingeben",
         "网络" to "Netzwerk",
         "电脑网络" to "Über PC",
@@ -2201,6 +2264,15 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "字体" to "Шрифт",
+        "系统字体" to "Системный шрифт",
+        "导入的字体" to "Импортированный шрифт",
+        "导入字体文件" to "Импортировать файл шрифта",
+        "更换字体文件" to "Заменить файл шрифта",
+        "支持 TTF / OTF" to "Поддерживаются TTF / OTF",
+        "预览" to "Предпросмотр",
+        "这个文件不是可用的字体（支持 TTF / OTF）" to "Это не подходящий шрифт (TTF / OTF)",
+        "已导入字体" to "Шрифт импортирован",
         "搜索或输入网址" to "Поиск или адрес",
         "网络" to "Сеть",
         "电脑网络" to "Через ПК",
@@ -2507,6 +2579,15 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "字体" to "Fonte",
+        "系统字体" to "Fonte do sistema",
+        "导入的字体" to "Fonte importada",
+        "导入字体文件" to "Importar arquivo de fonte",
+        "更换字体文件" to "Trocar arquivo de fonte",
+        "支持 TTF / OTF" to "Suporta TTF / OTF",
+        "预览" to "Prévia",
+        "这个文件不是可用的字体（支持 TTF / OTF）" to "Este arquivo não é uma fonte válida (TTF / OTF)",
+        "已导入字体" to "Fonte importada",
         "搜索或输入网址" to "Pesquise ou digite uma URL",
         "网络" to "Rede",
         "电脑网络" to "Pelo PC",

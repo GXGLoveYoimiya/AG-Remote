@@ -364,6 +364,7 @@ private class RoundedCodeSpan(
 @Composable
 private fun MarkwonText(text: String, modifier: Modifier = Modifier, sizeSp: Float = 15.5f, onLink: ((String) -> Unit)? = null) {
     val ctx = LocalContext.current
+    val appTypeface = LocalAppTypeface.current
     val cs = MaterialTheme.colorScheme
     val fg = cs.onSurface.toArgb()
     val link = cs.primary.toArgb()
@@ -492,6 +493,8 @@ private fun MarkwonText(text: String, modifier: Modifier = Modifier, sizeSp: Flo
         update = { tv ->
             tv.setTextColor(fg)
             tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
+            val tf = appTypeface ?: android.graphics.Typeface.DEFAULT
+            if (tv.typeface != tf) tv.typeface = tf
             if (tv.tag != processed) {
                 markwon.setParsedMarkdown(tv, alignInlineMath(markwon, markwon.toMarkdown(processed)))
                 tv.tag = processed

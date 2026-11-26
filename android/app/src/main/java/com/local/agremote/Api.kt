@@ -193,6 +193,9 @@ data class ThemeConfig(
     val seedColor: Int = 0xFFDBF1FF.toInt(),
     val customColor: Int = 0xFFDBF1FF.toInt(), // 取色器里调的颜色，单独保存，点预设色不会改它
     val savedColors: List<Int> = emptyList(),  // 我的配色（最多 7 个）
+    val fontFile: String = "",                // 导入的字体文件（App 私有目录里），空 = 没导入过
+    val fontName: String = "",                // 导入的字体显示名（文件名）
+    val useCustomFont: Boolean = false,       // 用导入的字体（false = 系统字体）
 )
 
 /** 已保存的电脑端设备（支持多设备切换，每个设备可自定义名称和 IP/端口）。 */
@@ -317,6 +320,9 @@ class Prefs(ctx: Context) {
             seedColor = sp.getInt("theme_seed", 0xFFDBF1FF.toInt()),
             customColor = sp.getInt("theme_custom", sp.getInt("theme_seed", 0xFFDBF1FF.toInt())),
             savedColors = (sp.getString("theme_saved", "") ?: "").split(',').mapNotNull { it.trim().toLongOrNull()?.toInt() },
+            fontFile = sp.getString("theme_font_file", "") ?: "",
+            fontName = sp.getString("theme_font_name", "") ?: "",
+            useCustomFont = sp.getBoolean("theme_font_custom", false),
         )
         set(v) = sp.edit()
             .putString("theme_style", v.style)
@@ -325,6 +331,9 @@ class Prefs(ctx: Context) {
             .putInt("theme_seed", v.seedColor)
             .putInt("theme_custom", v.customColor)
             .putString("theme_saved", v.savedColors.joinToString(",") { (it.toLong() and 0xFFFFFFFFL).toString() })
+            .putString("theme_font_file", v.fontFile)
+            .putString("theme_font_name", v.fontName)
+            .putBoolean("theme_font_custom", v.useCustomFont)
             .apply()
     val base get() = "http://$host:$port"
 }

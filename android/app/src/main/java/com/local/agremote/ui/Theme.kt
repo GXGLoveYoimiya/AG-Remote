@@ -338,8 +338,27 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
         }
     }
 
-    CompositionLocalProvider(LocalAccent provides accentColor) {
-        MaterialTheme(colorScheme = scheme, content = content, shapes = androidx.compose.material3.Shapes(
+    // 字体：用导入的字体时，所有文字样式都换成它；聊天正文是原生 TextView，通过 LocalAppTypeface 给它
+    val fontPath = cfg.fontFile.takeIf { cfg.useCustomFont && it.isNotBlank() && java.io.File(it).exists() }
+    val typeface = remember(fontPath) { fontPath?.let { runCatching { android.graphics.Typeface.createFromFile(it) }.getOrNull() } }
+    val typography = remember(fontPath, typeface) {
+        val base = androidx.compose.material3.Typography()
+        if (fontPath == null || typeface == null) base else {
+            val fam = androidx.compose.ui.text.font.FontFamily(androidx.compose.ui.text.font.Font(java.io.File(fontPath)))
+            base.copy(
+                displayLarge = base.displayLarge.copy(fontFamily = fam), displayMedium = base.displayMedium.copy(fontFamily = fam),
+                displaySmall = base.displaySmall.copy(fontFamily = fam), headlineLarge = base.headlineLarge.copy(fontFamily = fam),
+                headlineMedium = base.headlineMedium.copy(fontFamily = fam), headlineSmall = base.headlineSmall.copy(fontFamily = fam),
+                titleLarge = base.titleLarge.copy(fontFamily = fam), titleMedium = base.titleMedium.copy(fontFamily = fam),
+                titleSmall = base.titleSmall.copy(fontFamily = fam), bodyLarge = base.bodyLarge.copy(fontFamily = fam),
+                bodyMedium = base.bodyMedium.copy(fontFamily = fam), bodySmall = base.bodySmall.copy(fontFamily = fam),
+                labelLarge = base.labelLarge.copy(fontFamily = fam), labelMedium = base.labelMedium.copy(fontFamily = fam),
+                labelSmall = base.labelSmall.copy(fontFamily = fam),
+            )
+        }
+    }
+    CompositionLocalProvider(LocalAccent provides accentColor, LocalAppTypeface provides typeface) {
+        MaterialTheme(colorScheme = scheme, content = content, typography = typography, shapes = androidx.compose.material3.Shapes(
             extraSmall = RoundedCornerShape(14.dp), // 输入框、菜单、提示条
             small = RoundedCornerShape(50),         // 选项按钮（FilterChip / AssistChip）做成胶囊
         ))
@@ -347,6 +366,9 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
 }
 
 private val LocalAccent = staticCompositionLocalOf { Color.Unspecified }
+
+/** 导入的字体（null = 系统字体），给聊天正文这类原生 TextView 用。 */
+val LocalAppTypeface = staticCompositionLocalOf<android.graphics.Typeface?> { null }
 
 /** 强调色：默认风格下 primary 是黑色，真正的强调色从这里取；其他风格就是 primary。 */
 @Composable

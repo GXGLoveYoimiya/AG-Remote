@@ -38,10 +38,10 @@ object Translator {
 
     private fun key(text: String, targetLang: String) = "${googleTarget(targetLang)}\u0000$text"
 
-    fun cached(text: String, targetLang: String = "zh-CN"): String? =
+    fun cached(text: String, targetLang: String = com.local.agremote.ui.I18n.currentLang): String? =
         if (text.isBlank()) text else cache[key(text, targetLang)]
 
-    suspend fun translate(text: String, targetLang: String = "zh-CN"): String {
+    suspend fun translate(text: String, targetLang: String = com.local.agremote.ui.I18n.currentLang): String {
         if (text.isBlank()) return text
         val k = key(text, targetLang)
         cache[k]?.let { return it }
@@ -63,5 +63,4 @@ object Translator {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { save() } // 不在主线程写文件
     }
 
-    suspend fun toChinese(text: String): String = translate(text, "zh-CN")
 }
