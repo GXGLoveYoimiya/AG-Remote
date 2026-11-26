@@ -1662,16 +1662,14 @@ private fun AttachmentChip(a: com.local.agremote.Attachment, onOpen: () -> Unit,
     }
 }
 
-/** 剩余额度圆环：圈里是剩余百分比，快用完时变红。 */
+/** 剩余额度圆环：强调色，圈的长度是剩余比例，快用完时变红。 */
 @Composable
 private fun QuotaRing(remaining: Double) {
     val pct = (remaining * 100).toInt().coerceIn(0, 100)
-    val color = if (pct <= 10) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(progress = { pct / 100f }, modifier = Modifier.fillMaxSize(), color = color,
-            trackColor = MaterialTheme.colorScheme.outlineVariant, strokeWidth = 2.5.dp, strokeCap = StrokeCap.Round, gapSize = 0.dp)
-        Text("$pct", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 9.sp), color = color, maxLines = 1)
-    }
+    val color = if (pct <= 10) MaterialTheme.colorScheme.error else accent()
+    // 和旁边 24dp 的图标一样大，只画圈不写数字
+    CircularProgressIndicator(progress = { pct / 100f }, modifier = Modifier.size(20.dp), color = color,
+        trackColor = color.copy(alpha = 0.2f), strokeWidth = 2.5.dp, strokeCap = StrokeCap.Round, gapSize = 0.dp)
 }
 
 /** 声纹：最近一段时间的音量柱，新的在右边。 */

@@ -161,7 +161,7 @@ fun OverviewSheet(
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
             Column(
-                Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState())
+                Modifier.fillMaxWidth().navigationBarsPadding().noSheetOverscroll().verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp).padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
