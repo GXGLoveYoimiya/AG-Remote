@@ -1,5 +1,12 @@
 package com.local.agremote.ui
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.MoreHoriz
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -491,19 +498,16 @@ fun BrowserDialog(
                 .fillMaxSize()
                 .background(surfaceColor),
         ) {
-            // 顶栏第 1 行：关闭 + 模式切换（电脑实况 | 网页浏览）+ 右侧对应控制按钮
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onClose, modifier = Modifier.size(38.dp)) {
-                    Icon(Icons.Rounded.Close, "关闭浏览器", Modifier.size(20.dp))
+            // 顶栏（照 Claude）：左边关闭，中间模式切换，右边“⋯”菜单收起其余操作
+            var topMenu by remember { mutableStateOf(false) }
+            Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp)) {
+                IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterStart)) {
+                    Icon(Icons.Rounded.Close, tr("关闭"))
                 }
-                // 紧凑模式切换胶囊
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(50),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.height(34.dp),
+                    modifier = Modifier.align(Alignment.Center).height(38.dp),
                 ) {
                     Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
                         ModePill(tr("电脑实况"), viewMode == "live") {
@@ -517,34 +521,27 @@ fun BrowserDialog(
                         }
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                if (viewMode == "live") {
-                    IconButton(onClick = { livePaused = !livePaused }, modifier = Modifier.size(36.dp)) {
-                        Icon(if (livePaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
-                            if (livePaused) "继续实时同步" else "暂停同步", Modifier.size(20.dp))
-                    }
-                    IconButton(onClick = { liveTick++ }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Rounded.Refresh, "手动刷新画面", Modifier.size(19.dp))
-                    }
-                } else {
-                    IconButton(onClick = { webViewRef?.goBack() }, enabled = canBack, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "后退", Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = { webViewRef?.goForward() }, enabled = canForward, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowForward, "前进", Modifier.size(18.dp))
-                    }
-                    if (activeUrl.isNotBlank()) {
-                        IconButton(
-                            onClick = { if (loading) webViewRef?.stopLoading() else webViewRef?.reload() },
-                            modifier = Modifier.size(34.dp),
-                        ) {
-                            Icon(if (loading) Icons.Rounded.Close else Icons.Rounded.Refresh, if (loading) "停止" else "刷新", Modifier.size(18.dp))
-                        }
-                        IconButton(onClick = { vm.copy(activeUrl, "已复制网址") }, modifier = Modifier.size(34.dp)) {
-                            Icon(Icons.Rounded.ContentCopy, "复制网址", Modifier.size(17.dp))
-                        }
-                        IconButton(onClick = { openWebLink(ctx, activeUrl) }, modifier = Modifier.size(34.dp)) {
-                            Icon(Icons.AutoMirrored.Rounded.OpenInNew, "外部打开", Modifier.size(18.dp))
+                Box(Modifier.align(Alignment.CenterEnd)) {
+                    IconButton(onClick = { topMenu = true }) { Icon(Icons.Rounded.MoreHoriz, tr("更多操作")) }
+                    DropdownMenu(topMenu, { topMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
+                        if (viewMode == "live") {
+                            DropdownMenuItem(text = { Text(if (livePaused) tr("继续实时同步") else tr("暂停同步")) },
+                                leadingIcon = { Icon(if (livePaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, null) },
+                                onClick = { topMenu = false; livePaused = !livePaused })
+                            DropdownMenuItem(text = { Text(tr("刷新画面")) }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
+                                onClick = { topMenu = false; liveTick++ })
+                        } else {
+                            if (activeUrl.isNotBlank()) {
+                                DropdownMenuItem(text = { Text(if (loading) tr("停止加载") else tr("刷新")) },
+                                    leadingIcon = { Icon(if (loading) Icons.Rounded.Close else Icons.Rounded.Refresh, null) },
+                                    onClick = { topMenu = false; if (loading) webViewRef?.stopLoading() else webViewRef?.reload() })
+                                DropdownMenuItem(text = { Text(tr("复制网址")) }, leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) },
+                                    onClick = { topMenu = false; vm.copy(activeUrl, "已复制网址") })
+                                DropdownMenuItem(text = { Text(tr("在外部浏览器打开")) }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
+                                    onClick = { topMenu = false; openWebLink(ctx, activeUrl) })
+                            }
+                            DropdownMenuItem(text = { Text(tr("同步电脑标签页")) }, leadingIcon = { Icon(Icons.Rounded.Sync, null) },
+                                onClick = { topMenu = false; vm.refreshBrowserTabs(chatId); vm.showToast("已同步电脑标签页") })
                         }
                     }
                 }
@@ -562,16 +559,24 @@ fun BrowserDialog(
                             .background(surfaceColor),
                     ) {
                         Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp),
+                            Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 2.dp, bottom = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            IconButton(onClick = { webViewRef?.goBack() }, enabled = canBack, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, tr("后退"), Modifier.size(20.dp))
+                            }
+                            IconButton(onClick = { webViewRef?.goForward() }, enabled = canForward, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.AutoMirrored.Rounded.ArrowForward, tr("前进"), Modifier.size(20.dp))
+                            }
                             Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                modifier = Modifier.weight(1f).height(38.dp),
+                                shape = RoundedCornerShape(50),
+                                color = sheetCardColor(),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.weight(1f).height(42.dp),
                             ) {
-                                Row(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Rounded.Language, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(if (activeUrl.startsWith("https://")) Icons.Rounded.Lock else Icons.Rounded.Search, null, Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Spacer(Modifier.width(8.dp))
                                     Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                                         if (urlInput.isEmpty()) {
@@ -596,12 +601,6 @@ fun BrowserDialog(
                                         }
                                     }
                                 }
-                            }
-                            IconButton(
-                                onClick = { vm.refreshBrowserTabs(chatId); vm.showToast("已同步电脑标签页") },
-                                modifier = Modifier.size(36.dp),
-                            ) {
-                                Icon(Icons.Rounded.Sync, "同步电脑标签页", Modifier.size(19.dp))
                             }
                         }
 
@@ -897,7 +896,7 @@ fun BrowserDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FilterChip(
+                    TogglePill(
                         selected = controlMode != "view",
                         onClick = {
                             controlMode = when (controlMode) {
@@ -918,7 +917,7 @@ fun BrowserDialog(
                         },
                     )
                     if (controlMode == "mouse") {
-                        FilterChip(
+                        TogglePill(
                             selected = showCursorSlider,
                             onClick = { showCursorSlider = !showCursorSlider },
                             label = { Text("${tr("光标")} ${String.format("%.1f", cursorScale)}×") },
@@ -1327,8 +1326,8 @@ fun BrowserDialog(
                 if (showRemoteKeyboard) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                     Column(
-                        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow)
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         // 顶部：读取电脑已有文字 + 实时光标/编辑快捷键
@@ -1337,7 +1336,7 @@ fun BrowserDialog(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            AssistChip(
+                            ToolPill(
                                 onClick = { loadPcField() },
                                 leadingIcon = {
                                     if (readingField) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.8.dp)
@@ -1345,18 +1344,19 @@ fun BrowserDialog(
                                 },
                                 label = { Text(tr("读取电脑已有文字")) },
                             )
-                            AssistChip(onClick = { vm.sendBrowserInput("key", captureCrop, key = "left") { refreshSoon() } }, label = { Text("←") })
-                            AssistChip(onClick = { vm.sendBrowserInput("key", captureCrop, key = "right") { refreshSoon() } }, label = { Text("→") })
-                            AssistChip(onClick = { vm.sendBrowserInput("key", captureCrop, key = "backspace") { refreshSoon() } }, label = { Text("⌫") })
-                            AssistChip(onClick = { vm.sendBrowserInput("key", captureCrop, key = "del") { refreshSoon() } }, label = { Text("Del") })
-                            AssistChip(onClick = { vm.sendBrowserInput("key", captureCrop, key = "ctrl+a") { refreshSoon() } }, label = { Text(tr("全选")) })
-                            AssistChip(onClick = { vm.sendBrowserInput("key", captureCrop, key = "ctrl+z") { refreshSoon() } }, label = { Text(tr("撤销")) })
+                            ToolPill(onClick = { vm.sendBrowserInput("key", captureCrop, key = "left") { refreshSoon() } }, label = { Text("←") })
+                            ToolPill(onClick = { vm.sendBrowserInput("key", captureCrop, key = "right") { refreshSoon() } }, label = { Text("→") })
+                            ToolPill(onClick = { vm.sendBrowserInput("key", captureCrop, key = "backspace") { refreshSoon() } }, label = { Text("⌫") })
+                            ToolPill(onClick = { vm.sendBrowserInput("key", captureCrop, key = "del") { refreshSoon() } }, label = { Text("Del") })
+                            ToolPill(onClick = { vm.sendBrowserInput("key", captureCrop, key = "ctrl+a") { refreshSoon() } }, label = { Text(tr("全选")) })
+                            ToolPill(onClick = { vm.sendBrowserInput("key", captureCrop, key = "ctrl+z") { refreshSoon() } }, label = { Text(tr("撤销")) })
                         }
                         // 可多行自由移动光标编辑的输入框
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp, max = 96.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            color = sheetCardColor(),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp, max = 110.dp),
                         ) {
                             Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.CenterStart) {
                                 if (remoteTv.text.isEmpty()) {
@@ -1379,9 +1379,9 @@ fun BrowserDialog(
                                 onClick = {
                                     vm.sendBrowserInput("replacefield", captureCrop, text = remoteTv.text) { refreshSoon() }
                                 },
-                                modifier = Modifier.weight(1f).height(36.dp),
+                                modifier = Modifier.weight(1f).height(40.dp),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp),
-                            ) { Text("替换写入", style = MaterialTheme.typography.labelLarge) }
+                            ) { Text(tr("替换写入"), style = MaterialTheme.typography.labelLarge) }
                             OutlinedButton(
                                 onClick = {
                                     vm.sendBrowserInput("replacefield", captureCrop, text = remoteTv.text) {
@@ -1412,26 +1412,26 @@ fun BrowserDialog(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                     Row(
                         Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
-                            .horizontalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 4.dp),
+                            .horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (controlMode == "mouse") {
-                            AssistChip(
+                            ToolPill(
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     vm.sendBrowserInput("click", captureCrop, cursorNorm.x, cursorNorm.y) { refreshSoon() }
                                 },
                                 label = { Text(tr("左键")) },
                             )
-                            AssistChip(
+                            ToolPill(
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     vm.sendBrowserInput("rightclick", captureCrop, cursorNorm.x, cursorNorm.y) { refreshSoon() }
                                 },
                                 label = { Text(tr("右键")) },
                             )
-                            AssistChip(
+                            ToolPill(
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     vm.sendBrowserInput("dblclick", captureCrop, cursorNorm.x, cursorNorm.y) { refreshSoon() }
@@ -1439,7 +1439,7 @@ fun BrowserDialog(
                                 label = { Text(tr("双击")) },
                             )
                         }
-                        AssistChip(
+                        ToolPill(
                             onClick = {
                                 val next = !showRemoteKeyboard
                                 showRemoteKeyboard = next
@@ -1448,30 +1448,30 @@ fun BrowserDialog(
                             leadingIcon = { Icon(Icons.Rounded.Keyboard, null, Modifier.size(16.dp)) },
                             label = { Text(if (showRemoteKeyboard) tr("收起键盘") else tr("键盘编辑")) },
                         )
-                        AssistChip(
+                        ToolPill(
                             onClick = { vm.sendBrowserInput("wheel", captureCrop, cursorNorm.x, cursorNorm.y, delta = 360) { refreshSoon() } },
                             leadingIcon = { Icon(Icons.Rounded.KeyboardArrowUp, null, Modifier.size(16.dp)) },
                             label = { Text(tr("上滚")) },
                         )
-                        AssistChip(
+                        ToolPill(
                             onClick = { vm.sendBrowserInput("wheel", captureCrop, cursorNorm.x, cursorNorm.y, delta = -360) { refreshSoon() } },
                             leadingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.size(16.dp)) },
                             label = { Text(tr("下滚")) },
                         )
-                        AssistChip(
+                        ToolPill(
                             onClick = { vm.sendBrowserInput("key", captureCrop, key = "enter") { refreshSoon() } },
                             label = { Text(tr("回车")) },
                         )
-                        AssistChip(
+                        ToolPill(
                             onClick = { vm.sendBrowserInput("key", captureCrop, key = "backspace") { refreshSoon() } },
                             label = { Text(tr("退格")) },
                         )
-                        AssistChip(
+                        ToolPill(
                             onClick = { vm.sendBrowserInput("key", captureCrop, key = "esc") { refreshSoon() } },
                             label = { Text("Esc") },
                         )
                         if (scale > 1.05f) {
-                            AssistChip(
+                            ToolPill(
                                 onClick = { scale = 1f; offset = Offset.Zero },
                                 label = { Text("1× ${tr("复原")}") },
                             )
@@ -1483,13 +1483,13 @@ fun BrowserDialog(
                 if (activity.actions.isNotEmpty() || activity.screenshots.isNotEmpty()) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                     Column(
-                        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow)
-                            .heightIn(max = 170.dp).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 8.dp),
+                        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                            .heightIn(max = 170.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Gemini 浏览器动态", style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                            Text(tr("Gemini 浏览器动态"), style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (activity.running) StatusDot(true)
                         }
                         activity.actions.take(5).forEach { act ->
@@ -1512,23 +1512,40 @@ fun BrowserDialog(
 @Composable
 private fun ModePill(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(15.dp),
-        color = if (selected) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent,
+        shape = RoundedCornerShape(50),
+        color = if (selected) sheetCardColor() else androidx.compose.ui.graphics.Color.Transparent,
         shadowElevation = if (selected) 1.dp else 0.dp,
-        modifier = Modifier.clip(RoundedCornerShape(15.dp)).clickable(onClick = onClick),
+        modifier = Modifier.fillMaxHeight().clip(RoundedCornerShape(50)).clickable(onClick = onClick),
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-        )
+        Box(Modifier.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+            Text(label, style = MaterialTheme.typography.labelLarge,
+                color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, softWrap = false)
+        }
     }
 }
+
+/** 开关型胶囊（实况顶部的操控方式、光标大小）：选中是浅灰底，没选中是白底细边框。 */
+@Composable
+private fun TogglePill(selected: Boolean, onClick: () -> Unit, label: @Composable () -> Unit, leadingIcon: (@Composable () -> Unit)? = null) {
+    Surface(
+        onClick = onClick, shape = RoundedCornerShape(50),
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else sheetCardColor(),
+        contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.height(36.dp),
+    ) {
+        Row(Modifier.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (leadingIcon != null) { leadingIcon(); Spacer(Modifier.width(6.dp)) }
+            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalTextStyle provides MaterialTheme.typography.labelLarge) { label() }
+        }
+    }
+}
+
+/** 操作胶囊（左键、右键、滚动、回车…）：白底细边框。 */
+@Composable
+private fun ToolPill(onClick: () -> Unit, label: @Composable () -> Unit, leadingIcon: (@Composable () -> Unit)? = null) =
+    TogglePill(selected = false, onClick = onClick, label = label, leadingIcon = leadingIcon)
 
 @Composable
 private fun SyncedTabsRow(
@@ -1549,26 +1566,26 @@ private fun SyncedTabsRow(
                 (activeUrl.isNotBlank() && normalizeUrl(t.url, pcHost) == activeUrl)
             val fav = remember(t.favicon) { decodeFavicon(t.favicon) }
             Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) else null,
-                modifier = Modifier.widthIn(max = 220.dp).clip(RoundedCornerShape(14.dp)).clickable { onSelect(t) },
+                shape = RoundedCornerShape(50),
+                color = if (selected) MaterialTheme.colorScheme.secondaryContainer else sheetCardColor(),
+                border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.widthIn(max = 220.dp).clip(RoundedCornerShape(50)).clickable { onSelect(t) },
             ) {
                 Row(
-                    Modifier.padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                    Modifier.padding(start = 12.dp, end = 6.dp, top = 7.dp, bottom = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (fav != null) {
                         Image(fav.asImageBitmap(), null, Modifier.size(14.dp))
                     } else {
                         Icon(Icons.Rounded.Computer, null, Modifier.size(14.dp),
-                            tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Spacer(Modifier.width(6.dp))
                     Text(
                         t.title.ifBlank { t.url },
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
@@ -1585,7 +1602,7 @@ private fun SyncedTabsRow(
                             Icons.Rounded.Close,
                             "关闭标签页",
                             Modifier.size(13.dp),
-                            tint = (if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.78f),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -1604,20 +1621,18 @@ private fun BrowserSyncHome(
     onCloseTab: (BrowserTab) -> Unit,
 ) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        CardBox {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Computer, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(tr("已同步电脑 Antigravity · 走电脑网络"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(tr("走电脑网络浏览"), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        if (pcTabs.isEmpty()) "当前对话在电脑上还没有打开浏览器标签页；点左上角「电脑实况」可直接看电脑实时画面。"
-                        else "已同步当前对话的 ${pcTabs.size} 个标签页",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        if (pcTabs.isEmpty()) tr("当前对话在电脑上还没有打开网页") else tr("已同步当前对话的 {0} 个标签页", pcTabs.size),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (syncing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -1625,37 +1640,24 @@ private fun BrowserSyncHome(
         }
 
         if (otherPcTabs.isNotEmpty()) {
-            Text(tr("电脑 Antigravity 已打开的标签页"), style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
-            otherPcTabs.forEach { t ->
-                val fav = remember(t.favicon) { decodeFavicon(t.favicon) }
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable {
-                        if (t.url.isNotBlank()) onOpen(t.url)
-                    },
-                ) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (fav != null) {
-                            Image(fav.asImageBitmap(), null, Modifier.size(20.dp))
-                        } else {
-                            Icon(Icons.Rounded.Language, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                        }
-                        Spacer(Modifier.width(12.dp))
+            SectionLabel(tr("电脑上已打开的标签页"))
+            CardGroup {
+                otherPcTabs.forEachIndexed { i, t ->
+                    if (i > 0) CardDivider()
+                    val fav = remember(t.favicon) { decodeFavicon(t.favicon) }
+                    Row(Modifier.fillMaxWidth().clickable { if (t.url.isNotBlank()) onOpen(t.url) }
+                        .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (fav != null) Image(fav.asImageBitmap(), null, Modifier.size(22.dp))
+                        else Icon(Icons.Rounded.Language, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(t.title.ifBlank { t.url }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
+                            Text(t.title.ifBlank { t.url }, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(listOfNotNull(t.convTitle.takeIf { it.isNotBlank() }, t.url).joinToString(" · "),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(
-                                listOfNotNull(t.convTitle.takeIf { it.isNotBlank() }?.let { "来自「$it」" }, t.url).joinToString(" · "),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
                         }
-                        IconButton(onClick = { onCloseTab(t) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Rounded.Close, "关闭标签页", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        IconButton(onClick = { onCloseTab(t) }) {
+                            Icon(Icons.Rounded.Close, tr("关闭标签页"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -1663,19 +1665,15 @@ private fun BrowserSyncHome(
         }
 
         if (quickLinks.isNotEmpty()) {
-            Text(tr("当前对话中的链接"), style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
-            quickLinks.take(8).forEach { u ->
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { onOpen(u) },
-                ) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Language, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(12.dp))
-                        Text(u, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
-                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+            SectionLabel(tr("当前对话中的链接"))
+            CardGroup {
+                quickLinks.take(8).forEachIndexed { i, u ->
+                    if (i > 0) CardDivider()
+                    Row(Modifier.fillMaxWidth().clickable { onOpen(u) }.padding(horizontal = 16.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Link, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(14.dp))
+                        Text(u, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

@@ -1,5 +1,7 @@
 package com.local.agremote.ui
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -143,5 +145,27 @@ fun UsageCard(name: String, usedFraction: Double, resetText: String, desc: Strin
             color = color, trackColor = color.copy(alpha = 0.18f), strokeCap = StrokeCap.Round, gapSize = 0.dp, drawStopIndicator = {})
         if (resetText.isNotBlank()) Text(resetText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (desc.isNotBlank()) Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 底部的撤销提示：深色圆角条 + “撤销”按钮，几秒后自动消失。 */
+@Composable
+fun UndoBar(vm: com.local.agremote.AppViewModel, modifier: Modifier = Modifier) {
+    val host = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val undoLabel = tr("撤销")
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        vm.undo.collect { u ->
+            host.currentSnackbarData?.dismiss() // 新的顶掉旧的
+            scope.launch {
+                val r = host.showSnackbar(I18n.t(I18n.currentLang, u.message), actionLabel = undoLabel, duration = androidx.compose.material3.SnackbarDuration.Short)
+                if (r == androidx.compose.material3.SnackbarResult.ActionPerformed) u.undo()
+            }
+        }
+    }
+    androidx.compose.material3.SnackbarHost(host, modifier.navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 96.dp)) { d ->
+        androidx.compose.material3.Snackbar(d, shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+            actionColor = MaterialTheme.colorScheme.inversePrimary)
     }
 }

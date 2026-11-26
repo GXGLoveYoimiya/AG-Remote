@@ -67,6 +67,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import com.local.agremote.AppViewModel
 import com.local.agremote.Customization
 import com.local.agremote.MarketItem
@@ -125,6 +127,7 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
     var q by rememberSaveable { mutableStateOf("") }
     var translateOn by rememberSaveable { mutableStateOf(false) }
     var detail by remember { mutableStateOf<MarketItem?>(null) }
+    var mcpDetail by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { vm.loadMarket(); vm.loadCustomizations(); vm.loadExtras() }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
@@ -160,11 +163,12 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh))
             Box(Modifier.weight(1f)) {
                 if (tab == 0) MarketTab(vm, q, translateOn) { detail = it }
-                else InstalledTab(vm, q, translateOn, onToggleTranslate = { translateOn = !translateOn }) { detail = it }
+                else InstalledTab(vm, q, translateOn, onToggleTranslate = { translateOn = !translateOn }, onOpenMcp = { mcpDetail = it }) { detail = it }
             }
         }
     }
-    detail?.let { d -> PluginDetail(vm, d, initialTranslate = translateOn) { detail = null } }
+    detail?.let { d -> PluginDetail(vm, d, initialTranslate = translateOn, onStartChat = onBack) { detail = null } }
+    mcpDetail?.let { name -> McpDetail(vm, name) { mcpDetail = null } }
 }
 
 @Composable
@@ -298,7 +302,7 @@ private fun Logo(vm: AppViewModel, url: String, size: Dp) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PluginDetail(vm: AppViewModel, p: MarketItem, initialTranslate: Boolean, onClose: () -> Unit) {
+private fun PluginDetail(vm: AppViewModel, p: MarketItem, initialTranslate: Boolean, onStartChat: () -> Unit = {}, onClose: () -> Unit) {
     val m by vm.market.collectAsState()
     val busy by vm.installing.collectAsState()
     val installed = m?.installed?.contains(p.id) == true
@@ -330,6 +334,39 @@ private fun PluginDetail(vm: AppViewModel, p: MarketItem, initialTranslate: Bool
                 }
             }
             Text(desc, style = MaterialTheme.typography.bodyMedium)
+            // 已安装的插件：启用开关、账号状态（登录只能在电脑上做）、自带技能、推荐提示词
+            val conns by vm.connectors.collectAsState()
+            LaunchedEffect(p.id, installed) { if (installed) vm.loadConnectors() }
+            val conn = conns?.find { it.kind == "plugin" && it.key == p.id.substringAfterLast('/') }
+            if (installed && conn != null) {
+                CardGroup {
+                    ListRow(tr("启用"), end = RowEnd.Toggle(conn.enabled) { vm.toggleConnector(conn, it) })
+                    if (conn.connected != null || conn.needsAuth) {
+                        CardDivider(indent = false)
+                        ListRow(tr("账号"), end = RowEnd.None,
+                            value = when { conn.connected == true -> conn.account.ifBlank { tr("已连接") }; else -> tr("未登录") },
+                            desc = if (conn.connected != true) tr("登录需要在电脑上的 Antigravity 里完成") else null)
+                    }
+                }
+                if (conn.skills.isNotEmpty()) {
+                    SectionLabel(tr("包含的技能"))
+                    CardGroup {
+                        conn.skills.forEachIndexed { i, s ->
+                            if (i > 0) CardDivider(indent = false)
+                            ListRow(s, end = RowEnd.None)
+                        }
+                    }
+                }
+                if (conn.prompts.isNotEmpty()) {
+                    SectionLabel(tr("试试这样问"))
+                    CardGroup {
+                        conn.prompts.forEachIndexed { i, s ->
+                            if (i > 0) CardDivider(indent = false)
+                            ListRow(s) { onClose(); vm.startWithPrompt(s); onStartChat() }
+                        }
+                    }
+                }
+            }
             if (p.homepage.isNotBlank()) {
                 TextButton(onClick = { onClose(); vm.openBrowser(p.homepage) }) {
                     Text(p.homepage, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -360,6 +397,7 @@ private fun InstalledTab(
     q: String,
     translateOn: Boolean,
     onToggleTranslate: () -> Unit,
+    onOpenMcp: (String) -> Unit = {},
     onOpen: (MarketItem) -> Unit,
 ) {
     val m by vm.market.collectAsState()
@@ -403,7 +441,8 @@ private fun InstalledTab(
         if (servers.isNotEmpty()) item(key = "servers") { CardGroup { servers.forEachIndexed { i, s ->
             if (i > 0) CardDivider(indent = false)
             run {
-                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clickable { onOpenMcp(s.name) }.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(s.name, style = MaterialTheme.typography.titleSmall)
                         Text(listOfNotNull(s.status.ifBlank { null }, if (s.tools > 0) "${s.tools} 个工具" else null).joinToString(" · "),
@@ -415,6 +454,34 @@ private fun InstalledTab(
                 }
             }
         } } }
+    }
+}
+
+/** MCP 服务详情：整体开关 + 每个工具的开关（和电脑上一样写进 mcp_config.json）。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun McpDetail(vm: AppViewModel, name: String, onClose: () -> Unit) {
+    val mcp by vm.mcp.collectAsState()
+    val s = mcp?.find { it.name == name } ?: return
+    ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(s.name, Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            if (s.error.isNotBlank()) CardBox { Text(s.error, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
+            CardGroup { ListRow(tr("启用"), desc = s.status.lowercase().replace('_', ' '), end = RowEnd.Toggle(s.enabled) { vm.toggleMcp(s.name, it) }) }
+            if (s.toolList.isNotEmpty()) {
+                SectionLabel(tr("工具") + " · ${s.toolList.count { it.enabled }}/${s.toolList.size}")
+                CardGroup {
+                    s.toolList.forEachIndexed { i, tl ->
+                        if (i > 0) CardDivider(indent = false)
+                        ListRow(tl.name, desc = tl.description.lineSequence().firstOrNull()?.take(120),
+                            end = RowEnd.Toggle(tl.enabled) { vm.toggleMcpTool(s.name, tl.name, it) })
+                    }
+                }
+            }
+        }
     }
 }
 

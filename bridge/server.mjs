@@ -777,6 +777,11 @@ async function listModels() {
   return { defaultModel: d.defaultOverrideModelConfig?.modelOrAlias?.model || models[0]?.model || '', models };
 }
 
+const MCP_CONFIG_FILE = join(process.env.USERPROFILE || '', '.gemini', 'config', 'mcp_config.json');
+function readMcpConfig() {
+  try { const s = readFileSync(MCP_CONFIG_FILE, 'utf8').trim(); return s ? JSON.parse(s) : null; } catch { return null; }
+}
+
 async function account() {
   const u = (await rpc('GetUserStatus', {})).userStatus || {};
   const ps = u.planStatus || {};
@@ -799,7 +804,10 @@ async function account() {
       })),
     }));
   } catch (e) { log('读取额度汇总失败', e.message); }
+  let useAiCredits = false;
+  try { useAiCredits = !!(await freshJetbox()).userConfig?.userSettings?.useAiCredits; } catch {}
   return {
+    useAiCredits,
     name: u.name || '', email: u.email || '',
     plan: u.userTier?.name || pi.planName || '',
     promptCredits: { available: ps.availablePromptCredits ?? null, monthly: pi.monthlyPromptCredits ?? null },
@@ -1847,6 +1855,8 @@ async function listConnectors() {
       connected: auth.length ? auth.some(a => a.connected) : null,
       account: auth.map(a => a.identity).filter(Boolean)[0] || '',
       needsAuth: auth.some(a => a.needsAuth && !a.optional),
+      prompts: Array.isArray(manifest.suggestedPrompts) ? manifest.suggestedPrompts.map(String).slice(0, 10) : [],
+      skills: (() => { try { return readdirSync(join(dir, 'skills'), { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name); } catch { return []; } })(),
     });
   }
   let mcp = [];
@@ -2138,7 +2148,34 @@ async function dl(){
         error: x.error || '',
         tools: (x.tools || []).length,
         enabled: !String(x.status || '').includes('DISABLED'),
+        toolList: (() => {
+          const name = x.spec?.serverName || x.spec?.name || x.serverInfo?.name || '';
+          const off = new Set(readMcpConfig()?.mcpServers?.[name]?.disabledTools || []);
+          return (x.tools || []).map(t => ({ name: t.name || '', description: t.description || '', enabled: !off.has(t.name) }));
+        })(),
       })) });
+    }
+    // 单个 MCP 工具的开关：和电脑上一样写进 mcp_config.json 的 disabledTools，再让 Antigravity 重新加载
+    if (path === '/api/mcp/tool' && req.method === 'POST') {
+      const b = await readBody(req);
+      const cfg = readMcpConfig();
+      const srv = cfg?.mcpServers?.[String(b.server || '')];
+      if (!srv) return send(res, 404, { error: '找不到这个 MCP 服务的配置' });
+      let off = Array.isArray(srv.disabledTools) ? srv.disabledTools.filter(x => x !== b.tool) : [];
+      if (!b.enabled) off.push(String(b.tool));
+      if (off.length) srv.disabledTools = off; else delete srv.disabledTools;
+      writeFileSync(MCP_CONFIG_FILE, JSON.stringify(cfg, null, 2));
+      try { await rpc('RefreshMcpServers', {}); } catch {}
+      return send(res, 200, { ok: true });
+    }
+    // 允许 AI 额度超限使用（基础额度用完后用 AI Credits 继续），和电脑上“Model Credits”开关是同一个设置
+    if (path === '/api/credits' && req.method === 'POST') {
+      const b = await readBody(req);
+      const st = await freshJetbox();
+      st.userConfig = { ...(st.userConfig || {}), userSettings: { ...(st.userConfig?.userSettings || {}), useAiCredits: !!b.on } };
+      await rpc('JetboxWriteState', { userConfig: st.userConfig });
+      jetbox = st;
+      return send(res, 200, { useAiCredits: !!b.on });
     }
     if (path === '/api/mcp/toggle' && req.method === 'POST') {
       const b = await readBody(req);

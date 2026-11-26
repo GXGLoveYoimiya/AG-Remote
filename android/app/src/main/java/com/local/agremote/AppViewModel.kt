@@ -503,6 +503,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         runCatching { Translator.prefetch(texts, lang) }
     }
 
+    /** 单个 MCP 工具的开关（先在界面上改，再写回电脑）。 */
+    fun toggleMcpTool(server: String, tool: String, enabled: Boolean) {
+        _mcp.value = _mcp.value?.map { s -> if (s.name != server) s else s.copy(toolList = s.toolList.map { if (it.name == tool) it.copy(enabled = enabled) else it }) }
+        viewModelScope.launch {
+            runCatching { api.mcpTool(server, tool, enabled) }.onFailure { _toast.tryEmit("操作失败：" + err(it)) }
+            runCatching { api.mcpServers() }.onSuccess { _mcp.value = it }
+        }
+    }
+
+    /** 允许 AI 额度超限使用。 */
+    fun setUseAiCredits(on: Boolean) {
+        _account.value = _account.value?.copy(useAiCredits = on)
+        viewModelScope.launch {
+            runCatching { api.setUseAiCredits(on) }.onFailure { _toast.tryEmit("操作失败：" + err(it)); _account.value = _account.value?.copy(useAiCredits = !on) }
+        }
+    }
+
+    /** 用一句推荐提示词开新对话（填进输入框，不直接发送）。 */
+    fun startWithPrompt(prompt: String) {
+        newChat()
+        updateDraft(null, prompt)
+    }
+
     fun toggleMcp(name: String, enabled: Boolean) {
         viewModelScope.launch {
             runCatching { api.mcpToggle(name, enabled) }.onFailure { _toast.tryEmit("操作失败：" + err(it)) }
@@ -1175,9 +1198,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (v) manuallyUnread.add(id) else manuallyUnread.remove(id)
         annotate(id, JSONObject().put("unread", v))
     }
+    /** 底部带“撤销”的提示（归档对话后用）。 */
+    class Undo(val message: String, val undo: () -> Unit)
+    private val _undo = MutableSharedFlow<Undo>(extraBufferCapacity = 4)
+    val undo = _undo.asSharedFlow()
+
     fun setArchived(id: String, v: Boolean) {
-        annotate(id, JSONObject().put("archived", v), if (v) "已归档，可在设置里找回" else "已取消归档")
-        if (v && _chat.value.id == id) newChat()
+        val wasOpen = _chat.value.id == id
+        annotate(id, JSONObject().put("archived", v), if (v) null else "已取消归档")
+        if (v && wasOpen) newChat()
+        // 归档后立刻提示，可以撤销（撤销后正在看的对话重新打开）
+        if (v) _undo.tryEmit(Undo("对话已归档") {
+            annotate(id, JSONObject().put("archived", false))
+            if (wasOpen) openChat(id)
+        })
     }
 
     fun delete(id: String) {

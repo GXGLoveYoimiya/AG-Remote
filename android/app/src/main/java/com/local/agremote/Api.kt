@@ -83,7 +83,8 @@ data class Automation(
 
 /** 连接器：已装的插件（Google Drive、Gmail…）或 MCP 服务。 */
 data class Connector(val key: String, val kind: String, val name: String, val description: String, val logo: String,
-                     val enabled: Boolean, val connected: Boolean?, val account: String, val needsAuth: Boolean, val error: String)
+                     val enabled: Boolean, val connected: Boolean?, val account: String, val needsAuth: Boolean, val error: String,
+                     val prompts: List<String> = emptyList(), val skills: List<String> = emptyList())
 
 data class Plugin(val id: String, val title: String, val description: String, val trust: String, val kind: String,
                   val installed: Boolean, val link: String = "")
@@ -96,7 +97,9 @@ data class Market(val featured: List<String>, val groups: List<MarketGroup>, val
 
 data class Customization(val type: String, val name: String, val path: String, val scope: String, val status: String, val error: String)
 
-data class McpServer(val name: String, val status: String, val error: String, val tools: Int, val enabled: Boolean)
+data class McpTool(val name: String, val description: String, val enabled: Boolean)
+data class McpServer(val name: String, val status: String, val error: String, val tools: Int, val enabled: Boolean,
+                     val toolList: List<McpTool> = emptyList())
 
 /** 对话里的一次实时语音通话记录（双方说的话；和普通消息分开存，按时间插进聊天显示）。 */
 data class VoiceLine(val user: Boolean, val text: String, val time: String)
@@ -142,6 +145,7 @@ data class Account(
     val upgradeText: String,
     val groups: List<QuotaGroup>,
     val note: String,
+    val useAiCredits: Boolean = false,
 )
 
 data class Waiting(
@@ -373,7 +377,9 @@ class Api(private val prefs: Prefs) {
     suspend fun mcpServers(): List<McpServer> {
         val a = call(req("/api/mcp").build()).optJSONArray("servers") ?: JSONArray()
         return (0 until a.length()).map { a.getJSONObject(it).let { o ->
-            McpServer(o.optString("name"), o.optString("status"), o.optString("error"), o.optInt("tools"), o.optBoolean("enabled"))
+            val tl = o.optJSONArray("toolList") ?: JSONArray()
+            McpServer(o.optString("name"), o.optString("status"), o.optString("error"), o.optInt("tools"), o.optBoolean("enabled"),
+                (0 until tl.length()).map { i -> tl.getJSONObject(i).let { t -> McpTool(t.optString("name"), t.optString("description"), t.optBoolean("enabled", true)) } })
         } }
     }
 
@@ -431,7 +437,13 @@ class Api(private val prefs: Prefs) {
                 )
             },
             o.optString("quotaNote"),
+            o.optBoolean("useAiCredits"),
         )
+    }
+
+    suspend fun setUseAiCredits(on: Boolean) { post("/api/credits", JSONObject().put("on", on)) }
+    suspend fun mcpTool(server: String, tool: String, enabled: Boolean) {
+        post("/api/mcp/tool", JSONObject().put("server", server).put("tool", tool).put("enabled", enabled))
     }
     suspend fun cancel(id: String) { post("/api/conversations/$id/cancel", JSONObject()) }
     suspend fun sendQueued(id: String, messageId: String, text: String) {
@@ -604,12 +616,15 @@ class Api(private val prefs: Prefs) {
     }
     suspend fun pluginAction(id: String, action: String) { post("/api/plugins/$action", JSONObject().put("id", id)) }
 
+    private fun strList(a: JSONArray?): List<String> = if (a == null) emptyList() else (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() }
+
     suspend fun connectors(): List<Connector> {
         val a = call(req("/api/connectors").build()).optJSONArray("connectors") ?: JSONArray()
         return (0 until a.length()).map { a.getJSONObject(it).let { o ->
             Connector(o.optString("key"), o.optString("kind"), o.optString("name"), o.optString("description"), o.optString("logo"),
                 o.optBoolean("enabled"), if (o.isNull("connected")) null else o.optBoolean("connected"),
-                o.optString("account"), o.optBoolean("needsAuth"), o.optString("error"))
+                o.optString("account"), o.optBoolean("needsAuth"), o.optString("error"),
+                strList(o.optJSONArray("prompts")), strList(o.optJSONArray("skills")))
         } }
     }
     suspend fun toggleConnector(c: Connector, enabled: Boolean) {

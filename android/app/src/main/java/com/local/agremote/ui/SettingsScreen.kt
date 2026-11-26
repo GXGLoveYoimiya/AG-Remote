@@ -1,5 +1,8 @@
 package com.local.agremote.ui
 
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -99,7 +102,7 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
     var editingHost by remember { mutableStateOf<SavedHost?>(null) }
     val scope = rememberCoroutineScope()
     val archived = list.filter { it.archived }
-    LaunchedEffect(Unit) { vm.loadAccount() }
+    LaunchedEffect(Unit) { vm.loadAccount(); vm.loadAvatar() }
 
     // 一级页面是分组列表（参照 Claude 移动端），具体设置都放在二级页面里
     var page by rememberSaveable { mutableStateOf(startPage) }
@@ -130,25 +133,32 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
                 "main" -> {
                     // 顶部：Antigravity 账户 + 套餐
                     item {
-                        Surface(onClick = { page = "usage" }, color = sheetCardColor(), shape = RoundedCornerShape(20.dp),
+                        Surface(color = sheetCardColor(), shape = RoundedCornerShape(20.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
-                            Row(Modifier.padding(horizontal = 16.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                val av by vm.avatar.collectAsState()
+                                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.size(40.dp)) {
+                                    val b = av
+                                    if (b != null) androidx.compose.foundation.Image(b.asImageBitmap(), null, Modifier.fillMaxSize(),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                    else Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Person, null) }
+                                }
+                                Spacer(Modifier.width(12.dp))
                                 Text(account?.name?.ifBlank { null } ?: "Antigravity", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                account?.plan?.takeIf { it.isNotBlank() }?.let { plan ->
+                                shortPlan(account?.plan).takeIf { it.isNotBlank() }?.let { plan ->
                                     Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(50)) {
-                                        Text(plan, Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium,
+                                        Text(plan, Modifier.padding(horizontal = 12.dp, vertical = 4.dp), style = MaterialTheme.typography.labelLarge,
                                             color = MaterialTheme.colorScheme.onPrimary, maxLines = 1)
                                     }
                                 }
-                                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
                     item { SectionLabel(tr("账户")) }
                     item {
                         CardGroup {
-                            ListRow(tr("用量"), Icons.Rounded.DataUsage, value = account?.plan) { page = "usage" }
+                            ListRow(tr("用量"), Icons.Rounded.DataUsage, value = shortPlan(account?.plan)) { page = "usage" }
                             CardDivider()
                             ListRow(tr("已归档的对话"), Icons.Rounded.Archive, value = "${archived.size}") { page = "archived" }
                         }
@@ -191,7 +201,6 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
                     val a = account
                     if (a == null) item { Text(tr("读取中…"), Modifier.padding(6.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     else {
-                        if (a.note.isNotBlank()) item { Text(a.note, Modifier.padding(horizontal = 6.dp), style = MaterialTheme.typography.bodyLarge) }
                         a.groups.forEach { g ->
                             item { SectionLabel(g.name) }
                             if (g.models.isNotEmpty()) item {
@@ -201,6 +210,14 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
                             items(g.buckets) { b ->
                                 val sp = if (LocalAppLang.current.startsWith("zh") || LocalAppLang.current == "ja") "" else " "
                                 UsageCard(b.name, 1.0 - b.remaining, if (b.reset.isNotBlank()) "${untilText(b.reset)}$sp${tr("重置")}" else "", b.desc)
+                            }
+                        }
+                        // 允许 AI 额度超限使用：基础额度用完后用 AI Credits 继续（和电脑上的同一个设置）
+                        item { SectionLabel(tr("额度超限")) }
+                        item {
+                            CardGroup {
+                                ListRow(tr("允许 AI 额度超限使用"), desc = tr("基础额度用完后，用 AI Credits 继续使用模型"),
+                                    end = RowEnd.Toggle(a.useAiCredits) { vm.setUseAiCredits(it) })
                             }
                         }
                         if (a.promptAvail != null || a.flowAvail != null) {
@@ -519,3 +536,6 @@ private fun AboutMenu() {
         }
     }
 }
+
+/** 套餐名只留 Pro / Ultra 这样的档位（去掉“Google AI”）。 */
+internal fun shortPlan(plan: String?): String = (plan ?: "").replace(Regex("(?i)^\\s*google\\s+ai\\s*"), "").trim()

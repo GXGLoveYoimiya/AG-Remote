@@ -1,5 +1,6 @@
 package com.local.agremote
 
+import androidx.compose.foundation.layout.fillMaxSize
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -67,7 +68,10 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(Unit) {
                         vm.toast.collect { Toast.makeText(this@MainActivity, com.local.agremote.ui.I18n.translateToast(it), Toast.LENGTH_SHORT).show() }
                     }
-                    Root(vm)
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+                        Root(vm)
+                        com.local.agremote.ui.UndoBar(vm, androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
+                    }
                 }
             }
         }
