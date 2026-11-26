@@ -1420,7 +1420,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                             canStop -> IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
                             else -> IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
                         },
                     ) {
                         Icon(
@@ -1466,10 +1466,10 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                 val showTopField = !holdMode || text.isNotBlank() || sttText.isNotBlank() || holdImeAtStart
                 if (!voiceActive) {
                     val endCollapsed = if (canStop || showVoiceMode) 104.dp else 52.dp
-                    val startPad = lerp(48.dp, 14.dp, progress)
-                    val endPad = lerp(endCollapsed, 14.dp, progress)
-                    val topPad = lerp(0.dp, 12.dp, progress)
-                    val bottomPad = lerp(0.dp, 60.dp, progress)
+                    val startPad = lerp(48.dp, 6.dp, progress)
+                    val endPad = lerp(endCollapsed, 6.dp, progress)
+                    val topPad = lerp(0.dp, 2.dp, progress)
+                    val bottomPad = lerp(0.dp, 50.dp, progress)
                     val fieldMinH = lerp(44.dp, 32.dp, progress)
                     var rightGroupW by remember { mutableIntStateOf(0) }
                     Box(Modifier.fillMaxWidth()) {
@@ -1497,9 +1497,9 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                                     sending -> tr("正在发送…")
                                                     working -> tr("排队发送消息") // 运行中发的消息会排队，等这一轮结束再发
                                                     id == null && !imeVisible -> tr("输入或长按说话")
-                                                    id == null -> tr("与{0}对话", ai)
-                                                    imeVisible -> tr("回复{0}", ai)
-                                                    else -> tr("回复{0}或长按说话", ai)
+                                                    id == null -> cjkSpace(tr("与{0}对话", ai))
+                                                    imeVisible -> cjkSpace(tr("回复{0}", ai))
+                                                    else -> cjkSpace(tr("回复{0}或长按说话", ai))
                                                 },
                                                 style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1519,7 +1519,8 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 Surface(
                                     onClick = { if (expanded) onPickModel() },
                                     shape = RoundedCornerShape(50),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.weight(1f, fill = false).graphicsLayer { alpha = ((progress - 0.15f) / 0.85f).coerceIn(0f, 1f) },
                                 ) {
                                     Box(Modifier.height(44.dp).padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
@@ -1679,6 +1680,11 @@ private fun AttachmentChip(a: com.local.agremote.Attachment, onOpen: () -> Unit,
         }
     }
 }
+
+/** 汉字和英文/数字之间补一个空格（“与Gemini对话” → “与 Gemini 对话”）。 */
+private fun cjkSpace(s: String): String = s
+    .replace(Regex("([\u4e00-\u9fff\u3040-\u30ff])([A-Za-z0-9])"), "$1 $2")
+    .replace(Regex("([A-Za-z0-9])([\u4e00-\u9fff\u3040-\u30ff])"), "$1 $2")
 
 /** 剩余额度圆环：强调色，圈的长度是剩余比例，快用完时变红。 */
 @Composable
