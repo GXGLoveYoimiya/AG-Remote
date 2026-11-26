@@ -231,7 +231,9 @@ fun BrowserDialog(
         }
     }
 
+    var streaming by remember { mutableStateOf(false) }
     fun refreshSoon() {
+        if (streaming) return // 视频流本来就是实时的
         scope.launch {
             delay(160)
             val bmp = vm.capturePcBrowser(captureCrop)
@@ -239,9 +241,21 @@ fun BrowserDialog(
         }
     }
 
-    // 实时拉取电脑 Antigravity 窗口画面 + Gemini 浏览器动态
+    // 实时电脑画面：优先用视频流（连续推帧），连不上再退回一张张截图
     LaunchedEffect(viewMode, captureCrop, livePaused, liveTick) {
         if (viewMode != "live") return@LaunchedEffect
+        if (!livePaused) {
+            var failures = 0
+            while (failures < 3) {
+                var got = false
+                runCatching {
+                    vm.pcScreenStream().collect { bmp -> liveFrame = bmp; liveError = null; streaming = true; got = true }
+                }
+                streaming = false
+                if (got) failures = 0 else failures++
+                delay(800)
+            }
+        }
         while (true) {
             val bmp = vm.capturePcBrowser(captureCrop)
             if (bmp != null) {

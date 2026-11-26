@@ -450,9 +450,77 @@ class WinCap {
         }
     }
 
+    // 连续推流（电脑实况）：常驻进程里循环截屏、缩放、压 JPEG，按“4 字节长度(大端) + JPEG”写到 stdout。
+    // 画面没变化就不发（每 2 秒发一帧保活）；stdout 被关掉（手机断开）时退出。
+    static byte[] hashBuf;
+    static int FrameHash(Bitmap b) {
+        var rect = new Rectangle(0, 0, b.Width, b.Height);
+        var d = b.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+        int len = d.Stride * b.Height;
+        if (hashBuf == null || hashBuf.Length != len) hashBuf = new byte[len];
+        Marshal.Copy(d.Scan0, hashBuf, 0, len);
+        b.UnlockBits(d);
+        unchecked {
+            int h = 17;
+            for (int i = 0; i < len; i += 5) h = h * 31 + hashBuf[i];
+            return h;
+        }
+    }
+
+    static int RunStream(long quality, int maxW, int fps) {
+        int sw = GetSystemMetrics(0), sh = GetSystemMetrics(1);
+        if (sw <= 0 || sh <= 0) { Console.Error.Write("NO_SCREEN"); return 2; }
+        int dstW = sw > maxW ? maxW : sw;
+        int dstH = Math.Max(1, (int)Math.Round((double)sh * dstW / sw));
+        ImageCodecInfo jpeg = null;
+        foreach (var c in ImageCodecInfo.GetImageEncoders()) if (c.MimeType == "image/jpeg") { jpeg = c; break; }
+        var ep = new EncoderParameters(1);
+        ep.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, quality);
+        var stdout = Console.OpenStandardOutput();
+        int frameMs = 1000 / Math.Max(1, fps);
+        var clock = Stopwatch.StartNew();
+        long lastSent = -100000;
+        int lastHash = 0;
+        var head = new byte[4];
+        using (var bmp = new Bitmap(sw, sh, PixelFormat.Format24bppRgb))
+        using (var g = Graphics.FromImage(bmp))
+        using (var outBmp = new Bitmap(dstW, dstH, PixelFormat.Format24bppRgb))
+        using (var g2 = Graphics.FromImage(outBmp))
+        using (var ms = new MemoryStream()) {
+            g2.InterpolationMode = InterpolationMode.Bilinear;
+            while (true) {
+                long t0 = clock.ElapsedMilliseconds;
+                bool captured = true;
+                try { g.CopyFromScreen(0, 0, 0, 0, new Size(sw, sh), CopyPixelOperation.SourceCopy); }
+                catch { captured = false; } // 锁屏/切换桌面时会失败，稍后再试
+                if (captured) {
+                    g2.DrawImage(bmp, new Rectangle(0, 0, dstW, dstH), new Rectangle(0, 0, sw, sh), GraphicsUnit.Pixel);
+                    int h = FrameHash(outBmp);
+                    if (h != lastHash || t0 - lastSent > 2000) {
+                        ms.SetLength(0);
+                        if (jpeg != null) outBmp.Save(ms, jpeg, ep); else outBmp.Save(ms, ImageFormat.Jpeg);
+                        int n = (int)ms.Length;
+                        head[0] = (byte)(n >> 24); head[1] = (byte)(n >> 16); head[2] = (byte)(n >> 8); head[3] = (byte)n;
+                        try { stdout.Write(head, 0, 4); stdout.Write(ms.GetBuffer(), 0, n); stdout.Flush(); }
+                        catch { return 0; } // 对方断开
+                        lastHash = h; lastSent = t0;
+                    }
+                }
+                int spent = (int)(clock.ElapsedMilliseconds - t0);
+                Thread.Sleep(captured ? Math.Max(1, frameMs - spent) : 500);
+            }
+        }
+    }
+
     static int Main(string[] args) {
         try { SetProcessDPIAware(); } catch {}
         if (args.Length > 0 && args[0] == "daemon") return RunDaemon();
+        if (args.Length > 0 && args[0] == "stream") {
+            long q = args.Length > 1 ? long.Parse(args[1], CultureInfo.InvariantCulture) : 65;
+            int w = args.Length > 2 ? int.Parse(args[2], CultureInfo.InvariantCulture) : 1280;
+            int f = args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 15;
+            return RunStream(q, w, f);
+        }
         if (args.Length > 0 && args[0] == "input") {
             if (args.Length < 5) return 1;
             double nx = double.Parse(args[3], CultureInfo.InvariantCulture);

@@ -175,6 +175,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.material.icons.rounded.Image
 import com.local.agremote.ModelInfo
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.ui.zIndex
 import com.local.agremote.AppViewModel
 import com.local.agremote.Step
 import org.json.JSONArray
@@ -1492,17 +1493,19 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                     Box {
                                         if (text.isEmpty()) {
                                             val ai = assistantName(fullLabel)
-                                            Text(
-                                                when {
-                                                    sending -> tr("正在发送…")
-                                                    working -> tr("排队发送消息") // 运行中发的消息会排队，等这一轮结束再发
-                                                    id == null && !imeVisible -> tr("输入或长按说话")
-                                                    id == null -> cjkSpace(tr("与{0}对话", ai))
-                                                    imeVisible -> cjkSpace(tr("回复{0}", ai))
-                                                    else -> cjkSpace(tr("回复{0}或长按说话", ai))
-                                                },
-                                                style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            val phStyle = MaterialTheme.typography.bodyLarge
+                                            val phColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            val fixed = when { sending -> tr("正在发送…"); working -> tr("排队发送消息"); else -> null } // 运行中发的消息会排队
+                                            if (fixed != null) Text(fixed, style = phStyle, color = phColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            else {
+                                                val collapsedPh = if (id == null) tr("输入或长按说话") else cjkSpace(tr("回复{0}或长按说话", ai))
+                                                val expandedPh = if (id == null) cjkSpace(tr("与{0}对话", ai)) else cjkSpace(tr("回复{0}", ai))
+                                                val k = (progress / 0.35f).coerceIn(0f, 1f)
+                                                if (k < 1f) Text(collapsedPh, Modifier.graphicsLayer { alpha = 1f - k }, style = phStyle, color = phColor,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                if (k > 0f) Text(expandedPh, Modifier.graphicsLayer { alpha = k }, style = phStyle, color = phColor,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
                                         }
                                         inner()
                                     }
@@ -1513,15 +1516,19 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                         // 左组最多用到右侧按钮组左边，名字太长就省略，不会钻到麦克风底下
                         Row(Modifier.align(Alignment.BottomStart).padding(end = with(LocalDensity.current) { rightGroupW.toDp() } + 8.dp),
                             verticalAlignment = Alignment.CenterVertically) {
-                            plusBtn()
+                            Box(Modifier.zIndex(1f)) { plusBtn() }
                             if (progress > 0.02f) {
                                 Spacer(Modifier.width(8.dp)) // “+”的圆底和模型按钮隔开
+                                val chipK = ((progress - 0.1f) / 0.9f).coerceIn(0f, 1f)
                                 Surface(
                                     onClick = { if (expanded) onPickModel() },
                                     shape = RoundedCornerShape(50),
                                     color = MaterialTheme.colorScheme.secondaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.weight(1f, fill = false).graphicsLayer { alpha = ((progress - 0.15f) / 0.85f).coerceIn(0f, 1f) },
+                                    modifier = Modifier.weight(1f, fill = false).graphicsLayer {
+                                        translationX = -(1f - chipK) * 60.dp.toPx() // 从“+”底下滑出来
+                                        alpha = chipK
+                                    },
                                 ) {
                                     Box(Modifier.height(44.dp).padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
                                         Text(modelLabel, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)

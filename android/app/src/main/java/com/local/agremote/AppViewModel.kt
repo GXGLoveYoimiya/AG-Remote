@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -171,6 +172,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
         }
     }
+    /** 电脑实况视频流：连续收帧；断开或出错时结束（调用方再决定重连或退回截图）。 */
+    fun pcScreenStream(width: Int = 1280, fps: Int = 20): kotlinx.coroutines.flow.Flow<android.graphics.Bitmap> = kotlinx.coroutines.flow.flow {
+        val call = api.browserStreamCall(width, fps)
+        currentCoroutineContext()[Job]?.invokeOnCompletion { call.cancel() } // 离开页面时立刻断开
+        call.execute().use { r ->
+            if (!r.isSuccessful) return@use
+            val input = java.io.DataInputStream(java.io.BufferedInputStream(r.body.byteStream(), 1 shl 16))
+            while (true) {
+                val n = input.readInt()
+                if (n <= 0 || n > (16 shl 20)) break
+                val bytes = ByteArray(n)
+                input.readFully(bytes)
+                android.graphics.BitmapFactory.decodeByteArray(bytes, 0, n)?.let { emit(it) }
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
     suspend fun capturePcBrowser(mode: String): android.graphics.Bitmap? = withContext(Dispatchers.IO) {
         val bytes = runCatching { api.browserScreen(mode) }.getOrNull() ?: return@withContext null
         android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)

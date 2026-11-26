@@ -2359,6 +2359,32 @@ async function dl(){
       const b = await readBody(req);
       return send(res, 200, await closePcBrowserTab(String(b.tabCid || b.cid || ''), String(b.tabId || ''), String(b.curCid || b.cid || '')));
     }
+    // 电脑实况视频流（MJPEG）：常驻 wincap 连续截屏推帧；网络跟不上时丢旧帧只发最新的，避免越来越延迟
+    if (path === '/api/browser/stream' && req.method === 'GET') {
+      if (!existsSync(WINCAP_EXE)) return send(res, 404, { error: 'NO_WINCAP' });
+      const clamp = (v, lo, hi, d) => Math.min(hi, Math.max(lo, Number(v) || d));
+      const fps = clamp(url.searchParams.get('fps'), 2, 30, 20);
+      const width = clamp(url.searchParams.get('w'), 480, 1920, 1280);
+      const p = spawn(WINCAP_EXE, ['stream', '65', String(width), String(fps)], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' });
+      res.socket?.setNoDelay?.(true);
+      let buf = Buffer.alloc(0);
+      p.stdout.on('data', chunk => {
+        buf = buf.length ? Buffer.concat([buf, chunk]) : chunk;
+        let latest = null;
+        while (buf.length >= 4) {
+          const n = buf.readUInt32BE(0);
+          if (buf.length < 4 + n) break;
+          latest = buf.subarray(0, 4 + n);
+          buf = buf.subarray(4 + n);
+          if (res.writableLength < 256 << 10) { res.write(Buffer.from(latest)); latest = null; } // 积压太多就丢这一帧
+        }
+      });
+      p.on('exit', () => { try { res.end(); } catch {} });
+      p.on('error', () => { try { res.end(); } catch {} });
+      req.on('close', () => { try { p.kill(); } catch {} });
+      return;
+    }
     if (path === '/api/browser/screen' && req.method === 'GET') {
       const mode = url.searchParams.get('mode') === 'pane' ? 'pane' : 'full';
       const r = await captureAntigravityScreen(mode);

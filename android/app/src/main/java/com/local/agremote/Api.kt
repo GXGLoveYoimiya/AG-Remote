@@ -504,6 +504,10 @@ class Api(private val prefs: Prefs) {
         return BrowserTabsData(o.optString("activeTabId"), parse(o.optJSONArray("tabs")), parse(o.optJSONArray("otherTabs")))
     }
 
+    /** 电脑实况视频流：每帧“4 字节长度 + JPEG”。 */
+    fun browserStreamCall(width: Int, fps: Int): okhttp3.Call =
+        streamClient.newCall(req("/api/browser/stream?w=$width&fps=$fps").build())
+
     suspend fun browserScreen(mode: String): ByteArray? = withContext(Dispatchers.IO) {
         client.newCall(req("/api/browser/screen?mode=$mode").build()).execute().use { r ->
             if (!r.isSuccessful) null else r.body.bytes()
