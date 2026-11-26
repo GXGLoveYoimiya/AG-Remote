@@ -117,6 +117,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MoreVert
@@ -194,6 +195,13 @@ fun ChatScreen(
     val sendingQueuedIds by vm.sendingQueuedIds.collectAsState()
     var pickModel by remember { mutableStateOf(false) }
     var moreMenu by remember { mutableStateOf(false) }
+    // 实时语音（电脑上 Antigravity 2.35+ 才有）：先要麦克风权限
+    val voiceCfg by vm.voiceCfg.collectAsState()
+    val voiceCall by vm.voiceCall.collectAsState()
+    val voiceCtx = LocalContext.current
+    val askVoiceMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) vm.startVoiceCall() else Toast.makeText(voiceCtx, I18n.t("需要麦克风权限才能语音通话"), Toast.LENGTH_SHORT).show()
+    }
     val curConv = s.conv ?: s.id?.let { id -> list.find { it.id == id } }
     val focusManager = LocalFocusManager.current
     val visible = remember(s.steps) { s.steps.filter { it.kind != "hidden" } }
@@ -228,6 +236,11 @@ fun ChatScreen(
                         style = MaterialTheme.typography.titleMedium)
                 },
                 actions = {
+                    if (voiceCfg.available) IconButton(onClick = {
+                        focusManager.clearFocus()
+                        if (ContextCompat.checkSelfPermission(voiceCtx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) vm.startVoiceCall()
+                        else askVoiceMic.launch(Manifest.permission.RECORD_AUDIO)
+                    }) { Icon(Icons.Rounded.Call, tr("实时语音")) }
                     IconButton(onClick = { focusManager.clearFocus(); vm.openBrowser() }) {
                         Icon(Icons.Rounded.Language, "内置浏览器")
                     }
@@ -318,6 +331,7 @@ fun ChatScreen(
     }
     val preview by vm.preview.collectAsState()
     preview?.let { PreviewDialog(it) { vm.openPreview(null) } }
+    voiceCall?.let { VoiceCallScreen(vm, it) }
 }
 
 @Composable

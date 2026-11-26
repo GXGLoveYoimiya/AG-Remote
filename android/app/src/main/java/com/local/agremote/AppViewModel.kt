@@ -668,6 +668,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         loadSync()
         if (_i18n.value.isEmpty()) viewModelScope.launch { runCatching { api.i18n() }.onSuccess { _i18n.value = it } }
         if (_account.value == null) viewModelScope.launch { runCatching { api.account() }.onSuccess { _account.value = it } }
+        loadVoiceConfig()
         _chat.value.id?.let { reloadChat(it, full = false) }
         events = viewModelScope.launch(Dispatchers.IO) { eventLoop() }
     }
@@ -710,6 +711,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             }
                             "sync" -> withContext(Dispatchers.Main) {
                                 applySync(ev.optString("model"), ev.optString("permissionPreset"))
+                                ev.optJSONObject("voice")?.let { v -> _voiceCfg.value = _voiceCfg.value.copy(settings = parseVoiceSettings(v)) }
                                 if (_market.value != null) loadMarket()
                             }
                             "changed" -> withContext(Dispatchers.Main) {
@@ -1136,6 +1138,73 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 copy(sb.toString().trim(), "已复制全部内容")
             }.onFailure { _toast.tryEmit("复制失败：" + err(it)) }
         }
+    }
+
+    // ---------- 实时语音通话（Antigravity 2.35+） ----------
+    private val _voiceCfg = MutableStateFlow(VoiceConfig())
+    val voiceCfg = _voiceCfg.asStateFlow()
+    private val _voiceCall = MutableStateFlow<VoiceCall?>(null)
+    val voiceCall = _voiceCall.asStateFlow()
+    private var previewPlayer: android.media.MediaPlayer? = null
+    private val _previewing = MutableStateFlow<String?>(null)
+    val previewing = _previewing.asStateFlow()
+
+    fun loadVoiceConfig() {
+        viewModelScope.launch { runCatching { api.voiceConfig() }.onSuccess { _voiceCfg.value = it } }
+    }
+
+    /** 改音色/语速/音量：先改界面，再写回电脑（电脑上的 Antigravity 设置同步变化）；通话中的语速和音量立即生效。 */
+    fun saveVoice(name: String? = null, speed: Double? = null, volume: Int? = null) {
+        val cur = _voiceCfg.value.settings
+        _voiceCfg.value = _voiceCfg.value.copy(settings = cur.copy(name = name ?: cur.name, speed = speed ?: cur.speed, volume = volume ?: cur.volume))
+        _voiceCall.value?.let { c -> speed?.let { c.setSpeed(it) }; volume?.let { c.setVolume(it) } }
+        viewModelScope.launch {
+            runCatching { api.saveVoiceSettings(name, speed, volume) }
+                .onSuccess { _voiceCfg.value = _voiceCfg.value.copy(settings = it) }
+                .onFailure { _toast.tryEmit("保存语音设置失败：" + err(it)) }
+        }
+    }
+
+    /** 试听音色（电脑上的 Antigravity 自带的样音，每个音色 3 段随机一段）。再点一次停止。 */
+    fun previewVoice(name: String) {
+        previewPlayer?.release(); previewPlayer = null
+        if (_previewing.value == name) { _previewing.value = null; return }
+        _previewing.value = name
+        viewModelScope.launch {
+            runCatching {
+                val bytes = api.voiceSample(name, (1..3).random())
+                val f = java.io.File(getApplication<Application>().cacheDir, "voice_preview.mp3").apply { writeBytes(bytes) }
+                withContext(Dispatchers.Main) {
+                    if (_previewing.value != name) return@withContext
+                    previewPlayer = android.media.MediaPlayer().apply {
+                        setDataSource(f.absolutePath)
+                        setVolume(_voiceCfg.value.settings.volume / 100f, _voiceCfg.value.settings.volume / 100f)
+                        setOnCompletionListener { if (_previewing.value == name) _previewing.value = null; it.release(); if (previewPlayer === it) previewPlayer = null }
+                        prepare(); start()
+                    }
+                }
+            }.onFailure { _previewing.value = null; _toast.tryEmit("试听失败：" + err(it)) }
+        }
+    }
+
+    /** 开始实时语音：在当前对话里说；新对话时电脑会先建一个，通话里会告诉我们对话 ID。 */
+    fun startVoiceCall() {
+        if (_voiceCall.value != null) return
+        previewPlayer?.release(); previewPlayer = null; _previewing.value = null
+        val s = _voiceCfg.value.settings
+        val call = VoiceCall(getApplication(), api)
+        _voiceCall.value = call
+        call.start(_chat.value.id, _selected.value, s.name, s.speed, s.volume)
+    }
+
+    /** 结束通话并关掉通话界面；新建的对话会出现在列表里并自动打开。 */
+    fun endVoiceCall() {
+        val call = _voiceCall.value ?: return
+        call.stop()
+        _voiceCall.value = null
+        val cid = call.convId.value
+        refreshList()
+        if (cid != null && cid != _chat.value.id) openChat(cid) else cid?.let { reloadChat(it, full = false) }
     }
 
     /** 输入栏上的短名字：去掉品牌前缀，比如“Hydrogen Medium”“Opus 5.5”。 */

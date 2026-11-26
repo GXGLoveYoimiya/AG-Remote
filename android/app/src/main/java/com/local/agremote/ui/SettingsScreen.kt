@@ -123,6 +123,9 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
                 }
             }
 
+            item { Section(tr("实时语音")) }
+            item { VoiceSettingsCard(vm) }
+
             item { Section(tr("语言")) }
             item {
                 val miuix = LocalUiStyle.current == "miuix"

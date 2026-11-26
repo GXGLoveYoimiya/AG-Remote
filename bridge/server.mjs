@@ -1733,6 +1733,7 @@ function syncInfo(st = jetbox) {
     model: st?.appState?.lastSelectedAgentModel || '',
     permissionPreset: st?.userConfig?.userSettings?.permissionPreset || '',
     plugins: Object.values(st?.userConfig?.plugins || {}).map(x => x?.installedFrom?.id).filter(Boolean),
+    voice: voiceSettings(st),
   };
 }
 
@@ -2119,6 +2120,20 @@ async function dl(){
     if (path === '/api/connectors/toggle' && req.method === 'POST') { await toggleConnector(await readBody(req)); return send(res, 200, { ok: true }); }
     if (path === '/api/sync' && req.method === 'GET') { await freshJetbox(); return send(res, 200, syncInfo()); }
     if (path === '/api/sync' && req.method === 'POST') { await writeSync(await readBody(req)); return send(res, 200, { ok: true }); }
+    if (path === '/api/voice/config' && req.method === 'GET') return send(res, 200, await voiceConfig());
+    if (path === '/api/voice/settings' && req.method === 'POST') return send(res, 200, await writeVoiceSettings(await readBody(req)));
+    if (path === '/api/voice/sample' && req.method === 'GET') {
+      // 音色试听：转给 language_server 的 /voices/<名字>_<1-3>.mp3
+      const name = String(url.searchParams.get('name') || '').toLowerCase();
+      const n = Math.min(3, Math.max(1, Number(url.searchParams.get('n')) || 1));
+      if (!/^[a-z]{2,16}$/.test(name)) return send(res, 400, { error: 'bad name' });
+      if (!ls) await rpc('GetCascadeModelConfigData', {});
+      const r = await fetch(`${ls.base}/voices/${name}_${n}.mp3`);
+      if (!r.ok) return send(res, 404, { error: 'no sample' });
+      const data = Buffer.from(await r.arrayBuffer());
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': data.length, 'Cache-Control': 'max-age=86400' });
+      return res.end(data);
+    }
     if (path === '/api/drafts' && req.method === 'GET') return send(res, 200, { drafts });
     if (path === '/api/drafts' && req.method === 'POST') {
       const b = await readBody(req);
@@ -2401,6 +2416,147 @@ async function dl(){
     log('错误', path, e.message);
     send(res, e.status === 503 ? 503 : 500, { error: e.message });
   }
+});
+
+// ---------------- 实时语音通话（Antigravity 2.35+：language_server 的 /voice/ws） ----------------
+// 手机连 /api/voice/ws，这里核对令牌后把 TCP 原样接到 language_server 的 /voice/ws（不解包音频，几乎不增加延迟）。
+// 协议：子协议 jetski-voice-proto，二进制 protobuf；上行 VoiceClientMessage（mic_audio = 16 kHz s16le），
+// 下行 VoiceServerMessage（voice_audio = 24 kHz s16le、识别文字、AI 说的文字、打断等）。播放速度由服务端处理。
+const VOICE_SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
+const VOICE_FALLBACK = ['Fola', 'Arlo', 'Cleo', 'Finn', 'Gero', 'Lora', 'Neno', 'Olin', 'Tari'].map(name => ({ name, tone: '' }));
+let uiMeta = null; // { at, voices: [{name, tone}], models: Map(name -> number) }，从 Antigravity 自己的界面代码里读
+
+/** 极简 protobuf 读取：[{no, wt, val}]，只给解析内嵌的文件描述符用。 */
+function pbParse(buf) {
+  const out = []; let i = 0;
+  const rv = () => { let r = 0, s = 0, c; do { c = buf[i++]; r += (c & 127) * 2 ** s; s += 7; } while (c & 128 && i < buf.length); return r; };
+  while (i < buf.length) {
+    const tag = rv(), no = Math.floor(tag / 8), wt = tag & 7;
+    if (wt === 0) out.push({ no, wt, val: rv() });
+    else if (wt === 2) { const l = rv(); out.push({ no, wt, val: buf.subarray(i, i + l) }); i += l; }
+    else if (wt === 1) i += 8; else if (wt === 5) i += 4; else break;
+  }
+  return out;
+}
+
+/** 从 language_server 提供的界面脚本里读出：音色列表、模型枚举（名字 → 数字，语音通道要数字）。 */
+async function loadUiMeta() {
+  if (uiMeta && Date.now() - uiMeta.at < 3600_000) return uiMeta;
+  if (!ls) await rpc('GetCascadeModelConfigData', {});
+  const meta = { at: Date.now(), voices: [], models: new Map() };
+  try {
+    const r = await fetch(ls.base + '/main.js', { headers: { 'x-codeium-csrf-token': ls.token } });
+    const js = await r.text();
+    for (const m of js.matchAll(/\{name:"([A-Z][a-z]{1,15})",tone:"([^"]{1,60})",palette:/g)) {
+      if (!meta.voices.some(v => v.name === m[1])) meta.voices.push({ name: m[1], tone: m[2] });
+    }
+    // 界面里内嵌了 protobuf 文件描述符（base64）；找 codeium_common.proto 里的 enum Model
+    for (const m of js.matchAll(/"(C[A-Za-z0-9+/]{400,}={0,2})"/g)) {
+      const head = Buffer.from(m[1].slice(0, 200), 'base64').toString('latin1');
+      if (!head.includes('codeium_common')) continue;
+      const file = pbParse(Buffer.from(m[1], 'base64'));
+      for (const e of file.filter(f => f.no === 5)) {           // FileDescriptorProto.enum_type
+        const ef = pbParse(e.val);
+        if (Buffer.from(ef.find(f => f.no === 1)?.val || []).toString() !== 'Model') continue;
+        for (const v of ef.filter(f => f.no === 2)) {            // EnumDescriptorProto.value
+          const vf = pbParse(v.val);
+          const name = Buffer.from(vf.find(f => f.no === 1)?.val || []).toString();
+          const num = vf.find(f => f.no === 2)?.val;
+          if (name && typeof num === 'number') meta.models.set(name, num);
+        }
+      }
+      if (meta.models.size) break;
+    }
+  } catch (e) { log('读取语音/模型信息失败', e.message); }
+  if (!meta.voices.length) meta.voices = VOICE_FALLBACK;
+  uiMeta = meta;
+  return meta;
+}
+
+/** 模型枚举名 → 数字；读不到表时按 MODEL_PLACEHOLDER_Mxxx = 1000 + xxx 的规律，再不行给 0（服务端用默认模型）。 */
+async function modelNumber(name) {
+  if (!name) return 0;
+  if (/^\d+$/.test(name)) return Number(name);
+  const meta = await loadUiMeta();
+  if (meta.models.has(name)) return meta.models.get(name);
+  const m = /^MODEL_PLACEHOLDER_M(\d+)$/.exec(name);
+  return m ? 1000 + Number(m[1]) : 0;
+}
+
+function voiceSettings(st = jetbox) {
+  const us = st?.userConfig?.userSettings || {};
+  return { voiceName: us.voiceName || '', voiceSpeed: Number(us.voiceSpeed) || 1, voiceVolume: us.voiceVolume ?? 100 };
+}
+
+async function voiceConfig() {
+  let health = null;
+  try {
+    if (!ls) await rpc('GetCascadeModelConfigData', {});
+    const r = await fetch(ls.base + '/voice/health', { signal: AbortSignal.timeout(5000) });
+    health = r.ok ? await r.json() : { ready: false, state: `HTTP ${r.status}` };
+  } catch (e) { health = { ready: false, state: e.status === 503 ? 'no_antigravity' : 'unsupported' }; }
+  const meta = await loadUiMeta().catch(() => ({ voices: VOICE_FALLBACK }));
+  await freshJetbox().catch(() => {});
+  return { available: !!health?.ready, state: health?.state || '', voices: meta.voices, speeds: VOICE_SPEEDS, settings: voiceSettings() };
+}
+
+async function writeVoiceSettings(b) {
+  const st = await freshJetbox();
+  const us = { ...(st.userConfig?.userSettings || {}) };
+  const meta = await loadUiMeta();
+  if (typeof b.voiceName === 'string' && meta.voices.some(v => v.name === b.voiceName)) us.voiceName = b.voiceName;
+  if (b.voiceSpeed !== undefined && VOICE_SPEEDS.includes(Number(b.voiceSpeed))) us.voiceSpeed = Number(b.voiceSpeed);
+  if (b.voiceVolume !== undefined) us.voiceVolume = Math.max(0, Math.min(100, Math.round(Number(b.voiceVolume) || 0)));
+  st.userConfig = { ...(st.userConfig || {}), userSettings: us };
+  await rpc('JetboxWriteState', { userConfig: st.userConfig });
+  jetbox = st;
+  push({ type: 'sync', ...syncInfo(st) });
+  return voiceSettings(st);
+}
+
+/** 手机的 WebSocket 升级请求：/api/voice/ws?conversation_id=&model=&voice=&sample_rate=16000 */
+async function handleVoiceUpgrade(req, socket, head) {
+  const fail = (code, text) => { try { socket.end(`HTTP/1.1 ${code} ${text}\r\nContent-Length: 0\r\n\r\n`); } catch {} };
+  const url = new URL(req.url, 'http://x');
+  const dev = deviceOf((req.headers.authorization || '').replace(/^Bearer\s+/i, '') || url.searchParams.get('token'));
+  if (!dev) return fail(401, 'Unauthorized');
+  try {
+    if (!ls) await rpc('GetCascadeModelConfigData', {});
+    let conv = url.searchParams.get('conversation_id') || '';
+    if (!conv) { // 没有对话就先开一个空对话（和电脑上直接点语音按钮一样）
+      const body = { source: 'CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT', trajectoryType: 'CORTEX_TRAJECTORY_TYPE_CASCADE' };
+      const pid = url.searchParams.get('project_id');
+      if (pid) body.projectEnvConfig = { projectId: pid, defaultProjectEnvironment: {} };
+      conv = (await rpc('StartCascade', body)).cascadeId;
+    }
+    const q = new URLSearchParams({ conversation_id: conv, plan_model: String(await modelNumber(url.searchParams.get('model') || '')),
+      sample_rate: String(Number(url.searchParams.get('sample_rate')) || 16000) });
+    const voice = url.searchParams.get('voice') || voiceSettings().voiceName;
+    if (voice) q.set('voice', voice);
+    const port = Number(new URL(ls.base).port);
+    const up = net.connect(port, '127.0.0.1');
+    up.setNoDelay(true); socket.setNoDelay(true);
+    up.on('connect', () => {
+      up.write([`GET /voice/ws?${q} HTTP/1.1`, `Host: 127.0.0.1:${port}`, 'Upgrade: websocket', 'Connection: Upgrade',
+        `Sec-WebSocket-Key: ${req.headers['sec-websocket-key']}`, `Sec-WebSocket-Version: ${req.headers['sec-websocket-version'] || 13}`,
+        'Sec-WebSocket-Protocol: jetski-voice-proto', '', ''].join('\r\n'));
+      if (head?.length) up.write(head);
+      up.pipe(socket); socket.pipe(up);
+    });
+    const close = () => { up.destroy(); socket.destroy(); };
+    up.on('error', close); socket.on('error', close); up.on('close', close); socket.on('close', close);
+    deviceSeen.set(deviceId(dev), { at: Date.now(), ip: normIp(socket.remoteAddress || '') });
+    log(`语音通话：${dev.name || ''} → 对话 ${conv}`);
+  } catch (e) {
+    log('语音通话连接失败', e.message);
+    fail(e.status === 503 ? 503 : 502, 'Voice Unavailable');
+  }
+}
+
+server.on('upgrade', (req, socket, head) => {
+  if (!allowedRemote(socket.remoteAddress || '')) return socket.destroy();
+  if (new URL(req.url, 'http://x').pathname === '/api/voice/ws') return handleVoiceUpgrade(req, socket, head);
+  socket.end('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n');
 });
 
 server.on('connect', async (req, clientSocket, head) => {

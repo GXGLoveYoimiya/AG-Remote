@@ -98,6 +98,17 @@ data class Customization(val type: String, val name: String, val path: String, v
 
 data class McpServer(val name: String, val status: String, val error: String, val tools: Int, val enabled: Boolean)
 
+/** 实时语音：电脑上 Antigravity 的音色列表、语速选项、当前设置（和电脑同步）。 */
+data class VoiceInfo(val name: String, val tone: String)
+data class VoiceSettings(val name: String = "", val speed: Double = 1.0, val volume: Int = 100)
+data class VoiceConfig(val available: Boolean = false, val state: String = "", val voices: List<VoiceInfo> = emptyList(),
+                       val speeds: List<Double> = listOf(0.75, 1.0, 1.25, 1.5, 1.75, 2.0), val settings: VoiceSettings = VoiceSettings())
+
+fun parseVoiceSettings(o: JSONObject?) = VoiceSettings(
+    name = o?.optString("voiceName").orEmpty(), speed = o?.optDouble("voiceSpeed", 1.0) ?: 1.0,
+    volume = o?.optInt("voiceVolume", 100) ?: 100,
+)
+
 data class ModelInfo(
     val model: String, // 枚举名，发消息时用
     val id: String,
@@ -690,6 +701,45 @@ class Api(private val prefs: Prefs) {
         post("/api/stt/end", JSONObject().put("sid", sid).put("last", last)).optString("text")
 
     fun eventsRequest(): Request = req("/api/events").build()
+
+    // ---------- 实时语音通话（Antigravity 2.35+） ----------
+    /** 语音通话用：不设读取超时（长时间没说话也不断），每 20 秒 ping 一次保活。 */
+    private val voiceClient: OkHttpClient by lazy {
+        client.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(20, TimeUnit.SECONDS).build()
+    }
+
+    fun voiceSocket(convId: String, model: String, voice: String, listener: okhttp3.WebSocketListener): okhttp3.WebSocket {
+        fun e(s: String) = java.net.URLEncoder.encode(s, "UTF-8")
+        val r = req("/api/voice/ws?conversation_id=${e(convId)}&model=${e(model)}&voice=${e(voice)}&sample_rate=16000")
+            .header("Sec-WebSocket-Protocol", "jetski-voice-proto").build()
+        return voiceClient.newWebSocket(r, listener)
+    }
+
+    suspend fun voiceConfig(): VoiceConfig {
+        val o = call(req("/api/voice/config").build())
+        val vs = o.optJSONArray("voices") ?: JSONArray()
+        val sp = o.optJSONArray("speeds") ?: JSONArray()
+        return VoiceConfig(
+            available = o.optBoolean("available"), state = o.optString("state"),
+            voices = (0 until vs.length()).map { vs.getJSONObject(it).let { v -> VoiceInfo(v.optString("name"), v.optString("tone")) } },
+            speeds = (0 until sp.length()).map { sp.getDouble(it) },
+            settings = parseVoiceSettings(o.optJSONObject("settings")),
+        )
+    }
+
+    suspend fun saveVoiceSettings(name: String? = null, speed: Double? = null, volume: Int? = null): VoiceSettings {
+        val b = JSONObject()
+        name?.let { b.put("voiceName", it) }; speed?.let { b.put("voiceSpeed", it) }; volume?.let { b.put("voiceVolume", it) }
+        return parseVoiceSettings(post("/api/voice/settings", b))
+    }
+
+    suspend fun voiceSample(name: String, n: Int): ByteArray = withContext(Dispatchers.IO) {
+        client.newCall(req("/api/voice/sample?name=${java.net.URLEncoder.encode(name, "UTF-8")}&n=$n").build()).execute().use { r ->
+            if (!r.isSuccessful) throw ApiException(r.code, "HTTP ${r.code}")
+            r.body.bytes()
+        }
+    }
+
 
     private fun parseConv(o: JSONObject) = Conversation(
         id = o.optString("id"), title = o.optString("title"), status = o.optString("status"),
