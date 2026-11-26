@@ -368,7 +368,7 @@ internal fun ModelSheet(models: List<ModelInfo>, selected: String, onPick: (Stri
     }
 
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = if (LocalUiStyle.current == "default") MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow, dragHandle = null) {
+        containerColor = MaterialTheme.colorScheme.surface, dragHandle = null) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
             Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp)) {
                 IconButton(onClick = { if (page == "main") onClose() else page = "main" }, modifier = Modifier.align(Alignment.CenterStart)) {
@@ -1302,14 +1302,13 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
     val curStopKeep by rememberUpdatedState(::stopKeep)
 
     Box(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(start = 12.dp, end = 12.dp, bottom = 10.dp, top = 4.dp)) {
-        // 默认风格（仿 Claude）：白底卡片 + 细边框 + 柔和阴影；其他风格用主题的色块
-        val claudeStyle = LocalUiStyle.current == "default"
+        // 输入框：卡片底色 + 细边框 + 柔和阴影（各主题风格统一，只有颜色跟随主题）
         Surface(
-            color = if (claudeStyle) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = RoundedCornerShape(if (claudeStyle) 24.dp else 28.dp),
-            border = if (claudeStyle) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
-            shadowElevation = if (claudeStyle) 6.dp else 0.dp,
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(if (claudeStyle) 24.dp else 28.dp))
+            color = MaterialTheme.colorScheme.surfaceContainerLowest,
+            shape = RoundedCornerShape(24.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            shadowElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                 .onGloballyPositioned { surfacePos = it.positionInRoot() }
                 .pointerInput(Unit) {
                     val stopDragPx = with(density) { 80.dp.toPx() }
@@ -1388,14 +1387,11 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                         },
                         modifier = Modifier.size(44.dp).onGloballyPositioned { micBounds = it.boundsInRoot() },
                         colors = when {
-                            claudeStyle && hasContent -> IconButtonDefaults.filledIconButtonColors() // 发送：强调色
-                            claudeStyle && canStop -> IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)
-                            claudeStyle -> IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
+                            hasContent -> IconButtonDefaults.filledIconButtonColors() // 发送：强调色
                             canStop -> IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
-                            else -> IconButtonDefaults.filledIconButtonColors()
+                                containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)
+                            else -> IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
                         },
                     ) {
                         Icon(
@@ -1406,10 +1402,8 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                 }
 
                 val plusBtn = @Composable {
-                    // 默认风格：“+”也有一个浅灰圆底（和麦克风一致）
-                    if (claudeStyle) FilledTonalIconButton(onClick = { plus = true }, modifier = Modifier.size(44.dp)) {
-                        Icon(Icons.Rounded.Add, "添加到会话")
-                    } else IconButton(onClick = { plus = true }, modifier = Modifier.size(44.dp)) {
+                    // “+”有一个浅色圆底（和麦克风一致）
+                    FilledTonalIconButton(onClick = { plus = true }, modifier = Modifier.size(44.dp)) {
                         Icon(Icons.Rounded.Add, "添加到会话")
                     }
                 }
@@ -1491,11 +1485,11 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                             verticalAlignment = Alignment.CenterVertically) {
                             plusBtn()
                             if (progress > 0.02f) {
-                                if (claudeStyle) Spacer(Modifier.width(8.dp)) // “+”有圆底时和模型按钮隔开
+                                Spacer(Modifier.width(8.dp)) // “+”的圆底和模型按钮隔开
                                 Surface(
                                     onClick = { if (expanded) onPickModel() },
                                     shape = RoundedCornerShape(50),
-                                    color = if (claudeStyle) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier.weight(1f, fill = false).graphicsLayer { alpha = ((progress - 0.15f) / 0.85f).coerceIn(0f, 1f) },
                                 ) {
                                     Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {

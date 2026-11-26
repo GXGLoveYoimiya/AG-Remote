@@ -220,10 +220,12 @@ fun CommandPaletteDialog(
                     vm.showToast(nextDarkLabel)
                     onDismiss()
                 })
-                val nextStyle = if (theme.style == "miuix") "material" else "miuix"
-                val nextStyleLabel = if (nextStyle == "miuix") "Miuix" else "Material You"
+                // 三种风格依次切换：默认 → Material You → Miuix
+                fun styleLabel(s: String) = when (s) { "material" -> "Material You"; "miuix" -> "Miuix"; else -> t("默认") }
+                val nextStyle = when (theme.style) { "default" -> "material"; "material" -> "miuix"; else -> "default" }
+                val nextStyleLabel = styleLabel(nextStyle)
                 add(PaletteRow.Entry("act_style", Icons.Rounded.Palette, "${t("切换主题风格")} → $nextStyleLabel",
-                    "${t("当前")}：${if (theme.style == "miuix") "Miuix" else "Material You"}") {
+                    "${t("当前")}：${styleLabel(theme.style)}") {
                     vm.updateTheme(theme.copy(style = nextStyle))
                     vm.showToast(nextStyleLabel)
                     onDismiss()

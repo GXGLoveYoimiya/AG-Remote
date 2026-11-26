@@ -115,6 +115,17 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "用量" to "用量",
+        "连接的电脑" to "連線的電腦",
+        "不可用" to "無法使用",
+        "开" to "開",
+        "关" to "關",
+        "外观" to "外觀",
+        "账户" to "帳戶",
+        "应用" to "應用程式",
+        "主题风格与配色" to "主題風格與配色",
+        "颜色模式" to "顏色模式",
+        "断开和这台电脑的配对？之后需要重新输入配对码才能再连接。" to "要中斷與這台電腦的配對嗎？之後需要重新輸入配對碼才能再次連線。",
         "已选" to "已選",
         "温暖纸感 · 简洁克制" to "溫暖紙感 · 簡潔克制",
         "来聊聊，{0}" to "來聊聊，{0}",
@@ -274,6 +285,17 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "用量" to "使用量",
+        "连接的电脑" to "接続中の PC",
+        "不可用" to "利用不可",
+        "开" to "オン",
+        "关" to "オフ",
+        "外观" to "外観",
+        "账户" to "アカウント",
+        "应用" to "アプリ",
+        "主题风格与配色" to "テーマスタイルと配色",
+        "颜色模式" to "カラーモード",
+        "断开和这台电脑的配对？之后需要重新输入配对码才能再连接。" to "この PC とのペアリングを解除しますか？再接続にはペアリングコードの再入力が必要です。",
         "已选" to "選択中",
         "温暖纸感 · 简洁克制" to "温かみのある紙の質感 · シンプル",
         "来聊聊，{0}" to "話しましょう、{0}",
@@ -410,6 +432,17 @@ object I18n {
     )
 
     private val en = mapOf(
+        "用量" to "Usage",
+        "连接的电脑" to "Connected PC",
+        "不可用" to "Unavailable",
+        "开" to "On",
+        "关" to "Off",
+        "外观" to "Appearance",
+        "账户" to "Account",
+        "应用" to "App",
+        "主题风格与配色" to "Theme style & colors",
+        "颜色模式" to "Color mode",
+        "断开和这台电脑的配对？之后需要重新输入配对码才能再连接。" to "Unpair from this PC? You’ll need the pairing code to connect again.",
         "已选" to "Selected",
         "温暖纸感 · 简洁克制" to "Warm paper · Calm and simple",
         "来聊聊，{0}" to "Let’s talk, {0}",
@@ -546,6 +579,17 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "用量" to "사용량",
+        "连接的电脑" to "연결된 PC",
+        "不可用" to "사용할 수 없음",
+        "开" to "켜짐",
+        "关" to "꺼짐",
+        "外观" to "모양",
+        "账户" to "계정",
+        "应用" to "앱",
+        "主题风格与配色" to "테마 스타일과 색상",
+        "颜色模式" to "색상 모드",
+        "断开和这台电脑的配对？之后需要重新输入配对码才能再连接。" to "이 PC와의 페어링을 해제할까요? 다시 연결하려면 페어링 코드가 필요합니다.",
         "已选" to "선택됨",
         "温暖纸感 · 简洁克制" to "따뜻한 종이 질감 · 간결함",
         "来聊聊，{0}" to "이야기해요, {0}",
@@ -596,6 +640,17 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "用量" to "Uso",
+        "连接的电脑" to "PC conectado",
+        "不可用" to "No disponible",
+        "开" to "Activado",
+        "关" to "Desactivado",
+        "外观" to "Apariencia",
+        "账户" to "Cuenta",
+        "应用" to "App",
+        "主题风格与配色" to "Estilo y colores",
+        "颜色模式" to "Modo de color",
+        "断开和这台电脑的配对？之后需要重新输入配对码才能再连接。" to "¿Desvincular de este PC? Necesitarás el código para volver a conectar.",
         "已选" to "Seleccionado",
         "温暖纸感 · 简洁克制" to "Papel cálido · Sencillo",
         "来聊聊，{0}" to "Hablemos, {0}",
@@ -642,6 +697,17 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "用量" to "Utilisation",
+        "连接的电脑" to "PC connecté",
+        "不可用" to "Indisponible",
+        "开" to "Activé",
+        "关" to "Désactivé",
+        "外观" to "Apparence",
+        "账户" to "Compte",
+        "应用" to "Application",
+        "主题风格与配色" to "Style et couleurs",
+        "颜色模式" to "Mode de couleur",
+        "断开和这台电脑的配对？之后需要重新输入配对码才能再连接。" to "Dissocier ce PC ? Il faudra le code pour vous reconnecter.",
         "已选" to "Sélectionné",
         "温暖纸感 · 简洁克制" to "Papier chaleureux · Sobre",
         "来聊聊，{0}" to "Discutons, {0}",
@@ -688,6 +754,17 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "用量" to "Nutzung",
+        "连接的电脑" to "Verbundener PC",
+        "不可用" to "Nicht verfügbar",
+        "开" to "An",
+        "关" to "Aus",
+        "外观" to "Darstellung",
+        "账户" to "Konto",
+        "应用" to "App",
+        "主题风格与配色" to "Stil und Farben",
+        "颜色模式" to "Farbmodus",
+        "断开和这台电脑的配对？之后需要重新输入配对码才能再连接。" to "Kopplung mit diesem PC aufheben? Zum erneuten Verbinden ist der Code nötig.",
         "已选" to "Ausgewählt",
         "温暖纸感 · 简洁克制" to "Warmes Papier · Schlicht",
         "来聊聊，{0}" to "Lass uns reden, {0}",
@@ -734,6 +811,17 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "用量" to "Использование",
+        "连接的电脑" to "Подключённый ПК",
+        "不可用" to "Недоступно",
+        "开" to "Вкл.",
+        "关" to "Выкл.",
+        "外观" to "Оформление",
+        "账户" to "Аккаунт",
+        "应用" to "Приложение",
+        "主题风格与配色" to "Стиль и цвета",
+        "颜色模式" to "Цветовой режим",
+        "断开和这台电脑的配对？之后需要重新输入配对码才能再连接。" to "Отменить сопряжение с этим ПК? Для повторного подключения понадобится код.",
         "已选" to "Выбрано",
         "温暖纸感 · 简洁克制" to "Тёплая бумага · Просто",
         "来聊聊，{0}" to "Давай поговорим, {0}",
@@ -780,6 +868,17 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "用量" to "Utilização",
+        "连接的电脑" to "PC ligado",
+        "不可用" to "Indisponível",
+        "开" to "Ligado",
+        "关" to "Desligado",
+        "外观" to "Aspeto",
+        "账户" to "Conta",
+        "应用" to "App",
+        "主题风格与配色" to "Estilo e cores",
+        "颜色模式" to "Modo de cor",
+        "断开和这台电脑的配对？之后需要重新输入配对码才能再连接。" to "Desemparelhar deste PC? Vai precisar do código para voltar a ligar.",
         "已选" to "Selecionado",
         "温暖纸感 · 简洁克制" to "Papel quente · Simples",
         "来聊聊，{0}" to "Vamos conversar, {0}",

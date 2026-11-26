@@ -90,7 +90,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
     LaunchedEffect(Unit) { vm.loadExtras(); vm.loadCustomizations() }
 
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = if (LocalUiStyle.current == "default") MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow) {
+        containerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
             Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
                 IconButton(onClick = { if (page == "main") onClose() else page = "main" }, modifier = Modifier.align(Alignment.CenterStart)) {

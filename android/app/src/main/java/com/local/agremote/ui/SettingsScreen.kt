@@ -68,6 +68,21 @@ import androidx.compose.ui.unit.dp
 import com.local.agremote.AppViewModel
 import com.local.agremote.Conversation
 import com.local.agremote.QuotaGroup
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.rounded.DataUsage
+import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.automirrored.rounded.Logout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,194 +103,223 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
     val archived = list.filter { it.archived }
     LaunchedEffect(Unit) { vm.loadAccount() }
 
-    Scaffold(topBar = {
+    // 一级页面是分组列表（参照 Claude 移动端），具体设置都放在二级页面里
+    var page by rememberSaveable { mutableStateOf("main") }
+    var confirmUnpair by remember { mutableStateOf(false) }
+    val voiceCfg by vm.voiceCfg.collectAsState()
+    androidx.activity.compose.BackHandler(enabled = page != "main") { page = "main" }
+    val linkModes = listOf(
+        "ask" to tr("每次询问"),
+        "system" to tr("通过默认浏览器"),
+        "builtin" to tr("通过内置浏览器"),
+        "chooser" to tr("选择打开应用"),
+    )
+    val activeHost = hosts.find { it.id == activeHostId }
+    val title = when (page) {
+        "usage" -> tr("用量"); "archived" -> tr("已归档的对话"); "hosts" -> tr("连接的电脑"); "voice" -> tr("实时语音")
+        "notify" -> tr("消息推送"); "link" -> tr("链接打开方式"); "theme" -> tr("主题风格与配色"); else -> tr("设置")
+    }
+
+    Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
         TopAppBar(
-            title = { Text(tr("设置")) },
-            navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, tr("返回")) } },
-            actions = { IconButton(onClick = { vm.loadAccount(); vm.refreshList() }) { Icon(Icons.Rounded.Refresh, tr("刷新")) } },
+            title = { Text(title) },
+            navigationIcon = {
+                IconButton(onClick = { if (page == "main") onBack() else page = "main" }) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, tr("返回"))
+                }
+            },
+            actions = {
+                if (page == "main" || page == "usage") IconButton(onClick = { vm.loadAccount(); vm.refreshList() }) { Icon(Icons.Rounded.Refresh, tr("刷新")) }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
         )
     }) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { Section(tr("额度")) }
-            val a = account
-            if (a == null) item { Text(tr("读取中…"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            else {
-                item {
-                    Card {
-                        Text(a.plan.ifBlank { "Antigravity" }, style = MaterialTheme.typography.titleMedium)
-                        if (a.name.isNotBlank()) Text(a.name, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                items(a.groups) { QuotaCard(it) }
-                if (a.note.isNotBlank()) item {
-                    Text(a.note, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (a.promptAvail != null || a.flowAvail != null) item {
-                    Card {
-                        Text("AI Credits", style = MaterialTheme.typography.titleSmall)
-                        Spacer(Modifier.height(6.dp))
-                        a.promptAvail?.let { CreditRow("Prompt credits", it, a.promptMonthly) }
-                        a.flowAvail?.let { CreditRow("Flow credits", it, a.flowMonthly) }
-                    }
-                }
-            }
-
-            item { Section(tr("实时语音")) }
-            item { VoiceSettingsCard(vm) }
-
-            item { Section(tr("语言")) }
-            item {
-                val miuix = LocalUiStyle.current == "miuix"
-                Surface(
-                    onClick = { pickLang = true },
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    shape = RoundedCornerShape(if (miuix) 16.dp else 20.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Rounded.Language, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(tr("语言"), style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                appLanguageDisplayName(langCode, currentLang),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-
-            item { Section(tr("外观与主题")) }
-            item { ThemeSettingsCard(themeCfg) { vm.updateTheme(it) } }
-
-            item { Section(tr("链接打开方式")) }
-            item {
-                Card {
-                    listOf(
-                        "ask" to tr("每次询问"),
-                        "system" to tr("通过默认浏览器"),
-                        "builtin" to tr("通过内置浏览器"),
-                        "chooser" to tr("选择打开应用"),
-                    ).forEachIndexed { idx, (mode, label) ->
-                        if (idx > 0) HorizontalDivider(
-                            Modifier.padding(vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                        )
-                        val sel = linkMode == mode
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { vm.updateLinkOpenMode(mode) }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                label,
-                                Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            )
-                            if (sel) Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            }
-
-            item { Section(tr("消息推送")) }
-            item { NotifyCard(vm) }
-
-            item { Section(tr("连接")) }
-            item {
-                Card {
-                    hosts.forEachIndexed { idx, h ->
-                        if (idx > 0) HorizontalDivider(
-                            Modifier.padding(vertical = 8.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                        )
-                        val isActive = h.id == activeHostId
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { if (!isActive) vm.switchHost(h.id) }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                Icons.Rounded.Computer,
-                                null,
-                                Modifier.size(20.dp),
-                                tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        h.name.ifBlank { h.host },
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    if (isActive) {
-                                        Spacer(Modifier.width(6.dp))
-                                        Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            when (page) {
+                "main" -> {
+                    // 顶部：Antigravity 账户 + 套餐
+                    item {
+                        Surface(onClick = { page = "usage" }, color = sheetCardColor(), shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(horizontal = 16.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(account?.name?.ifBlank { null } ?: "Antigravity", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                account?.plan?.takeIf { it.isNotBlank() }?.let { plan ->
+                                    Surface(color = MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(50)) {
+                                        Text(plan, Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.surface, maxLines = 1)
                                     }
                                 }
-                                Text(
-                                    "${h.host}:${h.port}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                if (isActive) {
-                                    Spacer(Modifier.height(2.dp))
-                                    LinkLine(link)
-                                }
-                            }
-                            IconButton(onClick = { editingHost = h }, modifier = Modifier.size(34.dp)) {
-                                Icon(Icons.Rounded.Edit, tr("编辑设备"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            IconButton(onClick = { vm.removeHost(h.id) }, modifier = Modifier.size(34.dp)) {
-                                Icon(Icons.Rounded.Delete, tr("删除"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
-                    if (hosts.isEmpty()) {
-                        LinkLine(link)
-                        Spacer(Modifier.height(4.dp))
-                        Text("${vm.prefs.host}:${vm.prefs.port}", style = MaterialTheme.typography.bodyMedium)
+                    item { Section(tr("账户")) }
+                    item {
+                        RowGroup {
+                            NavRow(Icons.Rounded.DataUsage, tr("用量"), account?.plan.orEmpty()) { page = "usage" }
+                            GroupDivider()
+                            NavRow(Icons.Rounded.Archive, tr("已归档的对话"), "${archived.size}") { page = "archived" }
+                        }
                     }
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    item { Section(tr("应用")) }
+                    item {
+                        RowGroup {
+                            NavRow(Icons.Rounded.Computer, tr("连接的电脑"),
+                                activeHost?.name?.ifBlank { activeHost.host } ?: "${vm.prefs.host}:${vm.prefs.port}") { page = "hosts" }
+                            GroupDivider()
+                            NavRow(Icons.Rounded.GraphicEq, tr("实时语音"),
+                                if (voiceCfg.available) voiceCfg.settings.name else tr("不可用")) { page = "voice" }
+                            GroupDivider()
+                            NavRow(Icons.Rounded.Notifications, tr("消息推送"), if (vm.prefs.notify) tr("开") else tr("关")) { page = "notify" }
+                            GroupDivider()
+                            NavRow(Icons.Rounded.Link, tr("链接打开方式"), linkModes.find { it.first == linkMode }?.second.orEmpty()) { page = "link" }
+                        }
+                    }
+                    item { Section(tr("外观")) }
+                    item {
+                        RowGroup {
+                            ColorModeRow(themeCfg.darkMode) { vm.updateTheme(themeCfg.copy(darkMode = it)) }
+                            GroupDivider()
+                            NavRow(Icons.Rounded.Palette, tr("主题风格与配色"), when (themeCfg.style) {
+                                "material" -> "Material You"; "miuix" -> "Miuix"; else -> tr("默认") }) { page = "theme" }
+                            GroupDivider()
+                            NavRow(Icons.Rounded.Language, tr("语言"), appLanguageDisplayName(langCode, currentLang)) { pickLang = true }
+                        }
+                    }
+                    item {
+                        RowGroup {
+                            Row(Modifier.fillMaxWidth().clickable { confirmUnpair = true }.padding(horizontal = 16.dp, vertical = 15.dp),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.AutoMirrored.Rounded.Logout, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.error)
+                                Spacer(Modifier.width(14.dp))
+                                Text(tr("取消配对"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(24.dp)) }
+                }
+
+                "usage" -> {
+                    val a = account
+                    if (a == null) item { Text(tr("读取中…"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    else {
+                        item {
+                            Card {
+                                Text(a.plan.ifBlank { "Antigravity" }, style = MaterialTheme.typography.titleMedium)
+                                if (a.name.isNotBlank()) Text(a.name, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        items(a.groups) { QuotaCard(it) }
+                        if (a.note.isNotBlank()) item {
+                            Text(a.note, Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (a.promptAvail != null || a.flowAvail != null) item {
+                            Card {
+                                Text("AI Credits", style = MaterialTheme.typography.titleSmall)
+                                Spacer(Modifier.height(6.dp))
+                                a.promptAvail?.let { CreditRow("Prompt credits", it, a.promptMonthly) }
+                                a.flowAvail?.let { CreditRow("Flow credits", it, a.flowMonthly) }
+                            }
+                        }
+                    }
+                }
+
+                "archived" -> {
+                    if (archived.isEmpty()) item { Text(tr("没有归档的对话"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    items(archived, key = { it.id }) { ArchivedRow(vm, it) }
+                }
+
+                "voice" -> item { VoiceSettingsCard(vm) }
+                "notify" -> item { NotifyCard(vm) }
+                "theme" -> item { ThemeSettingsCard(themeCfg, showDarkMode = false) { vm.updateTheme(it) } }
+
+                "link" -> item {
+                    RowGroup {
+                        linkModes.forEachIndexed { idx, (mode, label) ->
+                            if (idx > 0) GroupDivider()
+                            val sel = linkMode == mode
+                            Row(Modifier.fillMaxWidth().clickable { vm.updateLinkOpenMode(mode) }.padding(horizontal = 16.dp, vertical = 15.dp),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                                if (sel) Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+
+                "hosts" -> item {
+                    Card {
+                        hosts.forEachIndexed { idx, h ->
+                            if (idx > 0) HorizontalDivider(
+                                Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            )
+                            val isActive = h.id == activeHostId
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { if (!isActive) vm.switchHost(h.id) }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Rounded.Computer, null, Modifier.size(20.dp),
+                                    tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(h.name.ifBlank { h.host }, style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                                            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        if (isActive) {
+                                            Spacer(Modifier.width(6.dp))
+                                            Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                    Text("${h.host}:${h.port}", style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (isActive) {
+                                        Spacer(Modifier.height(2.dp))
+                                        LinkLine(link)
+                                    }
+                                }
+                                IconButton(onClick = { editingHost = h }, modifier = Modifier.size(34.dp)) {
+                                    Icon(Icons.Rounded.Edit, tr("编辑设备"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                IconButton(onClick = { vm.removeHost(h.id) }, modifier = Modifier.size(34.dp)) {
+                                    Icon(Icons.Rounded.Delete, tr("删除"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                        if (hosts.isEmpty()) {
+                            LinkLine(link)
+                            Spacer(Modifier.height(4.dp))
+                            Text("${vm.prefs.host}:${vm.prefs.port}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Spacer(Modifier.height(10.dp))
                         OutlinedButton(onClick = { addingHost = true }) {
                             Icon(Icons.Rounded.Add, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
                             Text(tr("添加设备"))
                         }
-                        if (hosts.size <= 1) {
-                            OutlinedButton(onClick = { vm.unpair() }) { Text(tr("取消配对")) }
-                        }
                     }
                 }
             }
-
-            item { Section("${tr("已归档的对话")}（${archived.size}）") }
-            if (archived.isEmpty()) item { Text(tr("没有归档的对话"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            items(archived, key = { it.id }) { ArchivedRow(vm, it) }
-            item { Spacer(Modifier.height(24.dp)) }
         }
+    }
+
+    if (confirmUnpair) {
+        AlertDialog(
+            onDismissRequest = { confirmUnpair = false },
+            title = { Text(tr("取消配对")) },
+            text = { Text(tr("断开和这台电脑的配对？之后需要重新输入配对码才能再连接。")) },
+            confirmButton = { TextButton(onClick = { confirmUnpair = false; vm.unpair() }) { Text(tr("取消配对"), color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { confirmUnpair = false }) { Text(tr("取消")) } },
+        )
     }
 
     if (pickLang) {
@@ -403,16 +447,86 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
 
 @Composable
 private fun Section(t: String) {
-    val miuix = LocalUiStyle.current == "miuix"
-    Text(t, Modifier.padding(start = 4.dp, top = 8.dp), style = MaterialTheme.typography.labelLarge,
-        color = if (miuix) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
+    Text(t, Modifier.padding(start = 6.dp, top = 8.dp), style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** 一组设置行：卡片底色 + 圆角，行之间细分割线。 */
+@Composable
+private fun RowGroup(content: @Composable () -> Unit) {
+    Surface(color = sheetCardColor(), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+        Column { content() }
+    }
+}
+
+@Composable
+private fun GroupDivider() {
+    HorizontalDivider(Modifier.padding(start = 52.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+}
+
+/** 图标 + 名称 + 右侧当前值 + 箭头，点开二级页面。 */
+@Composable
+private fun NavRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, value: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurface)
+        Spacer(Modifier.width(14.dp))
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        if (value.isNotBlank()) Text(value, Modifier.padding(start = 8.dp).widthIn(max = 160.dp), style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 颜色模式：浅色 / 深色 / 跟随系统三个小预览块，直接点选。 */
+@Composable
+private fun ColorModeRow(mode: String, onPick: (String) -> Unit) {
+    val accent = MaterialTheme.colorScheme.primary
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.DarkMode, null, Modifier.size(22.dp))
+            Spacer(Modifier.width(14.dp))
+            Text(tr("颜色模式"), style = MaterialTheme.typography.bodyLarge)
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            listOf("light" to tr("浅色"), "dark" to tr("深色"), "system" to tr("跟随系统")).forEach { (k, label) ->
+                val sel = mode == k
+                Column(Modifier.weight(1f).clickable { onPick(k) }, horizontalAlignment = Alignment.CenterHorizontally) {
+                    androidx.compose.foundation.Canvas(
+                        Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(12.dp))
+                            .border(if (sel) 2.dp else 1.dp, if (sel) accent else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                    ) {
+                        val light = Color(0xFFF8F7F5); val dark = Color(0xFF262624)
+                        when (k) {
+                            "light" -> drawRect(light)
+                            "dark" -> drawRect(dark)
+                            else -> {
+                                drawRect(light)
+                                val p = androidx.compose.ui.graphics.Path().apply { moveTo(size.width, 0f); lineTo(size.width, size.height); lineTo(0f, size.height); close() }
+                                drawPath(p, dark)
+                            }
+                        }
+                        val line = if (k == "dark") Color(0xFF6B6A65) else Color(0xFFB9B8B3)
+                        drawRoundRect(line, androidx.compose.ui.geometry.Offset(size.width * 0.14f, size.height * 0.22f),
+                            androidx.compose.ui.geometry.Size(size.width * 0.42f, 4.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()))
+                        drawRoundRect(line, androidx.compose.ui.geometry.Offset(size.width * 0.14f, size.height * 0.36f),
+                            androidx.compose.ui.geometry.Size(size.width * 0.28f, 4.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()))
+                        drawCircle(accent, 6.dp.toPx(), androidx.compose.ui.geometry.Offset(size.width * 0.8f, size.height * 0.72f))
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(label, style = MaterialTheme.typography.labelMedium,
+                        color = if (sel) accent else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun Card(content: @Composable () -> Unit) {
-    val miuix = LocalUiStyle.current == "miuix"
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(if (miuix) 16.dp else 20.dp), modifier = Modifier.fillMaxWidth()) {
+    Surface(color = sheetCardColor(),
+        shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) { content() }
     }
 }

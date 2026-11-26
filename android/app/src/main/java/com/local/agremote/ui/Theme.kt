@@ -43,9 +43,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -67,8 +65,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.local.agremote.ThemeConfig
-
-val LocalUiStyle = compositionLocalOf { "material" }
 
 val PRESET_COLORS = listOf(
     0xFFD97757.toInt() to "陶土橙",
@@ -329,20 +325,17 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
         }
     }
 
-    CompositionLocalProvider(LocalUiStyle provides cfg.style) {
-        MaterialTheme(colorScheme = scheme, content = content)
-    }
+    MaterialTheme(colorScheme = scheme, content = content)
 }
 
 /** 设置页里的主题风格 + 深色模式 + 自由调色卡片。 */
 @Composable
-fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
-    val isMiuix = cfg.style == "miuix"
+fun ThemeSettingsCard(cfg: ThemeConfig, showDarkMode: Boolean = true, onChange: (ThemeConfig) -> Unit) {
     var showPicker by remember { mutableStateOf(false) }
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(if (isMiuix) 16.dp else 20.dp),
+        shape = RoundedCornerShape(20.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -378,7 +371,8 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                 ) { onChange(cfg.copy(style = "miuix")) }
             }
 
-            // 2. 深色模式
+            // 2. 深色模式（设置首页已经有“颜色模式”时不重复显示）
+            if (showDarkMode) {
             Text(tr("深色模式"), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("system" to tr("系统"), "light" to tr("浅色"), "dark" to tr("深色")).forEach { (k, label) ->
@@ -401,6 +395,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                         }
                     }
                 }
+            }
             }
 
             // 3. 主题颜色：跟随系统 / 自由调色 + 两行整齐的预设色圆点
