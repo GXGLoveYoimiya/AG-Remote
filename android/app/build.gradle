@@ -8,7 +8,7 @@ android {
     compileSdk 37
 
     defaultConfig {
-        applicationId 'com.gxgloveyoimiya.agremote'
+        applicationId findProperty('appId') ?: 'com.gxgloveyoimiya.agremote'
         minSdk 29
         targetSdk 37
         versionCode 2

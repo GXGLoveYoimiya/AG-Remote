@@ -13,19 +13,28 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,7 +74,7 @@ class MainActivity : ComponentActivity() {
                 com.local.agremote.ui.LocalAppLang provides resolvedLang,
             ) {
                 AgAppTheme(themeCfg) {
-                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+                    Box(androidx.compose.ui.Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
                         Root(vm)
                         com.local.agremote.ui.UndoBar(vm, androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
                     }
@@ -106,43 +115,69 @@ private fun Root(vm: AppViewModel) {
     // 侧边栏一打开（点按钮或右滑）就收起键盘
     LaunchedEffect(drawer.targetValue) { if (drawer.targetValue == DrawerValue.Open) focusManager.clearFocus(force = true) }
 
-    BackHandler(enabled = drawer.isOpen) { scope.launch { drawer.close() } }
-    BackHandler(enabled = settings && !drawer.isOpen) { screen = "chat" }
+    BackHandler(enabled = drawer.isOpen && !settings) { scope.launch { drawer.close() } }
+    BackHandler(enabled = settings) { screen = "chat" }
 
-    ModalNavigationDrawer(
-        drawerState = drawer,
-        gesturesEnabled = !settings,
-        drawerContent = {
-            DrawerContent(
-                vm,
-                onClose = { scope.launch { drawer.close() } },
-                onOpen = { screen = it },
-                onCommandPalette = { showPalette = true },
-            )
-        },
-    ) {
-        AnimatedContent(
-            targetState = screen,
-            transitionSpec = {
-                if (targetState != "chat") (slideInHorizontally { it / 4 } + fadeIn()) togetherWith fadeOut()
-                else fadeIn() togetherWith (slideOutHorizontally { it / 4 } + fadeOut())
-            },
-            label = "nav",
-        ) { s ->
-            when (s) {
-                "settings" -> SettingsScreen(vm, onBack = { screen = "chat" })
-                "usage" -> SettingsScreen(vm, onBack = { screen = "chat" }, startPage = "usage")
-                "automations" -> com.local.agremote.ui.AutomationsScreen(vm, onBack = { screen = "chat" })
-                "customizations" -> com.local.agremote.ui.CustomizationsScreen(vm, onBack = { screen = "chat" })
-                "projects" -> com.local.agremote.ui.ProjectsScreen(vm, onBack = { screen = "chat" }, onOpenChat = { screen = "chat" })
-                else -> ChatScreen(
+    val secondaryTransition = updateTransition(targetState = screen.takeIf { it != "chat" }, label = "secondaryNav")
+    // 等二级页面完全滑入盖住抽屉后再静默收起抽屉，避免抽屉关闭动画与页面切换打架闪烁
+    LaunchedEffect(secondaryTransition.currentState, secondaryTransition.targetState) {
+        if (secondaryTransition.currentState != null && secondaryTransition.currentState == secondaryTransition.targetState && drawer.isOpen) {
+            drawer.snapTo(DrawerValue.Closed)
+        }
+    }
+
+    Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+        ModalNavigationDrawer(
+            drawerState = drawer,
+            gesturesEnabled = !settings,
+            drawerContent = {
+                DrawerContent(
                     vm,
-                    onMenu = { scope.launch { drawer.open() } },
-                    showOverview = showOverview,
-                    onShowOverview = { showOverview = it },
-                    onOpenCustomizations = { screen = "customizations" },
-                    onOpenUsage = { screen = "usage" },
+                    onClose = { scope.launch { drawer.close() } },
+                    onOpen = { screen = it },
+                    onCommandPalette = { showPalette = true },
                 )
+            },
+        ) {
+            ChatScreen(
+                vm,
+                onMenu = { scope.launch { drawer.open() } },
+                showOverview = showOverview,
+                onShowOverview = { showOverview = it },
+                onOpenCustomizations = { screen = "customizations" },
+                onOpenUsage = { screen = "usage" },
+            )
+        }
+
+        secondaryTransition.AnimatedContent(
+            modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+            transitionSpec = {
+                val enterSpec = tween<IntOffset>(280, easing = FastOutSlowInEasing)
+                val exitSpec = tween<IntOffset>(260, easing = FastOutSlowInEasing)
+                when {
+                    targetState != null && initialState == null ->
+                        (slideInHorizontally(enterSpec) { it } togetherWith ExitTransition.None).apply {
+                            targetContentZIndex = 1f
+                        }
+                    targetState == null && initialState != null ->
+                        (EnterTransition.None togetherWith slideOutHorizontally(exitSpec) { it }).apply {
+                            targetContentZIndex = -1f
+                        }
+                    else ->
+                        fadeIn(tween(180)) togetherWith fadeOut(tween(180))
+                }
+            },
+        ) { s ->
+            if (s != null) {
+                Surface(androidx.compose.ui.Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+                    when (s) {
+                        "settings" -> SettingsScreen(vm, onBack = { screen = "chat" })
+                        "usage" -> SettingsScreen(vm, onBack = { screen = "chat" }, startPage = "usage")
+                        "automations" -> com.local.agremote.ui.AutomationsScreen(vm, onBack = { screen = "chat" })
+                        "customizations" -> com.local.agremote.ui.CustomizationsScreen(vm, onBack = { screen = "chat" })
+                        "projects" -> com.local.agremote.ui.ProjectsScreen(vm, onBack = { screen = "chat" }, onOpenChat = { screen = "chat" })
+                    }
+                }
             }
         }
     }

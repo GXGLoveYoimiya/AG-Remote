@@ -109,7 +109,7 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                 // 左边是当前电脑，右边紧跟连接状态（绿点）
                 if (activeHost != null) Box(Modifier.padding(end = 10.dp)) {
                     Surface(
-                        onClick = { if (hosts.size > 1) pickHostMenu = true else { onOpen("settings"); onClose() } },
+                        onClick = { if (hosts.size > 1) pickHostMenu = true else onOpen("settings") },
                         shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
@@ -140,9 +140,9 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
         Box(Modifier.weight(1f).fillMaxWidth()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 80.dp)) {
             item {
-                DrawerRow(Icons.Outlined.Inventory2, tr("项目")) { onOpen("projects"); onClose() }
-                DrawerRow(Icons.Rounded.Extension, tr("自定义")) { onOpen("customizations"); onClose() }
-                DrawerRow(Icons.Rounded.Schedule, tr("自动化")) { onOpen("automations"); onClose() }
+                DrawerRow(Icons.Outlined.Inventory2, tr("项目")) { onOpen("projects") }
+                DrawerRow(Icons.Rounded.Extension, tr("自定义")) { onOpen("customizations") }
+                DrawerRow(Icons.Rounded.Schedule, tr("自动化")) { onOpen("automations") }
             }
             // 历史会话（全部对话，项目里的也在；按项目看在“项目”页）
             item {
@@ -164,7 +164,7 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                 0f to bg.copy(alpha = 0f), 0.45f to bg.copy(alpha = 0.92f), 1f to bg)))
         Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Surface(onClick = { onOpen("settings"); onClose() }, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            Surface(onClick = { onOpen("settings") }, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier.size(46.dp)) {
                 val av = avatar
                 if (av != null) androidx.compose.foundation.Image(av.asImageBitmap(), tr("设置"),
