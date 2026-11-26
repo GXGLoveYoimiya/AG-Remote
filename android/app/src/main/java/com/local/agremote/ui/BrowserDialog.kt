@@ -642,9 +642,10 @@ fun BrowserDialog(
                             }
                             // 翻译：翻过后图标亮起，再点显示原文
                             IconButton(onClick = { offerTranslate = null; if (pageTranslated) showOriginal() else translatePage() },
-                                enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)) {
+                                enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)
+                                    .then(if (pageTranslated) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)) {
                                 Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
-                                    tint = if (pageTranslated) accent() else LocalContentColor.current)
+                                    tint = if (pageTranslated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) // 未翻译：黑色无框；已翻译：加圆框（默认主题黑色，其他主题强调色）
                             }
                             // 标签页数：点开标签页切换页
                             IconButton(onClick = { snapThumb(); showTabs = true }, modifier = Modifier.size(44.dp)) {
