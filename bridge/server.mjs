@@ -207,7 +207,57 @@ function csrfFrom(cl) {
   return (String(cl || '').match(/--csrf_token(?:=|\s+)"?([^\s"]+)/) || [])[1] || '';
 }
 
+/** Antigravity 的数据目录（~/.gemini/antigravity）。 */
+const AG_HOME = join(process.env.USERPROFILE || process.env.HOME || '', '.gemini', 'antigravity');
+
+/** 进程还在不在（Windows 上 signal 0 也能用）。 */
+function pidAlive(pid) {
+  try { process.kill(Number(pid), 0); return true; } catch (e) { return e.code === 'EPERM'; }
+}
+
+/**
+ * 首选方式：Antigravity 的后台服务每次启动都会写 ~/.gemini/antigravity/daemon/hub_<端口>.json
+ * （pid、httpPort、httpsPort、lsVersion、csrfToken）。2.35 起令牌不再出现在启动参数里，只能从这里拿；
+ * 这样也不依赖 PowerShell，Antigravity 以管理员身份运行时同样能读到。目录里会残留旧进程的文件，所以要确认进程还在。
+ */
+async function discoverFromDaemonFiles(diag) {
+  const dir = join(AG_HOME, 'daemon');
+  let files = [];
+  try {
+    files = readdirSync(dir).filter(f => /\.json$/i.test(f))
+      .map(f => ({ f, t: statSync(join(dir, f)).mtimeMs })).sort((a, b) => b.t - a.t);
+  } catch { /* 没有这个目录：老版本或没装 */ }
+  diag.daemonFiles = files.length;
+  for (const { f } of files) {
+    let j;
+    try { j = JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { continue; }
+    const port = Number(j.httpPort), token = String(j.csrfToken || '');
+    const d = { file: f, pid: j.pid, version: j.lsVersion || '', alive: pidAlive(j.pid), hasToken: !!token, port, probe: '' };
+    diag.daemon.push(d);
+    if (!d.alive || !token || !port) continue;
+    const cand = { base: `http://127.0.0.1:${port}`, token, pid: j.pid, version: d.version, exe: '' };
+    if (lastGood && lastGood.base === cand.base && lastGood.token === token && lastGood.pid === cand.pid) { d.probe = 'ok'; return lastGood; }
+    try {
+      await probe(cand);
+      d.probe = 'ok';
+      return cand;
+    } catch (e) {
+      d.probe = String(e.status ? `HTTP ${e.status}` : (e.cause?.code || e.name || e.message)).slice(0, 120);
+    }
+  }
+  return null;
+}
+
 async function discover() {
+  const diag = { at: new Date().toISOString(), state: '', detail: '', method: '', daemonFiles: 0, daemon: [], antigravityProcesses: 0, processes: [] };
+  const viaFile = await discoverFromDaemonFiles(diag);
+  if (viaFile) {
+    if (lastGood !== viaFile) log(`language_server 已连接：pid ${viaFile.pid} 端口 ${viaFile.base.split(':').pop()}（${viaFile.version || '?'}）`);
+    lastGood = viaFile;
+    agDiag = { ...diag, state: 'ok', method: 'daemon', detail: `pid ${viaFile.pid} ${viaFile.base} v${viaFile.version}` };
+    return viaFile;
+  }
+  // 退路：老版本没有 daemon 文件时，从进程启动参数里找令牌
   const r = await ps(
     // 不同版本进程名可能带后缀（如 language_server_windows_x64.exe），所以按前缀找；顺便看主程序在不在，用来区分“没开”和“开了但找不到后台”
     "$ag = @(Get-CimInstance Win32_Process -Filter \"Name='Antigravity.exe'\" -ErrorAction SilentlyContinue).Count; " +
@@ -215,7 +265,7 @@ async function discover() {
     "$p=$_.ProcessId; $ports=(Get-NetTCPConnection -State Listen -OwningProcess $p -ErrorAction SilentlyContinue).LocalPort -join ','; " +
     "[pscustomobject]@{pid=$p; name=$_.Name; ports=$ports; cl=$_.CommandLine; exe=$_.ExecutablePath} }); " +
     "[pscustomobject]@{ag=$ag; ls=$ls} | ConvertTo-Json -Compress -Depth 4");
-  const diag = { at: new Date().toISOString(), state: '', detail: '', antigravityProcesses: 0, processes: [] };
+  diag.method = 'cmdline';
   let data = null;
   try { data = JSON.parse(r.out || 'null'); } catch {}
   if (!data) {
@@ -252,7 +302,8 @@ async function discover() {
   // 没连上：给出最可能的原因
   const procs = diag.processes;
   let state;
-  if (!procs.length) state = diag.antigravityProcesses ? 'noLanguageServer' : 'notRunning';
+  if (diag.daemon.some(d => d.alive && d.hasToken && d.probe && d.probe !== 'ok')) state = 'probeFailed';
+  else if (!procs.length) state = diag.antigravityProcesses ? 'noLanguageServer' : 'notRunning';
   else if (procs.every(p => !p.canReadArgs)) state = 'noAccess';     // 多半是 Antigravity 以管理员身份运行
   else if (procs.every(p => !p.hasToken)) state = 'noToken';         // 启动参数里没有令牌：可能是不兼容的新版本
   else if (procs.every(p => !p.ports.length)) state = 'noPort';
@@ -1428,7 +1479,10 @@ function i18nTable() {
       try { map[JSON.parse(`"${m[1]}"`)] = JSON.parse(`"${zh}"`); } catch {}
     }
   } catch (e) { log('读取 Antigravity 翻译表失败', e.message); }
-  if (Object.keys(map).length) i18nCache = map; // 没读到（比如 Antigravity 还没启动）下次再试
+  // 2.35 起界面不再打包在 app.asar 里，读不到词条；读到过就存一份，读不到时用上次存的
+  const saved = join(DATA, 'i18n-zh.json');
+  if (Object.keys(map).length) { i18nCache = map; try { writeFileSync(saved, JSON.stringify(map)); } catch {} }
+  else { try { Object.assign(map, JSON.parse(readFileSync(saved, 'utf8'))); if (Object.keys(map).length) i18nCache = map; } catch {} }
   log(`Antigravity 中文词条 ${Object.keys(map).length} 条`);
   return map;
 }
