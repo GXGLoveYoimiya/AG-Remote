@@ -1,5 +1,6 @@
 package com.local.agremote.ui
 
+import androidx.compose.animation.togetherWith
 import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.material.icons.rounded.Person
@@ -129,9 +130,18 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
             if (page == "main") AboutMenu()
         }
     }) { pad ->
-        LazyColumn(Modifier.padding(pad).fillMaxSize().imePadding(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        // 进出二级页面：左右滑动过渡
+        androidx.compose.animation.AnimatedContent(page, Modifier.padding(pad).fillMaxSize(), transitionSpec = {
+            val fwd = targetState != startPage
+            val spec = androidx.compose.animation.core.tween<androidx.compose.ui.unit.IntOffset>(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+            (androidx.compose.animation.slideInHorizontally(spec) { w -> if (fwd) w else -w / 3 } +
+                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(300))) togetherWith
+                (androidx.compose.animation.slideOutHorizontally(spec) { w -> if (fwd) -w / 3 else w } +
+                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(300)))
+        }, label = "settingsPage") { shownPage ->
+        LazyColumn(Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            when (page) {
+            when (shownPage) {
                 "main" -> {
                     // 顶部：Antigravity 账户 + 套餐
                     item {
@@ -288,6 +298,7 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
                     item { CardGroup { ListRow(tr("添加设备"), Icons.Rounded.Add) { addingHost = true } } }
                 }
             }
+        }
         }
     }
 
