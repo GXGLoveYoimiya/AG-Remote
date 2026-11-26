@@ -644,7 +644,7 @@ fun BrowserDialog(
                             IconButton(onClick = { offerTranslate = null; if (pageTranslated) showOriginal() else translatePage() },
                                 enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)) {
                                 Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
-                                    tint = if (pageTranslated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline) // 已翻译：默认主题深黑、其他主题强调色；未翻译：浅灰
+                                    tint = if (pageTranslated) accent() else LocalContentColor.current)
                             }
                             // 标签页数：点开标签页切换页
                             IconButton(onClick = { snapThumb(); showTabs = true }, modifier = Modifier.size(44.dp)) {
