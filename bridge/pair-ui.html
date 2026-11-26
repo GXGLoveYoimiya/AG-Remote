@@ -6,63 +6,71 @@
 <title>AG Remote</title>
 <link rel="icon" href="/admin/icon.svg" type="image/svg+xml">
 <style>
+  /* 和手机 App 默认风格一致：暖白底、白色卡片、细暖灰边、近黑文字、陶土橙强调色 */
   :root {
-    --bg: #f4f5f8; --card: #ffffff; --text: #1b1d22; --muted: #646b78; --line: #e3e6ec;
-    --accent: #3b6ef5; --accent-weak: #e8eeff; --ok: #1e9e5a; --ok-weak: #e3f6ec;
-    --warn: #b86e00; --warn-weak: #fff3dc; --danger: #d13d3d; --code-bg: #f0f3ff;
+    --bg: #f9f9f7; --card: #ffffff; --text: #141413; --muted: #6b6a65; --line: #e4e3de;
+    --chip: #efeeea; --accent: #d97757; --accent-weak: #f8e6de; --ok: #2f9e5f; --ok-weak: #e2f3e8;
+    --warn: #a86200; --warn-weak: #fbf0dc; --danger: #c8442f; --code-bg: #f4f4f0; --primary: #141413; --on-primary: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #121317; --card: #1c1e24; --text: #e9ebf0; --muted: #9aa1ad; --line: #2c2f37;
-      --accent: #7c9dff; --accent-weak: #232c47; --ok: #4fd18b; --ok-weak: #17301f;
-      --warn: #ffb547; --warn-weak: #33280f; --danger: #ff6b6b; --code-bg: #20263a;
+      --bg: #262624; --card: #1f1e1d; --text: #f0eee6; --muted: #a6a39a; --line: #3f3f3b;
+      --chip: #393937; --accent: #e08a6c; --accent-weak: #3a2a23; --ok: #5cc98a; --ok-weak: #1c3326;
+      --warn: #f0b45a; --warn-weak: #362a14; --danger: #ef7a66; --code-bg: #2b2b29; --primary: #f0eee6; --on-primary: #1f1e1d;
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.55 "Segoe UI", system-ui, -apple-system, "Microsoft YaHei UI", "Yu Gothic UI", "Malgun Gothic", sans-serif; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 48px; }
-  body { overflow-x: hidden; }
-  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
-  .logo { width: 44px; height: 44px; flex: none; }
-  h1 { font-size: 21px; margin: 0; }
+  body { margin: 0; background: var(--bg); color: var(--text); overflow-x: hidden;
+    font: 15px/1.55 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Microsoft YaHei UI", "Yu Gothic UI", "Malgun Gothic", sans-serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 16px 48px; }
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+  .logo { width: 48px; height: 48px; flex: none; }
+  h1 { font-size: 22px; margin: 0; font-weight: 600; letter-spacing: -.01em; }
   .sub { color: var(--muted); font-size: 13.5px; margin: 2px 0 0; }
   .grow { flex: 1; min-width: 0; }
   header .grow { min-width: 220px; }
-  select { font: inherit; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
-  .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px; font-size: 13px; background: var(--card); border: 1px solid var(--line); }
+  header label { color: var(--muted); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  select { font: inherit; font-size: 13.5px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-size: 13px; background: var(--card); border: 1px solid var(--line); }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
   .pill.ok .dot { background: var(--ok); } .pill.bad .dot { background: var(--danger); } .pill.warn .dot { background: var(--warn); }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-bottom: 14px; }
-  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+  /* 卡片：白底、细边、大圆角；卡片里的标题做成灰色小字（和手机设置页的小节标题一样） */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px 20px; margin-bottom: 14px; }
+  .card h2 { font-size: 13px; margin: 0 0 12px; color: var(--muted); font-weight: 500; letter-spacing: .01em; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 620px) { .row2 { grid-template-columns: 1fr; } }
-  .big { font: 700 40px/1.1 "Cascadia Mono", Consolas, "SF Mono", monospace; letter-spacing: .14em; background: var(--code-bg); border-radius: 14px; padding: 14px 16px; text-align: center; user-select: all; }
+  .big { font: 600 38px/1.1 "Cascadia Mono", Consolas, "SF Mono", monospace; letter-spacing: .16em; background: var(--code-bg); border-radius: 16px; padding: 16px; text-align: center; user-select: all; }
   .mono { font-family: "Cascadia Mono", Consolas, monospace; overflow-wrap: anywhere; }
-  .addr { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--code-bg); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; font-size: 17px; }
+  .addr { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--code-bg); border-radius: 14px; padding: 10px 10px 10px 14px; margin-bottom: 8px; font-size: 16px; }
   .hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
-  .btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-  button { font: inherit; font-size: 13.5px; border: 0; border-radius: 10px; padding: 7px 14px; cursor: pointer; background: var(--accent-weak); color: var(--accent); font-weight: 600; }
-  button:hover { filter: brightness(.97); }
-  button.danger { background: transparent; color: var(--danger); border: 1px solid var(--line); }
-  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
-  button:disabled { opacity: .5; cursor: default; }
-  .warnbox { background: var(--warn-weak); color: var(--warn); border-radius: 12px; padding: 10px 12px; font-size: 13.5px; }
+  .btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  /* 按钮：主按钮深色胶囊，次要按钮浅灰胶囊，危险操作红字 */
+  button { font: inherit; font-size: 13.5px; border: 0; border-radius: 999px; padding: 8px 16px; cursor: pointer; background: var(--primary); color: var(--on-primary); font-weight: 500; transition: opacity .15s, filter .15s; }
+  button:hover { opacity: .88; }
+  button.ghost { background: var(--chip); color: var(--text); }
+  button.danger { background: transparent; color: var(--danger); padding: 8px 10px; }
+  button.danger:hover { background: var(--chip); opacity: 1; }
+  .addr button, .dev button { padding: 6px 14px; font-size: 13px; background: var(--chip); color: var(--text); }
+  .dev button.danger { background: transparent; color: var(--danger); }
+  button:disabled { opacity: .45; cursor: default; }
+  .warnbox { background: var(--warn-weak); color: var(--warn); border-color: transparent; font-size: 13.5px; padding: 14px 18px; }
   .warnbox a { color: inherit; font-weight: 600; }
-  ol { margin: 0; padding-left: 22px; } ol li { margin: 6px 0; }
-  a { color: var(--accent); }
+  ol { margin: 0; padding-left: 20px; } ol li { margin: 8px 0; } ol li::marker { color: var(--muted); }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  /* 已配对的设备：和手机的分组列表一样，行之间细分隔线 */
   .dev { display: flex; align-items: center; gap: 8px 12px; padding: 12px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .dev .grow { min-width: 180px; }
   .dev:first-of-type { border-top: 0; padding-top: 2px; }
-  .dev .name { font-weight: 600; word-break: break-all; }
+  .dev .name { font-weight: 500; word-break: break-all; }
   .dev .meta { color: var(--muted); font-size: 12.5px; }
-  .tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--ok-weak); color: var(--ok); font-weight: 600; margin-left: 6px; }
+  .tag { font-size: 12px; padding: 1px 9px; border-radius: 999px; background: var(--ok-weak); color: var(--ok); font-weight: 500; margin-left: 6px; }
   .empty { color: var(--muted); font-size: 14px; }
-  footer { color: var(--muted); font-size: 12.5px; text-align: center; margin-top: 18px; }
+  footer { color: var(--muted); font-size: 12.5px; text-align: center; margin-top: 20px; }
   #toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); opacity: 0; transition: .25s;
-    background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 12px; font-size: 14px; pointer-events: none; max-width: 90vw; }
+    background: var(--primary); color: var(--on-primary); padding: 10px 18px; border-radius: 14px; font-size: 14px; pointer-events: none; max-width: 90vw; }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  ol button { padding: 4px 12px; font-size: 12.5px; background: var(--chip); color: var(--text); margin-left: 4px; }
   #down { display: none; }
 </style>
 </head>
