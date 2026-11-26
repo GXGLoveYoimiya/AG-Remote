@@ -1,5 +1,6 @@
 package com.local.agremote.ui
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Settings
@@ -1811,8 +1812,30 @@ private fun ColumnScope.TabSwitcher(
             items(tabs.size, key = { tabs[it].id }) { i ->
                 val tab = tabs[i]
                 val cur = tab.id == activeId
+                // 左滑或右滑关闭：卡片跟着手指走、渐渐变淡，超过卡片宽度的 40% 松手就滑走关闭，否则弹回
+                val dx = remember(tab.id) { androidx.compose.animation.core.Animatable(0f) }
+                val swipeScope = rememberCoroutineScope()
+                var cardW by remember { mutableIntStateOf(1) }
                 Surface(onClick = { onSelect(tab) }, shape = RoundedCornerShape(20.dp), color = sheetCardColor(),
-                    border = BorderStroke(if (cur) 2.dp else 1.dp, if (cur) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)) {
+                    border = BorderStroke(if (cur) 2.dp else 1.dp, if (cur) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.onSizeChanged { cardW = it.width.coerceAtLeast(1) }
+                        .graphicsLayer {
+                            translationX = dx.value
+                            alpha = (1f - kotlin.math.abs(dx.value) / cardW).coerceIn(0.2f, 1f)
+                        }
+                        .pointerInput(tab.id) {
+                            detectHorizontalDragGestures(
+                                onDragEnd = {
+                                    swipeScope.launch {
+                                        if (kotlin.math.abs(dx.value) > cardW * 0.4f) {
+                                            dx.animateTo(if (dx.value > 0) cardW * 1.2f else -cardW * 1.2f, androidx.compose.animation.core.tween(160))
+                                            onClose(tab)
+                                        } else dx.animateTo(0f, androidx.compose.animation.core.spring())
+                                    }
+                                },
+                                onDragCancel = { swipeScope.launch { dx.animateTo(0f) } },
+                            ) { change, amount -> change.consume(); swipeScope.launch { dx.snapTo(dx.value + amount) } }
+                        }) {
                     Column {
                         Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Language, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
