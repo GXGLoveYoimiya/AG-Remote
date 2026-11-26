@@ -665,7 +665,7 @@ fun BrowserDialog(
                             // 翻译：翻过后图标亮起，再点显示原文
                             IconButton(onClick = { offerTranslate = null; if (pageTranslated) showOriginal() else translatePage() },
                                 enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)
-                                    .then(if (pageTranslated) Modifier.background(MaterialTheme.colorScheme.secondaryContainer, CircleShape) else Modifier)) { // 已翻译：和输入框“+”一样的圆形底色
+                                    .then(if (pageTranslated) Modifier.padding(4.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape) else Modifier)) { // 36dp 圆形底色，居中、不贴地址栏 // 已翻译：和输入框“+”一样的圆形底色
                                 Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
                                     tint = if (pageTranslated) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) // 未翻译：黑色；已翻译：默认主题黑色，其他主题强调色
                             }
