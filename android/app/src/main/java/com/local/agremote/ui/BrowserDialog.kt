@@ -364,6 +364,7 @@ fun BrowserDialog(
     }
     var activeUrl by remember { mutableStateOf(initTabs.first.find { it.id == initTabs.second }?.url?.let { normalizeUrl(it, vm.prefs.host) } ?: "") }
     var urlInput by remember { mutableStateOf(activeUrl) }
+    var urlFocused by remember { mutableStateOf(false) } // 正在编辑地址栏
     // 地址栏光标：网址被页面跳转等自动改写时，光标放到末尾（否则会停在旧位置，出现在网址中间）
     var urlField by remember { mutableStateOf(TextFieldValue(urlInput, TextRange(urlInput.length))) }
     var pageTitle by remember { mutableStateOf("") }
@@ -570,6 +571,7 @@ fun BrowserDialog(
                 viewMode == "web" && wv != null && wv.canGoBack() -> wv.goBack()
                 viewMode == "web" && explicitUrl == null -> {
                     webViewRef?.visibility = android.view.View.INVISIBLE
+                    focusManager.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
                     viewMode = "live"
                 }
                 else -> onClose()
@@ -595,6 +597,7 @@ fun BrowserDialog(
                     Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
                         ModePill(tr("电脑实况"), viewMode == "live") {
                             webViewRef?.visibility = android.view.View.INVISIBLE
+                            focusManager.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
                             viewMode = "live"
                         }
                         ModePill(tr("网页浏览"), viewMode == "web") {
@@ -656,8 +659,11 @@ fun BrowserDialog(
                                             onValueChange = { urlField = it; urlInput = it.text },
                                             singleLine = true,
                                             modifier = Modifier.fillMaxWidth().onFocusChanged { f ->
-                                                urlField = if (f.isFocused) TextFieldValue(urlInput, TextRange(0, urlInput.length))
-                                                    else TextFieldValue(urlInput, TextRange(0))
+                                                // 编辑时光标放末尾（可以拖动光标看被隐去的部分）；离开时回到开头，长网址显示前面
+                                                if (f.isFocused != urlFocused) {
+                                                    urlFocused = f.isFocused
+                                                    urlField = TextFieldValue(urlInput, TextRange(if (f.isFocused) urlInput.length else 0))
+                                                }
                                             },
                                             textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -672,12 +678,12 @@ fun BrowserDialog(
                                     }
                                 }
                             }
-                            // 翻译：翻过后图标亮起，再点显示原文
-                            IconButton(onClick = { offerTranslate = null; if (pageTranslated) showOriginal() else translatePage() },
-                                enabled = activeUrl.isNotBlank() && !translating, modifier = Modifier.size(44.dp)) {
-                                // 翻译前后图标保持一样（不加底色、不变色）
-                                Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"))
-                            }
+                            // 翻译：点一下翻译，再点显示原文
+                            IconButton(onClick = { offerTranslate = null; if (translating) return@IconButton; if (pageTranslated) showOriginal() else translatePage() },
+                                enabled = activeUrl.isNotBlank(), modifier = Modifier.size(44.dp)) {
+                                // 点下去立刻变成强调色（翻译中、已翻译都是）；显示原文后恢复。所有主题都一样，不加底色
+                                Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
+                                    tint = if (pageTranslated || translating) accent() else LocalContentColor.current)
                             }
                             // 标签页数：点开标签页切换页
                             IconButton(onClick = { snapThumb(); showTabs = true }, modifier = Modifier.size(44.dp)) {
@@ -858,7 +864,7 @@ fun BrowserDialog(
                                                     offerTranslate = null
                                                     loading = true
                                                     webError = null
-                                                    url?.let { urlInput = it; activeUrl = it }
+                                                    url?.let { if (!urlFocused) urlInput = it; activeUrl = it }
                                                     canBack = view?.canGoBack() == true
                                                     canForward = view?.canGoForward() == true
                                                 }
@@ -867,7 +873,7 @@ fun BrowserDialog(
                                                     loading = false
                                                     pageCommitted = true
                                                     progress = 100
-                                                    url?.let { urlInput = it; activeUrl = it }
+                                                    url?.let { if (!urlFocused) urlInput = it; activeUrl = it }
                                                     pageTitle = view?.title.orEmpty()
                                                     updateActiveLocalTab(newUrl = url, newTitle = view?.title)
                                                     checkTranslateOffer()
