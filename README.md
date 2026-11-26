@@ -6,8 +6,9 @@
 
 <p align="center"><a href="#中文">中文</a> · <a href="#english">English</a></p>
 
-> 非官方项目，与 Google 无关。它调用的是 Antigravity 在本机提供的内部接口，Antigravity 更新后可能需要跟着适配。
-> Unofficial project, not affiliated with Google. It talks to Antigravity's local, undocumented API, which may change between versions.
+> 非官方项目，与 Google 无关。它调用的是 Antigravity 在本机提供的内部接口，Antigravity 更新后可能需要跟着适配。本项目仅用于个人通过私人网络远程控制自己电脑上已安装的正版 Antigravity，不支持也不允许用于 API 反代、多人共享账号或任何商业用途。
+>
+> Unofficial project, not affiliated with Google. It talks to Antigravity's local, undocumented API, which may change between versions. Intended solely for personal remote control of an official Antigravity installation on your own PC over a private network — not for API reverse proxying, account sharing, or any commercial use.
 
 ---
 
