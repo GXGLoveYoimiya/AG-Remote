@@ -386,7 +386,7 @@ fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
                     Text("${s.volume}%", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 var vol by remember(s.volume) { mutableFloatStateOf(s.volume.toFloat()) }
-                Slider(value = vol, onValueChange = { vol = it }, onValueChangeFinished = { vm.saveVoice(volume = vol.toInt()) }, valueRange = 0f..100f)
+                AppSlider(value = vol, onValueChange = { vol = it }, onValueChangeFinished = { vm.saveVoice(volume = vol.toInt()) }, valueRange = 0f..100f)
             }
         }
     }

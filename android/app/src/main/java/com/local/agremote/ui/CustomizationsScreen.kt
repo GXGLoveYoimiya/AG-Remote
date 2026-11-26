@@ -373,7 +373,7 @@ private fun PluginDetail(vm: AppViewModel, p: MarketItem, initialTranslate: Bool
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    if (confirmRemove) androidx.compose.material3.AlertDialog(
+    if (confirmRemove) com.local.agremote.ui.AppAlertDialog(
         onDismissRequest = { confirmRemove = false },
         title = { Text("${tr("移除")}「${p.name}」？") },
         text = { Text(p.name) },

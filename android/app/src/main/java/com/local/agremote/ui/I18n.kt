@@ -115,6 +115,9 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "每小时第" to "每小時第",
+        "分" to "分",
+        "晴空蓝" to "晴空藍",
         "仅查看：不会操控电脑" to "僅檢視：不會操控電腦",
         "展开更多（{0}）" to "展開更多（{0}）",
         "我的配色" to "我的配色",
@@ -392,6 +395,9 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "每小时第" to "毎時",
+        "分" to "分",
+        "晴空蓝" to "スカイブルー",
         "仅查看：不会操控电脑" to "閲覧のみ：PC は操作しません",
         "展开更多（{0}）" to "さらに表示（{0}）",
         "我的配色" to "マイカラー",
@@ -646,6 +652,9 @@ object I18n {
     )
 
     private val en = mapOf(
+        "每小时第" to "Every hour at",
+        "分" to "min",
+        "晴空蓝" to "Sky Blue",
         "仅查看：不会操控电脑" to "View only: your PC won’t be controlled",
         "展开更多（{0}）" to "Show {0} more",
         "我的配色" to "My colors",
@@ -900,6 +909,9 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "每小时第" to "매시",
+        "分" to "분",
+        "晴空蓝" to "하늘색",
         "App 不在前台时，agent 完成或需要你确认会发通知" to "백그라운드에서 agent가 끝나거나 승인이 필요하면 알림",
         "Gemini 浏览器动态" to "Gemini 브라우저 활동",
         "Google 翻译" to "번역",
@@ -1171,6 +1183,9 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "每小时第" to "Cada hora en",
+        "分" to "min",
+        "晴空蓝" to "Azul cielo",
         "App 不在前台时，agent 完成或需要你确认会发通知" to "Avisar cuando el agent termine o necesite aprobación en segundo plano",
         "Gemini 浏览器动态" to "Actividad del navegador de Gemini",
         "Google 翻译" to "Traducir",
@@ -1449,6 +1464,9 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "每小时第" to "Chaque heure à",
+        "分" to "min",
+        "晴空蓝" to "Bleu ciel",
         "App 不在前台时，agent 完成或需要你确认会发通知" to "Notifier quand l’agent termine ou attend une validation en arrière-plan",
         "Gemini 浏览器动态" to "Activité du navigateur Gemini",
         "Google 翻译" to "Traduire",
@@ -1727,6 +1745,9 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "每小时第" to "Jede Stunde um",
+        "分" to "Min.",
+        "晴空蓝" to "Himmelblau",
         "App 不在前台时，agent 完成或需要你确认会发通知" to "Benachrichtigen, wenn der Agent im Hintergrund fertig ist oder eine Freigabe braucht",
         "Gemini 浏览器动态" to "Gemini-Browseraktivität",
         "Google 翻译" to "Übersetzen",
@@ -2005,6 +2026,9 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "每小时第" to "Каждый час в",
+        "分" to "мин",
+        "晴空蓝" to "Небесный",
         "App 不在前台时，agent 完成或需要你确认会发通知" to "Уведомлять, когда agent завершит работу или ждёт подтверждения в фоне",
         "Gemini 浏览器动态" to "Действия Gemini в браузере",
         "Google 翻译" to "Перевести",
@@ -2283,6 +2307,9 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "每小时第" to "A cada hora em",
+        "分" to "min",
+        "晴空蓝" to "Azul-céu",
         "App 不在前台时，agent 完成或需要你确认会发通知" to "Avisar quando o agent terminar ou precisar de aprovação em segundo plano",
         "Gemini 浏览器动态" to "Atividade do navegador do Gemini",
         "Google 翻译" to "Traduzir",

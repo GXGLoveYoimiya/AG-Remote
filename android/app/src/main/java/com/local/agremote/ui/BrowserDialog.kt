@@ -991,7 +991,7 @@ fun BrowserDialog(
                             Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text(tr("光标大小"), style = MaterialTheme.typography.labelLarge)
-                                Slider(value = cursorScale, onValueChange = { cursorScale = it; vm.prefs.cursorScale = it },
+                                AppSlider(value = cursorScale, onValueChange = { cursorScale = it; vm.prefs.cursorScale = it },
                                     valueRange = 0.4f..2.2f, modifier = Modifier.weight(1f))
                                 Text("${String.format("%.1f", cursorScale)}×", style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)

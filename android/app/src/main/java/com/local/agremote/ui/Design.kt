@@ -2,6 +2,9 @@ package com.local.agremote.ui
 
 import androidx.compose.foundation.layout.navigationBarsPadding
 import kotlinx.coroutines.launch
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -157,6 +160,13 @@ fun UndoBar(vm: com.local.agremote.AppViewModel, modifier: Modifier = Modifier) 
     val host = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val undoLabel = tr("撤销")
+    // 普通提示也用同一个提示条（不用系统自带的 Toast）
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        vm.toast.collect { msg ->
+            host.currentSnackbarData?.dismiss()
+            scope.launch { host.showSnackbar(I18n.translateToast(msg), duration = androidx.compose.material3.SnackbarDuration.Short) }
+        }
+    }
     androidx.compose.runtime.LaunchedEffect(Unit) {
         vm.undo.collect { u ->
             host.currentSnackbarData?.dismiss() // 新的顶掉旧的
@@ -171,4 +181,51 @@ fun UndoBar(vm: com.local.agremote.AppViewModel, modifier: Modifier = Modifier) 
             containerColor = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface,
             actionColor = MaterialTheme.colorScheme.inversePrimary)
     }
+}
+
+/** 统一的对话框：白色卡片底、大圆角（和其他卡片一致）。 */
+@Composable
+fun AppAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: (@Composable () -> Unit)? = null,
+    icon: (@Composable () -> Unit)? = null,
+    title: (@Composable () -> Unit)? = null,
+    text: (@Composable () -> Unit)? = null,
+    properties: androidx.compose.ui.window.DialogProperties = androidx.compose.ui.window.DialogProperties(),
+) = androidx.compose.material3.AlertDialog(
+    onDismissRequest = onDismissRequest, confirmButton = confirmButton, modifier = modifier, dismissButton = dismissButton,
+    icon = icon, title = title, text = text, shape = RoundedCornerShape(28.dp), containerColor = sheetCardColor(),
+    properties = properties,
+)
+
+/** 统一的滑块：圆形白色滑块头 + 圆头轨道（不用新版的竖条滑块头）。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    onValueChangeFinished: (() -> Unit)? = null,
+    color: androidx.compose.ui.graphics.Color = accent(),
+) {
+    val colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = androidx.compose.ui.graphics.Color.White,
+        activeTrackColor = color, inactiveTrackColor = color.copy(alpha = 0.18f))
+    val outline = MaterialTheme.colorScheme.outlineVariant
+    androidx.compose.material3.Slider(
+        value = value, onValueChange = onValueChange, modifier = modifier, valueRange = valueRange,
+        onValueChangeFinished = onValueChangeFinished, colors = colors,
+        thumb = {
+            androidx.compose.foundation.layout.Box(Modifier.size(22.dp)
+                .shadow(2.dp, androidx.compose.foundation.shape.CircleShape)
+                .background(androidx.compose.ui.graphics.Color.White, androidx.compose.foundation.shape.CircleShape)
+                .border(1.dp, outline, androidx.compose.foundation.shape.CircleShape))
+        },
+        track = { st ->
+            androidx.compose.material3.SliderDefaults.Track(sliderState = st, modifier = Modifier.height(6.dp), colors = colors,
+                drawStopIndicator = null, thumbTrackGapSize = 0.dp)
+        },
+    )
 }

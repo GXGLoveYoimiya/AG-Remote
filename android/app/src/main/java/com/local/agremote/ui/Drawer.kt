@@ -202,7 +202,7 @@ private fun DrawerRow(icon: androidx.compose.ui.graphics.vector.ImageVector, lab
 internal fun ProjectDialog(title: String, initName: String, showFolder: Boolean, onDismiss: () -> Unit, onOk: (String, String) -> Unit) {
     var name by remember { mutableStateOf(initName) }
     var folder by remember { mutableStateOf("") }
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
@@ -311,7 +311,7 @@ fun ConvActionMenus(
 
     if (renaming) {
         var t by remember { mutableStateOf(c.title) }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { renaming = false },
             title = { Text(tr("重命名")) },
             text = { OutlinedTextField(t, { t = it }, singleLine = true) },
@@ -324,7 +324,7 @@ fun ConvActionMenus(
 
 @Composable
 fun DeleteDialog(title: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(tr("删除对话")) },
         text = { Text("「$title」") },

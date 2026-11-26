@@ -1129,7 +1129,7 @@ private fun WaitingCard(vm: AppViewModel, hasWorkspace: Boolean, step: Step) {
     }
 
     if (denyDialog) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { denyDialog = false },
             title = { Text(tr("拒绝并告诉 agent 原因")) },
             text = {

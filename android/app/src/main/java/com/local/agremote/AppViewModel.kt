@@ -357,7 +357,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (q.isNotBlank()) delay(350) // 输入时稍等再搜
             runCatching { api.market(q) }
                 .onSuccess { m -> if (q.isBlank()) marketAll = m; _market.value = if (q.isBlank()) m else m.copy(featured = emptyList(), groups = emptyList()) }
-                .onFailure { _toast.tryEmit("读取插件市场失败：" + err(it)); if (_market.value == null) _market.value = Market(emptyList(), emptyList(), emptyList(), emptySet()) }
+                .onFailure {
+                    if (it is kotlinx.coroutines.CancellationException || it.message?.contains("cancel", true) == true) return@launch // 被新的搜索取消，不是出错
+                    _toast.tryEmit("读取插件市场失败：" + err(it)); if (_market.value == null) _market.value = Market(emptyList(), emptyList(), emptyList(), emptySet()) }
         }
     }
     private val _installing = MutableStateFlow<Set<String>>(emptySet())

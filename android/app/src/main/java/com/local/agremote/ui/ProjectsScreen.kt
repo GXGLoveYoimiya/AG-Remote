@@ -144,7 +144,7 @@ private fun ProjectItem(vm: AppViewModel, p: Project, count: Int, onClick: () ->
     if (renaming) ProjectDialog(tr("重命名项目"), p.name, showFolder = false, onDismiss = { renaming = false }) { n, _ ->
         renaming = false; vm.renameProject(p.id, n)
     }
-    if (deleting) AlertDialog(
+    if (deleting) AppAlertDialog(
         onDismissRequest = { deleting = false },
         title = { Text(tr("删除项目？")) },
         text = { Text("「${p.name}」" + tr("这个项目会被删除。项目里的对话不会删，会回到历史会话里；电脑上的文件夹也不会动。")) },

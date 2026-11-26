@@ -71,10 +71,10 @@ import androidx.core.view.WindowCompat
 import com.local.agremote.ThemeConfig
 
 val PRESET_COLORS = listOf(
+    0xFFDBF1FF.toInt() to "晴空蓝", // 默认
     0xFFD97757.toInt() to "陶土橙",
     0xFF3482FF.toInt() to "小米蓝",
     0xFF0EA5E9.toInt() to "天空蓝",
-    0xFF06B6D4.toInt() to "青碧",
     0xFF10B981.toInt() to "翡翠绿",
     0xFF22C55E.toInt() to "青草绿",
     0xFFEAB308.toInt() to "琥珀金",
@@ -180,7 +180,7 @@ private fun materialSchemeFromSeed(seed: Color, dark: Boolean): ColorScheme {
 private fun claudeScheme(accent: Color, dark: Boolean): ColorScheme {
     val tert = hueShift(accent, -150f)
     return if (!dark) {
-        val primary = if (accent.luminance() > 0.6f) lerp(accent, Color.Black, 0.25f) else accent
+        val primary = accent // 用你选的颜色本身（浅色不再自动加深）；按钮上的图标会自动选深色或浅色
         lightColorScheme(
             primary = primary, onPrimary = bestOnColor(primary),
             // 取自 Claude 移动端：偏暖的浅灰底、纯白卡片、浅灰按钮和标签、近黑文字
@@ -334,7 +334,10 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
     }
 
     CompositionLocalProvider(LocalAccent provides accentColor) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme, content = content, shapes = androidx.compose.material3.Shapes(
+            extraSmall = RoundedCornerShape(14.dp), // 输入框、菜单、提示条
+            small = RoundedCornerShape(50),         // 选项按钮（FilterChip / AssistChip）做成胶囊
+        ))
     }
 }
 
@@ -362,7 +365,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                     selected = cfg.style == "default",
                     previewBg = Color(0xFFFAF9F5),
                     previewCard = Color(0xFFF0EEE6),
-                    previewAccent = Color(0xFFD97757),
+                    previewAccent = Color(0xFFDBF1FF),
                     modifier = Modifier.fillMaxWidth(),
                 ) { onChange(cfg.copy(style = "default")) }
                 CardDivider(indent = false)
@@ -602,25 +605,13 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onSave: (Int) 
             // 饱和度
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr("饱和度"), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Slider(
-                    value = s,
-                    onValueChange = { s = it; syncHex() },
-                    valueRange = 0f..1f,
-                    modifier = Modifier.weight(1f),
-                    colors = SliderDefaults.colors(thumbColor = preview, activeTrackColor = preview),
-                )
+                AppSlider(value = s, onValueChange = { s = it; syncHex() }, valueRange = 0f..1f, modifier = Modifier.weight(1f), color = preview)
             }
 
             // 明度
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr("亮度"), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Slider(
-                    value = v,
-                    onValueChange = { v = it; syncHex() },
-                    valueRange = 0.15f..1f,
-                    modifier = Modifier.weight(1f),
-                    colors = SliderDefaults.colors(thumbColor = preview, activeTrackColor = preview),
-                )
+                AppSlider(value = v, onValueChange = { v = it; syncHex() }, valueRange = 0.15f..1f, modifier = Modifier.weight(1f), color = preview)
             }
 
             // 预览色块 + HEX 输入

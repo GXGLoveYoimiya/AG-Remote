@@ -287,7 +287,7 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
     }
 
     if (confirmUnpair) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { confirmUnpair = false },
             title = { Text(tr("取消配对")) },
             text = { Text(tr("断开和这台电脑的配对？之后需要重新输入配对码才能再连接。")) },
@@ -345,7 +345,7 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
         var devCode by remember { mutableStateOf("") }
         var devBusy by remember { mutableStateOf(false) }
         var devErr by remember { mutableStateOf<String?>(null) }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { if (!devBusy) addingHost = false },
             title = { Text(tr("添加设备")) },
             text = {
@@ -389,7 +389,7 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
         var devName by remember(target.id) { mutableStateOf(target.name) }
         var devHost by remember(target.id) { mutableStateOf(target.host) }
         var devPort by remember(target.id) { mutableStateOf(target.port.toString()) }
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { editingHost = null },
             title = { Text(tr("编辑设备")) },
             text = {

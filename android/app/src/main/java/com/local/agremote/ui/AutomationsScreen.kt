@@ -41,10 +41,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -176,18 +174,18 @@ private fun AutomationEditor(vm: AppViewModel, a: Automation?, onClose: () -> Un
         if (initMode == "weekly") addAll(initDow.split(',').mapNotNull { it.toIntOrNull()?.rem(7) }) else add(1)
     } }
     var custom by remember { mutableStateOf(a?.schedule?.split(Regex("\\s+"))?.filterNot { it.startsWith("CRON_TZ=") }?.joinToString(" ") ?: "0 9 * * *") }
-    val time = rememberTimePickerState(initHour, initMin, true)
-    var pickTime by remember { mutableStateOf(false) }
+    var hour by remember { androidx.compose.runtime.mutableIntStateOf(initHour) }
+    var minute by remember { androidx.compose.runtime.mutableIntStateOf(initMin) }
     var busy by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val tz = java.util.TimeZone.getDefault().id
 
     fun cron(): String {
         val body = when (mode) {
-            "hourly" -> "${time.minute} * * * *"
-            "daily" -> "${time.minute} ${time.hour} * * *"
-            "weekday" -> "${time.minute} ${time.hour} * * 1-5"
-            "weekly" -> "${time.minute} ${time.hour} * * ${days.sorted().joinToString(",").ifBlank { "1" }}"
+            "hourly" -> "$minute * * * *"
+            "daily" -> "$minute $hour * * *"
+            "weekday" -> "$minute $hour * * 1-5"
+            "weekly" -> "$minute $hour * * ${days.sorted().joinToString(",").ifBlank { "1" }}"
             else -> custom.trim()
         }
         return "CRON_TZ=$tz $body"
@@ -216,8 +214,8 @@ private fun AutomationEditor(vm: AppViewModel, a: Automation?, onClose: () -> Un
             when (mode) {
                 "custom" -> OutlinedTextField(custom, { custom = it }, Modifier.fillMaxWidth(), singleLine = true,
                     label = { Text(tr("cron 表达式（分 时 日 月 周）")) }, supportingText = { Text(tr("时区：{0}", tz)) })
-                "hourly" -> TextButton(onClick = { pickTime = true }) { Text(tr("每小时第 {0} 分（点这里修改）", time.minute)) }
-                else -> TextButton(onClick = { pickTime = true }) { Text(tr("时间：{0}（点这里修改）", "%02d:%02d".format(time.hour, time.minute))) }
+                "hourly" -> TimeWheels(hour = null, minute = minute, onHour = {}, onMinute = { minute = it })
+                else -> TimeWheels(hour = hour, minute = minute, onHour = { hour = it }, onMinute = { minute = it })
             }
             Text(tr("将会：") + cronText(cron()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             Button(
@@ -231,12 +229,7 @@ private fun AutomationEditor(vm: AppViewModel, a: Automation?, onClose: () -> Un
         }
     }
 
-    if (pickTime) AlertDialog(
-        onDismissRequest = { pickTime = false },
-        confirmButton = { TextButton(onClick = { pickTime = false }) { Text(tr("好")) } },
-        text = { TimePicker(time) },
-    )
-    if (confirmDelete && a != null) AlertDialog(
+    if (confirmDelete && a != null) AppAlertDialog(
         onDismissRequest = { confirmDelete = false },
         title = { Text(tr("删除自动化？")) },
         text = { Text(tr("「{0}」会被删除，不会再自动运行。", a.name)) },
@@ -244,4 +237,50 @@ private fun AutomationEditor(vm: AppViewModel, a: Automation?, onClose: () -> Un
             Text(tr("删除"), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(tr("取消")) } },
     )
+}
+
+/** 选时间：两列上下滑动的滚轮（时 : 分），中间高亮的一格就是选中的值；hour 为 null 时只显示分钟。 */
+@Composable
+private fun TimeWheels(hour: Int?, minute: Int, onHour: (Int) -> Unit, onMinute: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        if (hour != null) {
+            NumberWheel(24, hour, onHour)
+            Text(":", Modifier.padding(horizontal = 10.dp), style = MaterialTheme.typography.headlineMedium)
+        } else {
+            Text(tr("每小时第"), Modifier.padding(end = 12.dp), style = MaterialTheme.typography.bodyLarge)
+        }
+        NumberWheel(60, minute, onMinute)
+        if (hour == null) Text(tr("分"), Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun NumberWheel(count: Int, value: Int, onChange: (Int) -> Unit) {
+    val itemH = 44.dp
+    val state = androidx.compose.foundation.lazy.rememberLazyListState(initialFirstVisibleItemIndex = value.coerceIn(0, count - 1))
+    val fling = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(state)
+    val itemPx = with(androidx.compose.ui.platform.LocalDensity.current) { itemH.toPx() }
+    // 停在中间的那一项（上下各留两格空白，所以第一项能滚到中间）
+    val center by androidx.compose.runtime.remember {
+        androidx.compose.runtime.derivedStateOf {
+            (state.firstVisibleItemIndex + if (state.firstVisibleItemScrollOffset > itemPx / 2) 1 else 0).coerceIn(0, count - 1)
+        }
+    }
+    LaunchedEffect(state.isScrollInProgress) { if (!state.isScrollInProgress && center != value) onChange(center) }
+    Box(Modifier.width(76.dp).height(itemH * 5), contentAlignment = Alignment.Center) {
+        // 中间的高亮条
+        androidx.compose.material3.Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(itemH)) {}
+        androidx.compose.foundation.lazy.LazyColumn(state = state, flingBehavior = fling, modifier = Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = itemH * 2),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            items(count) { i ->
+                val d = kotlin.math.abs(i - center)
+                Box(Modifier.height(itemH).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("%02d".format(i), style = if (d == 0) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = when (d) { 0 -> 1f; 1 -> 0.45f; else -> 0.2f }))
+                }
+            }
+        }
+    }
 }

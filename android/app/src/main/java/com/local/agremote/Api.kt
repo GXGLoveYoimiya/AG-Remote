@@ -190,8 +190,8 @@ data class ThemeConfig(
     val style: String = "default",       // default（仿 Claude）/ material / miuix
     val darkMode: String = "system",     // system / light / dark
     val colorMode: String = "custom",    // system / custom
-    val seedColor: Int = 0xFFD97757.toInt(),
-    val customColor: Int = 0xFFD97757.toInt(), // 取色器里调的颜色，单独保存，点预设色不会改它
+    val seedColor: Int = 0xFFDBF1FF.toInt(),
+    val customColor: Int = 0xFFDBF1FF.toInt(), // 取色器里调的颜色，单独保存，点预设色不会改它
     val savedColors: List<Int> = emptyList(),  // 我的配色（最多 7 个）
 )
 
@@ -292,8 +292,8 @@ class Prefs(ctx: Context) {
             style = sp.getString("theme_style", "default") ?: "default",
             darkMode = sp.getString("theme_dark", "system") ?: "system",
             colorMode = sp.getString("theme_color_mode", "custom") ?: "custom",
-            seedColor = sp.getInt("theme_seed", 0xFFD97757.toInt()),
-            customColor = sp.getInt("theme_custom", sp.getInt("theme_seed", 0xFFD97757.toInt())),
+            seedColor = sp.getInt("theme_seed", 0xFFDBF1FF.toInt()),
+            customColor = sp.getInt("theme_custom", sp.getInt("theme_seed", 0xFFDBF1FF.toInt())),
             savedColors = (sp.getString("theme_saved", "") ?: "").split(',').mapNotNull { it.trim().toLongOrNull()?.toInt() },
         )
         set(v) = sp.edit()

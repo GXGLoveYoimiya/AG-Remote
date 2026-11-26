@@ -65,9 +65,6 @@ class MainActivity : ComponentActivity() {
                 com.local.agremote.ui.LocalAppLang provides resolvedLang,
             ) {
                 AgAppTheme(themeCfg) {
-                    LaunchedEffect(Unit) {
-                        vm.toast.collect { Toast.makeText(this@MainActivity, com.local.agremote.ui.I18n.translateToast(it), Toast.LENGTH_SHORT).show() }
-                    }
                     androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
                         Root(vm)
                         com.local.agremote.ui.UndoBar(vm, androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
@@ -173,7 +170,7 @@ private fun Root(vm: AppViewModel) {
     pendingLink?.let { url ->
         var chosenMode by remember(url) { mutableStateOf("system") }
         var rememberChoice by remember(url) { mutableStateOf(false) }
-        androidx.compose.material3.AlertDialog(
+        com.local.agremote.ui.AppAlertDialog(
             onDismissRequest = { vm.dismissPendingLink() },
             title = { androidx.compose.material3.Text(com.local.agremote.ui.tr("是否打开链接")) },
             text = {
