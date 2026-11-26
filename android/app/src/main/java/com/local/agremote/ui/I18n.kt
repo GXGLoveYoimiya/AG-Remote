@@ -115,6 +115,8 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "搜索引擎" to "搜尋引擎",
+        "百度" to "百度",
         "翻译设置" to "翻譯設定",
         "一律翻译{0}网页" to "一律翻譯{0}網頁",
         "一律不翻译{0}网页" to "一律不翻譯{0}網頁",
@@ -414,6 +416,8 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "搜索引擎" to "検索エンジン",
+        "百度" to "Baidu",
         "翻译设置" to "翻訳の設定",
         "一律翻译{0}网页" to "{0}のページを常に翻訳",
         "一律不翻译{0}网页" to "{0}のページは翻訳しない",
@@ -690,6 +694,8 @@ object I18n {
     )
 
     private val en = mapOf(
+        "搜索引擎" to "Search engine",
+        "百度" to "Baidu",
         "翻译设置" to "Translation settings",
         "一律翻译{0}网页" to "Always translate {0}",
         "一律不翻译{0}网页" to "Never translate {0}",
@@ -966,6 +972,8 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "搜索引擎" to "검색 엔진",
+        "百度" to "Baidu",
         "翻译设置" to "번역 설정",
         "一律翻译{0}网页" to "{0} 페이지 항상 번역",
         "一律不翻译{0}网页" to "{0} 페이지 번역 안 함",
@@ -1259,6 +1267,8 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "搜索引擎" to "Buscador",
+        "百度" to "Baidu",
         "翻译设置" to "Ajustes de traducción",
         "一律翻译{0}网页" to "Traducir siempre {0}",
         "一律不翻译{0}网页" to "No traducir nunca {0}",
@@ -1559,6 +1569,8 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "搜索引擎" to "Moteur de recherche",
+        "百度" to "Baidu",
         "翻译设置" to "Paramètres de traduction",
         "一律翻译{0}网页" to "Toujours traduire : {0}",
         "一律不翻译{0}网页" to "Ne jamais traduire : {0}",
@@ -1859,6 +1871,8 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "搜索引擎" to "Suchmaschine",
+        "百度" to "Baidu",
         "翻译设置" to "Übersetzungseinstellungen",
         "一律翻译{0}网页" to "{0} immer übersetzen",
         "一律不翻译{0}网页" to "{0} nie übersetzen",
@@ -2159,6 +2173,8 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "搜索引擎" to "Поисковик",
+        "百度" to "Baidu",
         "翻译设置" to "Настройки перевода",
         "一律翻译{0}网页" to "Всегда переводить: {0}",
         "一律不翻译{0}网页" to "Никогда не переводить: {0}",
@@ -2459,6 +2475,8 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "搜索引擎" to "Buscador",
+        "百度" to "Baidu",
         "翻译设置" to "Configurações de tradução",
         "一律翻译{0}网页" to "Sempre traduzir {0}",
         "一律不翻译{0}网页" to "Nunca traduzir {0}",

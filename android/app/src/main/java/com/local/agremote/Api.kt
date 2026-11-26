@@ -232,6 +232,10 @@ class Prefs(ctx: Context) {
     var votesJson: String
         get() = sp.getString("votes_json", "{}") ?: "{}"
         set(v) = sp.edit().putString("votes_json", v).apply()
+    /** 浏览器的搜索引擎（SEARCH_ENGINES 里的 key）。 */
+    var searchEngine: String
+        get() = sp.getString("search_engine", "google") ?: "google"
+        set(v) = sp.edit().putString("search_engine", v).apply()
     /** 网页翻译偏好：一律翻译的语言、一律不翻译的语言、一律不翻译的网站（逗号分隔）。 */
     var trAutoLangs: Set<String>
         get() = (sp.getString("tr_auto_langs", "") ?: "").split(',').filter { it.isNotBlank() }.toSet()

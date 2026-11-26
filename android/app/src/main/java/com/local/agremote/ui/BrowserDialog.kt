@@ -150,13 +150,25 @@ import com.local.agremote.BrowserTab
 import kotlinx.coroutines.delay
 
 /** 把用户输入的网址/关键词规范化；localhost/127.0.0.1 自动转发到电脑 Tailscale 地址。 */
+/** 可选的搜索引擎：key、名字、搜索网址前缀。 */
+internal val SEARCH_ENGINES = listOf(
+    Triple("google", "Google", "https://www.google.com/search?q="),
+    Triple("bing", "Bing", "https://www.bing.com/search?q="),
+    Triple("baidu", "百度", "https://www.baidu.com/s?wd="),
+    Triple("duckduckgo", "DuckDuckGo", "https://duckduckgo.com/?q="),
+    Triple("yahoo", "Yahoo", "https://search.yahoo.com/search?p="),
+    Triple("yandex", "Yandex", "https://yandex.com/search/?text="),
+)
+/** 当前搜索引擎的网址前缀（打开浏览器时按设置更新）。 */
+private var searchPrefix = SEARCH_ENGINES[0].third
+
 private fun normalizeUrl(raw: String, pcHost: String): String {
     val s = raw.trim()
     if (s.isEmpty()) return ""
     val withScheme = when {
         s.startsWith("http://", true) || s.startsWith("https://", true) -> s
         s.contains(' ') || (!s.contains('.') && !s.startsWith("localhost", true)) ->
-            "https://www.google.com/search?q=" + java.net.URLEncoder.encode(s, "UTF-8")
+            searchPrefix + java.net.URLEncoder.encode(s, "UTF-8")
         s.startsWith("localhost", true) || s.startsWith("127.0.0.1") || s.startsWith("100.") || s.startsWith("192.168.") -> "http://$s"
         else -> "https://$s"
     }
@@ -191,6 +203,8 @@ fun BrowserDialog(
 ) {
     val ctx = LocalContext.current
     val focusManager = LocalFocusManager.current
+    var engineKey by remember { mutableStateOf(vm.prefs.searchEngine) }
+    searchPrefix = (SEARCH_ENGINES.find { it.first == engineKey } ?: SEARCH_ENGINES[0]).third
     val pcData by vm.pcBrowserTabs.collectAsState()
     val pcLoading by vm.pcBrowserLoading.collectAsState()
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -670,6 +684,19 @@ fun BrowserDialog(
                                         onClick = { webMenu = false; snapThumb(); newTab() })
                                     DropdownMenuItem(text = { Text(tr("同步电脑标签页")) }, leadingIcon = { Icon(Icons.Rounded.Sync, null) },
                                         onClick = { webMenu = false; importPcTabs = true; vm.refreshBrowserTabs(chatId) })
+                                    Box {
+                                        var engineMenu by remember { mutableStateOf(false) }
+                                        val cur = SEARCH_ENGINES.find { it.first == engineKey } ?: SEARCH_ENGINES[0]
+                                        DropdownMenuItem(text = { Text(tr("搜索引擎") + " · " + tr(cur.second)) }, leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                                            onClick = { engineMenu = true })
+                                        DropdownMenu(engineMenu, { engineMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
+                                            SEARCH_ENGINES.forEach { (key, name, _) ->
+                                                DropdownMenuItem(text = { Text(tr(name)) },
+                                                    trailingIcon = { if (key == engineKey) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)) },
+                                                    onClick = { engineMenu = false; webMenu = false; engineKey = key; vm.prefs.searchEngine = key })
+                                            }
+                                        }
+                                    }
                                     if (activeUrl.isNotBlank()) {
                                         HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                                         DropdownMenuItem(text = { Text(tr("复制网址")) }, leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) },
