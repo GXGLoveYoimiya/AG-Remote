@@ -932,7 +932,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val o = JSONObject(prefs.browserTabs)
         val a = o.optJSONArray("tabs") ?: JSONArray()
         val tabs = (0 until a.length()).map { i -> a.getJSONObject(i).let { BrowserTab(it.optString("id"), it.optString("url"), it.optString("title"), "", "", "") } }
-            .filter { it.id.isNotBlank() && it.url.isNotBlank() }
+            .filter { it.id.isNotBlank() } // 网址为空的是主页标签
         Triple(tabs, o.optString("active"), o.optString("mode", "live"))
     }.getOrDefault(Triple(emptyList(), "", "live"))
 

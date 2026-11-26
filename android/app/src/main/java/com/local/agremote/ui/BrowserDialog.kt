@@ -362,6 +362,12 @@ fun BrowserDialog(
                 active = id
             }
         }
+        // 主页也算一个标签页：一个都没有（或当前不在任何标签上）时，开一个主页标签
+        if (tabs.isEmpty() || active.isBlank()) {
+            val id = "local-${System.currentTimeMillis()}"
+            tabs += BrowserTab(id, "", "", "", chatId, "")
+            active = id
+        }
         tabs.toList() to active
     }
     var activeUrl by remember { mutableStateOf(initTabs.first.find { it.id == initTabs.second }?.url?.let { normalizeUrl(it, vm.prefs.host) } ?: "") }
@@ -410,16 +416,6 @@ fun BrowserDialog(
     }
 
     val hiddenLinks by vm.hiddenLinks.collectAsState()
-
-    /** 新建标签页：回到浏览器首页，下一个打开的网址会开成新的标签页。 */
-    fun newTab() {
-        activeTabId = ""
-        activeUrl = ""
-        urlInput = ""
-        webError = null
-        webEverMounted = true
-        viewMode = "web"
-    }
 
     fun openUrl(raw: String, manual: Boolean = true, tabId: String = "") {
         val u = normalizeUrl(raw, vm.prefs.host)
@@ -473,6 +469,26 @@ fun BrowserDialog(
         webViewRef?.stopLoading()
     }
 
+    /** 新建标签页：回到浏览器首页，下一个打开的网址会开成新的标签页。 */
+    fun newTab() {
+        // 主页也是一个标签页：开一个网址为空的标签，在它里面打开网址会直接用这个标签
+        val id = "local-${System.currentTimeMillis()}"
+        localTabs = localTabs + BrowserTab(id, "", "", "", chatId, "")
+        clearToHome()
+        activeTabId = id
+        webError = null
+        webEverMounted = true
+        viewMode = "web"
+    }
+
+    /** 切到某个标签页：主页标签直接回主页，其他的打开网址。 */
+    fun switchToTab(tab: BrowserTab) {
+        if (tab.url.isBlank()) { clearToHome(); activeTabId = tab.id }
+        else if (viewMode == "web") openUrl(tab.url, tabId = tab.id)
+        else { activeTabId = tab.id; activeUrl = normalizeUrl(tab.url, vm.prefs.host); urlInput = tab.url }
+    }
+
+
     // 关闭标签页后可以撤销（浏览器是单独的窗口，提示条放在这个窗口里）
     val tabUndoHost = remember { androidx.compose.material3.SnackbarHostState() }
     val undoLabel = tr("撤销")
@@ -487,20 +503,13 @@ fun BrowserDialog(
             if (r == androidx.compose.material3.SnackbarResult.ActionPerformed && localTabs.none { it.id == t.id }) {
                 // 放回原来的位置；关的是当前标签页就切回去
                 localTabs = localTabs.toMutableList().apply { add(oldIndex.coerceIn(0, size), t) }
-                if (closingCurrent) {
-                    if (viewMode == "web") openUrl(t.url, tabId = t.id)
-                    else { activeTabId = t.id; activeUrl = normalizeUrl(t.url, vm.prefs.host); urlInput = t.url }
-                }
+                if (closingCurrent) switchToTab(t)
             }
         }
         val next = localTabs.filterNot { it.id == t.id }
         localTabs = next
-        if (next.isEmpty()) clearToHome()
-        else if (closingCurrent) {
-            val nextTab = next.last()
-            if (viewMode == "web") openUrl(nextTab.url, tabId = nextTab.id)
-            else { activeTabId = nextTab.id; activeUrl = normalizeUrl(nextTab.url, vm.prefs.host); urlInput = nextTab.url }
-        }
+        if (next.isEmpty()) newTab() // 全关了：回到一个新的主页标签
+        else if (closingCurrent) switchToTab(next.last())
     }
 
     // “同步电脑标签页”：把电脑上 Antigravity 打开的网页复制一份到手机（之后各管各的，不再自动同步）
@@ -808,7 +817,7 @@ fun BrowserDialog(
                         if (showTabs) TabSwitcher(
                             tabs = localTabs, activeId = activeTabId, thumbs = thumbs,
                             onNew = { showTabs = false; newTab() },
-                            onSelect = { tab -> showTabs = false; if (tab.id != activeTabId) openUrl(tab.url, tabId = tab.id) },
+                            onSelect = { tab -> showTabs = false; if (tab.id != activeTabId) switchToTab(tab) },
                             onClose = { tab -> thumbs.remove(tab.id); handleCloseTab(tab) },
                             onDismiss = { showTabs = false },
                         )
@@ -899,6 +908,8 @@ fun BrowserDialog(
                                                     return true
                                                 }
                                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                                    // 当前是主页：还在收尾的旧页面（比如刚关掉的标签页）不要把网址写回来
+                                                    if (activeUrl.isEmpty()) return
                                                     pageTranslated = false
                                                     offerTranslate = null
                                                     loading = true
@@ -909,6 +920,8 @@ fun BrowserDialog(
                                                 }
                                                 override fun onPageCommitVisible(view: WebView?, url: String?) { pageCommitted = true }
                                                 override fun onPageFinished(view: WebView?, url: String?) {
+                                                    // 当前是主页：还在收尾的旧页面（比如刚关掉的标签页）不要把网址写回来
+                                                    if (activeUrl.isEmpty()) return
                                                     loading = false
                                                     pageCommitted = true
                                                     progress = 100
@@ -1864,7 +1877,7 @@ private fun ColumnScope.TabSwitcher(
                         Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Language, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.width(6.dp))
-                            Text(tab.title.ifBlank { tab.url }, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
+                            Text(if (tab.url.isBlank()) tr("新标签页") else tab.title.ifBlank { tab.url }, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                             IconButton(onClick = { onClose(tab) }, modifier = Modifier.size(36.dp)) {
                                 Icon(Icons.Rounded.Close, tr("关闭标签页"), Modifier.size(16.dp))
@@ -1876,6 +1889,7 @@ private fun ColumnScope.TabSwitcher(
                             val th = thumbs[tab.id]
                             if (th != null) Image(th.asImageBitmap(), null, Modifier.fillMaxSize(),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop, alignment = Alignment.TopCenter)
+                            else if (tab.url.isBlank()) Icon(Icons.Rounded.Home, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.outline)
                             else Text(runCatching { android.net.Uri.parse(tab.url).host ?: tab.url }.getOrElse { tab.url },
                                 Modifier.padding(10.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 3, overflow = TextOverflow.Ellipsis)
