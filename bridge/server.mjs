@@ -1878,8 +1878,8 @@ async function toggleConnector(b) {
   const st = await freshJetbox();
   const cfg = st.userConfig?.plugins?.[b.key];
   if (!cfg) throw Object.assign(new Error('找不到这个插件'), { status: 404 });
-  // 启用 = 去掉 enabled 字段（Antigravity 默认就是启用），停用 = 写 false；这样和电脑上点开关的结果一样
-  if (b.enabled) delete cfg.enabled; else cfg.enabled = false;
+  // 明确写 true / false：Antigravity 保存设置是合并写入，删掉字段不会把 false 改回来（以前关了就打不开）
+  cfg.enabled = !!b.enabled;
   await rpc('JetboxWriteState', { userConfig: st.userConfig });
 }
 

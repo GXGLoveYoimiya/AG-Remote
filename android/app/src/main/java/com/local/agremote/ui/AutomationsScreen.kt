@@ -92,7 +92,9 @@ fun AutomationsScreen(vm: AppViewModel, onBack: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = { AppTopBar(tr("自动化"), onBack = onBack) },
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { creating = true }, icon = { Icon(Icons.Rounded.Add, null) }, text = { Text(tr("新建自动化")) })
+            ExtendedFloatingActionButton(onClick = { creating = true }, icon = { Icon(Icons.Rounded.Add, null) }, text = { Text(tr("新建自动化")) },
+                containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(50)) // 和项目页的“新建项目”同款
         },
     ) { pad ->
         val l = list
