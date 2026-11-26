@@ -119,6 +119,7 @@ private sealed interface OverviewDetail {
  * - 子代理（带计数）：列出本对话挂接的所有子代理，点击可查看子代理步骤
  * - 后台任务（带计数）：实时同步运行中与历史后台任务，点击看日志，底部「查看全部」
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OverviewSheet(
     vm: AppViewModel,
@@ -153,127 +154,68 @@ fun OverviewSheet(
 
     val d = detail
     if (d == null) {
-        // 与电脑 Antigravity 同款的右上角悬浮弹出菜单
-        Dialog(
+        // 和设置页同一套样式：底部面板 + 灰色小节标题 + 白色分组卡片
+        ModalBottomSheet(
             onDismissRequest = onClose,
-            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface,
         ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.28f))
-                    .clickable(onClick = onClose)
-                    .statusBarsPadding()
-                    .padding(top = 54.dp, end = 12.dp, start = 12.dp, bottom = 24.dp),
-                contentAlignment = Alignment.TopEnd,
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp).padding(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 4.dp,
-                    shadowElevation = 10.dp,
-                    modifier = Modifier
-                        .widthIn(min = 272.dp, max = 320.dp)
-                        .heightIn(max = 580.dp)
-                        .clickable(enabled = false) {},
-                ) {
-                    Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
-                        // 1. 概览区
-                        Row(
-                            Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(tr("概览"), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (loading) {
-                                CircularProgressIndicator(Modifier.size(16.dp).padding(end = 2.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(8.dp))
-                            }
-                            IconButton(onClick = { vm.loadOverview(chatId) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Rounded.Refresh, tr("刷新"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-
-                        PopupMenuItem(Icons.Rounded.Difference, "Review", count = reviewCount) { detail = OverviewDetail.Review }
-                        PopupMenuItem(Icons.Rounded.Description, "Files", count = ov.artifacts.size) { detail = OverviewDetail.Files }
-                        PopupMenuItem(Icons.Rounded.Terminal, tr("终端"), count = commands.size) { detail = OverviewDetail.Terminals }
-                        PopupMenuItem(Icons.Rounded.Extension, tr("插件扩展"), chevron = true) {
-                            onClose(); onOpenCustomizations()
-                        }
-
-                        HorizontalDivider(Modifier.padding(vertical = 6.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-
-                        // 2. 子代理区
-                        PopupSectionHeader(tr("子代理"), ov.subagents.size)
-                        if (ov.subagents.isEmpty()) {
-                            Text("暂无子代理", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline,
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
-                        } else {
-                            ov.subagents.take(5).forEach { sa ->
-                                Row(
-                                    Modifier.fillMaxWidth().clickable { detail = OverviewDetail.Subagent(sa) }
-                                        .padding(horizontal = 18.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Icon(Icons.Rounded.SmartToy, null, Modifier.size(18.dp),
-                                        tint = if (isRunning(sa.status)) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Spacer(Modifier.width(12.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Text(sa.role, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        val sub = listOfNotNull(
-                                            sa.typeName.takeIf { it.isNotBlank() && it != sa.role },
-                                            "${sa.steps} 步",
-                                            if (sa.killed) "已中止" else if (isRunning(sa.status)) "运行中" else "已完成",
-                                        ).joinToString(" · ")
-                                        Text(sub, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    }
-                                    if (isRunning(sa.status)) {
-                                        Spacer(Modifier.width(6.dp))
-                                        StatusDot(true)
-                                    }
-                                }
-                            }
-                        }
-
-                        HorizontalDivider(Modifier.padding(vertical = 6.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-
-                        // 3. 后台任务区（同步电脑 Antigravity，最多先展示 3 条 + See all）
-                        PopupSectionHeader(tr("后台任务"), ov.backgroundTasks.size)
-                        if (ov.backgroundTasks.isEmpty()) {
-                            Text("暂无后台任务", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline,
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
-                        } else {
-                            val runningFirst = ov.backgroundTasks.filter { it.running }
-                            val previewList = if (runningFirst.isNotEmpty()) runningFirst.take(3) else ov.backgroundTasks.take(3)
-                            previewList.forEach { task ->
-                                Row(
-                                    Modifier.fillMaxWidth().clickable { detail = OverviewDetail.TaskLog(task) }
-                                        .padding(horizontal = 18.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Icon(Icons.Rounded.Terminal, null, Modifier.size(18.dp),
-                                        tint = if (task.running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Spacer(Modifier.width(12.dp))
-                                    Text(task.title, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    if (task.running) {
-                                        Spacer(Modifier.width(8.dp))
-                                        StatusDot(true)
-                                    }
-                                }
-                            }
-                            if (ov.backgroundTasks.size > previewList.size || ov.backgroundTasks.isNotEmpty()) {
-                                Row(
-                                    Modifier.fillMaxWidth().clickable { detail = OverviewDetail.AllTasks }
-                                        .padding(horizontal = 18.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(tr("查看全部"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
+                Box(Modifier.fillMaxWidth()) {
+                    Text(tr("概览"), Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Row(Modifier.align(Alignment.CenterEnd), verticalAlignment = Alignment.CenterVertically) {
+                        if (loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                        IconButton(onClick = { vm.loadOverview(chatId) }) {
+                            Icon(Icons.Rounded.Refresh, tr("刷新"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
+                }
+
+                CardGroup {
+                    ListRow("Review", Icons.Rounded.Difference, value = reviewCount.takeIf { it > 0 }?.toString()) { detail = OverviewDetail.Review }
+                    CardDivider()
+                    ListRow("Files", Icons.Rounded.Description, value = ov.artifacts.size.takeIf { it > 0 }?.toString()) { detail = OverviewDetail.Files }
+                    CardDivider()
+                    ListRow(tr("终端"), Icons.Rounded.Terminal, value = commands.size.takeIf { it > 0 }?.toString()) { detail = OverviewDetail.Terminals }
+                    CardDivider()
+                    ListRow(tr("插件扩展"), Icons.Rounded.Extension) { onClose(); onOpenCustomizations() }
+                }
+
+                // 子代理
+                SectionLabel(tr("子代理") + " · ${ov.subagents.size}")
+                if (ov.subagents.isEmpty()) {
+                    CardBox { Text(tr("暂无子代理"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                } else CardGroup {
+                    ov.subagents.take(5).forEachIndexed { i, sa ->
+                        if (i > 0) CardDivider()
+                        val sub = listOfNotNull(
+                            sa.typeName.takeIf { it.isNotBlank() && it != sa.role },
+                            "${sa.steps} 步",
+                            if (sa.killed) "已中止" else if (isRunning(sa.status)) "运行中" else "已完成",
+                        ).joinToString(" · ")
+                        ListRow(sa.role, Icons.Rounded.SmartToy, desc = sub, end = RowEnd.None,
+                            trailing = { if (isRunning(sa.status)) StatusDot(true) }) { detail = OverviewDetail.Subagent(sa) }
+                    }
+                }
+
+                // 后台任务（和电脑同步，先显示 3 条 + 查看全部）
+                SectionLabel(tr("后台任务") + " · ${ov.backgroundTasks.size}")
+                if (ov.backgroundTasks.isEmpty()) {
+                    CardBox { Text(tr("暂无后台任务"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                } else CardGroup {
+                    val runningFirst = ov.backgroundTasks.filter { it.running }
+                    val previewList = if (runningFirst.isNotEmpty()) runningFirst.take(3) else ov.backgroundTasks.take(3)
+                    previewList.forEachIndexed { i, task ->
+                        if (i > 0) CardDivider()
+                        ListRow(task.title, Icons.Rounded.Terminal, end = RowEnd.None,
+                            trailing = { if (task.running) StatusDot(true) }) { detail = OverviewDetail.TaskLog(task) }
+                    }
+                    CardDivider()
+                    ListRow(tr("查看全部"), value = "${ov.backgroundTasks.size}") { detail = OverviewDetail.AllTasks }
                 }
             }
         }
@@ -286,54 +228,6 @@ fun OverviewSheet(
             onBack = { detail = null },
             onOpenTask = { detail = OverviewDetail.TaskLog(it) },
             onClose = onClose,
-        )
-    }
-}
-
-@Composable
-private fun PopupMenuItem(
-    icon: ImageVector,
-    label: String,
-    count: Int = 0,
-    chevron: Boolean = false,
-    onClick: () -> Unit,
-) {
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(14.dp))
-        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        if (count > 0) {
-            CountPill(count)
-        }
-        if (chevron) {
-            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun PopupSectionHeader(title: String, count: Int) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        CountPill(count)
-    }
-}
-
-@Composable
-private fun CountPill(count: Int) {
-    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-        Text(
-            "$count",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
         )
     }
 }
@@ -365,17 +259,15 @@ private fun OverviewDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onClose,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.84f).navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
                 Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "关闭") }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
             when (detail) {
                 OverviewDetail.Review -> {
                     val stepDiffs = remember(chat.steps) {
@@ -404,13 +296,13 @@ private fun OverviewDetailSheet(
                             items(list, key = { it.path }) { f ->
                                 val open = expandedFiles[f.path] == true
                                 val (sub, diff) = stepDiffs[f.path.lowercase()] ?: ("" to "")
-                                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                                Surface(shape = RoundedCornerShape(20.dp), color = sheetCardColor(), modifier = Modifier.fillMaxWidth()) {
                                     Column {
                                         Row(
                                             Modifier.fillMaxWidth().clickable { expandedFiles[f.path] = !open }.padding(14.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
-                                            Icon(Icons.Rounded.Code, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            Icon(Icons.Rounded.Code, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                             Spacer(Modifier.width(12.dp))
                                             Column(Modifier.weight(1f)) {
                                                 Text(f.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
@@ -469,14 +361,14 @@ private fun OverviewDetailSheet(
                                     else -> Icons.Rounded.Description
                                 }
                                 Surface(
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable {
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = sheetCardColor(),
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable {
                                         vm.openPreview(vm.previewOf(StepAttachment(a.name, a.mime, a.path)))
                                     },
                                 ) {
                                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                                        Icon(icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                         Spacer(Modifier.width(12.dp))
                                         Column(Modifier.weight(1f)) {
                                             Text(a.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
@@ -505,14 +397,14 @@ private fun OverviewDetailSheet(
                         ) {
                             items(commands, key = { it.i }) { cmd ->
                                 val open = expandedCmds[cmd.i] == true
-                                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                                Surface(shape = RoundedCornerShape(20.dp), color = sheetCardColor(), modifier = Modifier.fillMaxWidth()) {
                                     Column {
                                         Row(
                                             Modifier.fillMaxWidth().clickable { expandedCmds[cmd.i] = !open }.padding(14.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Icon(Icons.Rounded.Terminal, null, Modifier.size(20.dp),
-                                                tint = if (cmd.status == "error") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                                                tint = if (cmd.status == "error") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                             Spacer(Modifier.width(12.dp))
                                             Column(Modifier.weight(1f)) {
                                                 Text(cmd.text, fontFamily = FontFamily.Monospace, fontSize = 12.sp,
@@ -554,13 +446,13 @@ private fun OverviewDetailSheet(
                         ) {
                             items(ov.backgroundTasks, key = { it.id }) { task ->
                                 Surface(
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { onOpenTask(task) },
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = sheetCardColor(),
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable { onOpenTask(task) },
                                 ) {
                                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Rounded.Terminal, null, Modifier.size(20.dp),
-                                            tint = if (task.running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                            tint = if (task.running) accent() else MaterialTheme.colorScheme.onSurfaceVariant)
                                         Spacer(Modifier.width(12.dp))
                                         Column(Modifier.weight(1f)) {
                                             Text(task.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
@@ -589,7 +481,7 @@ private fun OverviewDetailSheet(
                     Column(Modifier.weight(1f).noSheetOverscroll().verticalScroll(rememberScrollState()).padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (task.command.isNotBlank()) {
-                            Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
+                            Surface(shape = RoundedCornerShape(20.dp), color = sheetCardColor()) {
                                 Column(Modifier.fillMaxWidth().padding(12.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text("命令", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -603,7 +495,7 @@ private fun OverviewDetailSheet(
                                 }
                             }
                         }
-                        Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface) {
+                        Surface(shape = RoundedCornerShape(20.dp), color = sheetCardColor()) {
                             Column(Modifier.fillMaxWidth().padding(12.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(if (task.running) "实时日志（运行中）" else "任务日志", Modifier.weight(1f),
@@ -645,7 +537,7 @@ private fun OverviewDetailSheet(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             items(list, key = { it.i }) { st ->
-                                Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                                Surface(shape = RoundedCornerShape(20.dp), color = sheetCardColor(), modifier = Modifier.fillMaxWidth()) {
                                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(
                                             when (st.kind) { "user" -> "任务指令"; "assistant" -> "子代理回复"; else -> st.title },

@@ -130,6 +130,7 @@ private fun Root(vm: AppViewModel) {
         ) { s ->
             when (s) {
                 "settings" -> SettingsScreen(vm, onBack = { screen = "chat" })
+                "usage" -> SettingsScreen(vm, onBack = { screen = "chat" }, startPage = "usage")
                 "automations" -> com.local.agremote.ui.AutomationsScreen(vm, onBack = { screen = "chat" })
                 "customizations" -> com.local.agremote.ui.CustomizationsScreen(vm, onBack = { screen = "chat" })
                 else -> ChatScreen(
@@ -138,6 +139,7 @@ private fun Root(vm: AppViewModel) {
                     showOverview = showOverview,
                     onShowOverview = { showOverview = it },
                     onOpenCustomizations = { screen = "customizations" },
+                    onOpenUsage = { screen = "usage" },
                 )
             }
         }

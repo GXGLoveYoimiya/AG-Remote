@@ -814,6 +814,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** 静默刷新额度（顶栏的 5 小时额度圆环用），失败不提示。 */
+    fun refreshQuota() {
+        viewModelScope.launch { runCatching { api.account() }.onSuccess { _account.value = it } }
+    }
+
+    /** 当前模型所在额度组的 5 小时限额（比如 Opus 5.5 属于“Claude and GPT models”）。 */
+    fun fiveHourBucket(model: String): QuotaBucket? {
+        val a = _account.value ?: return null
+        val m = _models.value.find { it.model == model } ?: return null
+        val names = listOf(m.label, m.family).filter { it.isNotBlank() }
+        val g = a.groups.find { g -> g.models.any { gm -> names.any { n -> n.startsWith(gm, true) || gm.startsWith(n, true) } } } ?: return null
+        return g.buckets.find { it.window == "5h" } ?: g.buckets.find { it.name.contains("Five", true) }
+    }
+
     // ---------- 对话 ----------
     /** 在某个项目里开新对话。 */
     fun newChatInProject(projectId: String) {

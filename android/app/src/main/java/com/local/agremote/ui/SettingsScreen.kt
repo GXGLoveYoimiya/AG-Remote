@@ -79,7 +79,7 @@ import androidx.compose.material.icons.automirrored.rounded.Logout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
+fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "main") {
     val account by vm.account.collectAsState()
     val list by vm.list.collectAsState()
     val link by vm.link.collectAsState()
@@ -97,10 +97,10 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
     LaunchedEffect(Unit) { vm.loadAccount() }
 
     // 一级页面是分组列表（参照 Claude 移动端），具体设置都放在二级页面里
-    var page by rememberSaveable { mutableStateOf("main") }
+    var page by rememberSaveable { mutableStateOf(startPage) }
     var confirmUnpair by remember { mutableStateOf(false) }
     val voiceCfg by vm.voiceCfg.collectAsState()
-    androidx.activity.compose.BackHandler(enabled = page != "main") { page = "main" }
+    androidx.activity.compose.BackHandler(enabled = page != startPage) { page = startPage }
     val linkModes = listOf(
         "ask" to tr("每次询问"),
         "system" to tr("通过默认浏览器"),
@@ -114,7 +114,7 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
     }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
-        AppTopBar(title, onBack = { if (page == "main") onBack() else page = "main" }) {
+        AppTopBar(title, onBack = { if (page == startPage) onBack() else page = startPage }) {
             if (page == "main" || page == "usage") IconButton(onClick = { vm.loadAccount(); vm.refreshList() }) { Icon(Icons.Rounded.Refresh, tr("刷新")) }
         }
     }) { pad ->

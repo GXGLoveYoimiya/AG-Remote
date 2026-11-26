@@ -115,6 +115,8 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "暂无子代理" to "暫無子代理",
+        "暂无后台任务" to "暫無背景任務",
         "已使用 {0}%" to "已使用 {0}%",
         "电脑" to "電腦",
         "播放" to "播放",
@@ -289,6 +291,8 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "暂无子代理" to "サブエージェントはありません",
+        "暂无后台任务" to "バックグラウンドタスクはありません",
         "已使用 {0}%" to "{0}% 使用済み",
         "电脑" to "PC",
         "播放" to "再生",
@@ -440,6 +444,8 @@ object I18n {
     )
 
     private val en = mapOf(
+        "暂无子代理" to "No subagents",
+        "暂无后台任务" to "No background tasks",
         "已使用 {0}%" to "{0}% used",
         "电脑" to "Computers",
         "播放" to "Playback",

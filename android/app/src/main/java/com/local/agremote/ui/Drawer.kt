@@ -76,6 +76,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material.icons.rounded.SpaceDashboard
 import com.local.agremote.AppViewModel
 import com.local.agremote.Conversation
 
@@ -322,6 +323,7 @@ fun ConvActionMenus(
     expanded: Boolean,
     onDismiss: () -> Unit,
     showNewChat: Boolean = false,
+    onOverview: (() -> Unit)? = null,
 ) {
     var copyMenu by remember(c.id) { mutableStateOf(false) }
     var moveMenu by remember(c.id) { mutableStateOf(false) }
@@ -333,6 +335,8 @@ fun ConvActionMenus(
         if (showNewChat) {
             DropdownMenuItem(text = { Text(tr("新建对话")) }, leadingIcon = { Icon(Icons.Rounded.EditNote, null) },
                 onClick = { onDismiss(); vm.newChat() })
+            if (onOverview != null) DropdownMenuItem(text = { Text(tr("概览")) }, leadingIcon = { Icon(Icons.Rounded.SpaceDashboard, null) },
+                onClick = { onDismiss(); onOverview() })
             HorizontalDivider()
         }
         DropdownMenuItem(text = { Text(tr("重命名")) }, leadingIcon = { Icon(Icons.Rounded.Edit, null) },

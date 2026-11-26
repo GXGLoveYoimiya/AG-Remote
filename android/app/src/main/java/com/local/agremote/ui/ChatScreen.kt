@@ -187,6 +187,7 @@ fun ChatScreen(
     showOverview: Boolean = false,
     onShowOverview: (Boolean) -> Unit = {},
     onOpenCustomizations: () -> Unit = {},
+    onOpenUsage: () -> Unit = {},
 ) {
     val s by vm.chat.collectAsState()
     val list by vm.list.collectAsState()
@@ -222,6 +223,10 @@ fun ChatScreen(
         }
     }
 
+    // 额度圆环：进来先读一次，之后每分钟刷新；每轮回复结束也刷新
+    LaunchedEffect(Unit) { while (true) { vm.refreshQuota(); kotlinx.coroutines.delay(60_000) } }
+    LaunchedEffect(working) { if (!working) vm.refreshQuota() }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -235,16 +240,18 @@ fun ChatScreen(
                     IconButton(onClick = { focusManager.clearFocus(); vm.openBrowser() }) {
                         Icon(Icons.Rounded.Language, "内置浏览器")
                     }
+                    // 当前模型剩余的 5 小时额度，点开是用量页
+                    vm.fiveHourBucket(selected)?.let { b ->
+                        IconButton(onClick = { focusManager.clearFocus(); onOpenUsage() }) { QuotaRing(b.remaining) }
+                    }
                     if (s.id != null) {
-                        IconButton(onClick = { focusManager.clearFocus(); onShowOverview(true) }) {
-                            Icon(Icons.Rounded.SpaceDashboard, "概览")
-                        }
                         if (curConv != null) {
                             Box {
                                 IconButton(onClick = { focusManager.clearFocus(); moreMenu = true }) {
                                     Icon(Icons.Rounded.MoreVert, "更多操作")
                                 }
-                                ConvActionMenus(vm, curConv, expanded = moreMenu, onDismiss = { moreMenu = false }, showNewChat = true)
+                                ConvActionMenus(vm, curConv, expanded = moreMenu, onDismiss = { moreMenu = false }, showNewChat = true,
+                                    onOverview = { focusManager.clearFocus(); onShowOverview(true) })
                             }
                         } else {
                             IconButton(onClick = { vm.newChat() }) { Icon(Icons.Rounded.EditNote, "新对话") }
@@ -1652,6 +1659,18 @@ private fun AttachmentChip(a: com.local.agremote.Attachment, onOpen: () -> Unit,
             modifier = Modifier.align(Alignment.TopEnd).padding(3.dp).size(20.dp)) {
             Icon(Icons.Rounded.Close, "移除", Modifier.padding(3.dp), tint = MaterialTheme.colorScheme.inverseOnSurface)
         }
+    }
+}
+
+/** 剩余额度圆环：圈里是剩余百分比，快用完时变红。 */
+@Composable
+private fun QuotaRing(remaining: Double) {
+    val pct = (remaining * 100).toInt().coerceIn(0, 100)
+    val color = if (pct <= 10) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(progress = { pct / 100f }, modifier = Modifier.fillMaxSize(), color = color,
+            trackColor = MaterialTheme.colorScheme.outlineVariant, strokeWidth = 2.5.dp, strokeCap = StrokeCap.Round, gapSize = 0.dp)
+        Text("$pct", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 9.sp), color = color, maxLines = 1)
     }
 }
 
