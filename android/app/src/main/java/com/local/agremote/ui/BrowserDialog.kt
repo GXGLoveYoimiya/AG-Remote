@@ -832,8 +832,7 @@ fun BrowserDialog(
                                                 overflow = TextOverflow.Ellipsis,
                                                 modifier = Modifier.weight(1f, fill = false),
                                             )
-                                            Text(
-                                                "重试",
+                                            Text(tr("重试"),
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.primary,
@@ -859,8 +858,7 @@ fun BrowserDialog(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                                            Text(
-                                                "正在加载 " + runCatching { android.net.Uri.parse(activeUrl).host ?: activeUrl }.getOrElse { activeUrl },
+                                            Text(tr("正在加载 ") + runCatching { android.net.Uri.parse(activeUrl).host ?: activeUrl }.getOrElse { activeUrl },
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 maxLines = 1,
@@ -973,28 +971,6 @@ fun BrowserDialog(
                     )
                 }
 
-                // 实时调整光标大小滑块（改动立即生效并保存）
-                if (controlMode == "mouse" && showCursorSlider) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(tr("光标大小"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Slider(
-                            value = cursorScale,
-                            onValueChange = {
-                                cursorScale = it
-                                vm.prefs.cursorScale = it
-                            },
-                            valueRange = 0.4f..2.2f,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text("${String.format("%.1f", cursorScale)}×", style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
                 // 实时画面区域：支持单击左键、长按右键、未放大时上下滑滚轮、双指捏合缩放（放大后点击依然精准映射像素）
@@ -1006,6 +982,25 @@ fun BrowserDialog(
                         .background(MaterialTheme.colorScheme.surfaceContainerLowest)
                         .onSizeChanged { boxSize = it },
                 ) {
+                    // 光标大小：浮在画面上方的小卡片，不挤占画面（改动立即生效并保存）
+                    if (controlMode == "mouse" && showCursorSlider) {
+                        Surface(
+                            shape = RoundedCornerShape(20.dp), color = sheetCardColor(), shadowElevation = 6.dp,
+                            modifier = Modifier.align(Alignment.TopCenter).zIndex(10f).padding(top = 10.dp, start = 16.dp, end = 16.dp).fillMaxWidth(),
+                        ) {
+                            Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(tr("光标大小"), style = MaterialTheme.typography.labelLarge)
+                                Slider(value = cursorScale, onValueChange = { cursorScale = it; vm.prefs.cursorScale = it },
+                                    valueRange = 0.4f..2.2f, modifier = Modifier.weight(1f))
+                                Text("${String.format("%.1f", cursorScale)}×", style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                IconButton(onClick = { showCursorSlider = false }, modifier = Modifier.size(32.dp)) {
+                                    Icon(Icons.Rounded.Close, tr("关闭"), Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
                     val bmp = liveFrame
                     if (bmp != null) {
                         fun fitMetrics(): Pair<Float, Float>? {
@@ -1319,8 +1314,7 @@ fun BrowserDialog(
                                         color = MaterialTheme.colorScheme.primaryContainer,
                                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp),
                                     ) {
-                                        Text(
-                                            "左键按住拖拽中（松手释放）",
+                                        Text(tr("左键按住拖拽中（松手释放）"),
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
@@ -1337,7 +1331,7 @@ fun BrowserDialog(
                         ) {
                             Icon(Icons.Rounded.Computer, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.outline)
                             Text(liveError ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("电脑上打开 Antigravity 窗口后这里会自动出画面；你也可以点上方「网页浏览」直接走电脑网络看网页。",
+                            Text(tr("电脑上打开 Antigravity 窗口后这里会自动出画面；你也可以点上方「网页浏览」直接走电脑网络看网页。"),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                         }
                     } else {
@@ -1385,7 +1379,7 @@ fun BrowserDialog(
                         ) {
                             Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.CenterStart) {
                                 if (remoteTv.text.isEmpty()) {
-                                    Text("先点电脑输入框再点上方「读取电脑已有文字」即可修改原文，或直接打字…",
+                                    Text(tr("先点电脑输入框再点上方「读取电脑已有文字」即可修改原文，或直接打字…"),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 }
@@ -1415,7 +1409,7 @@ fun BrowserDialog(
                                 },
                                 modifier = Modifier.height(36.dp),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
-                            ) { Text("写入+回车", style = MaterialTheme.typography.labelLarge) }
+                            ) { Text(tr("写入+回车"), style = MaterialTheme.typography.labelLarge) }
                             OutlinedButton(
                                 onClick = {
                                     val txt = remoteTv.text
@@ -1427,20 +1421,24 @@ fun BrowserDialog(
                                 enabled = remoteTv.text.isNotEmpty(),
                                 modifier = Modifier.height(36.dp),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
-                            ) { Text("追加", style = MaterialTheme.typography.labelLarge) }
+                            ) { Text(tr("追加"), style = MaterialTheme.typography.labelLarge) }
                         }
                     }
                 }
 
                 // 底部快捷操控条（鼠标左/右/双击、输入文字、滚轮上/下、回车、退格、Esc、复原缩放）
-                if (controlMode != "view") {
+                // 底部操控条始终保留、高度固定：切到“仅查看”时只换成提示，画面不会被挤动
+                run {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                     Row(
-                        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                        Modifier.fillMaxWidth().height(52.dp).background(MaterialTheme.colorScheme.surface)
                             .horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        if (controlMode == "view") Text(tr("仅查看：不会操控电脑"), style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+                        else {
                         if (controlMode == "mouse") {
                             ToolPill(
                                 onClick = {
@@ -1500,6 +1498,7 @@ fun BrowserDialog(
                                 onClick = { scale = 1f; offset = Offset.Zero },
                                 label = { Text("1× ${tr("复原")}") },
                             )
+                        }
                         }
                     }
                 }

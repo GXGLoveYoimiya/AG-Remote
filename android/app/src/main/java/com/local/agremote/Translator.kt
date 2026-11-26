@@ -60,7 +60,7 @@ object Translator {
             val map = a.translateMany(chunk, googleTarget(targetLang))
             map.forEach { (src, out) -> if (out.isNotBlank()) { val k = key(src, targetLang); cache[k] = out; kept[k] = out } }
         }
-        save()
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { save() } // 不在主线程写文件
     }
 
     suspend fun toChinese(text: String): String = translate(text, "zh-CN")

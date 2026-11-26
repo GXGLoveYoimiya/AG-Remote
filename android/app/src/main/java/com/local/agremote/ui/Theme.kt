@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material3.Button
@@ -395,7 +396,7 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            val isPreset = cfg.colorMode == "custom" && PRESET_COLORS.any { it.first == cfg.seedColor }
+            val isPreset = cfg.colorMode == "custom" && (PRESET_COLORS.any { it.first == cfg.seedColor } || cfg.seedColor in cfg.savedColors)
             val isSys = cfg.colorMode == "system" && !showPicker
             val isFreeActive = showPicker || (cfg.colorMode == "custom" && !isPreset)
             CardBox {
@@ -463,14 +464,44 @@ fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
                     }
                 }
             }
+            // 我的配色：点选使用，长按删除
+            if (cfg.savedColors.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Text(tr("我的配色") + " · " + tr("长按删除"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    cfg.savedColors.take(7).forEach { argb ->
+                        val sel = !showPicker && cfg.colorMode == "custom" && cfg.seedColor == argb
+                        Box(
+                            Modifier.size(38.dp).clip(CircleShape).background(Color(argb))
+                                .then(if (sel) Modifier.border(2.5.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
+                                .pointerInput(argb, cfg) {
+                                    detectTapGestures(
+                                        onTap = { showPicker = false; onChange(cfg.copy(colorMode = "custom", seedColor = argb)) },
+                                        onLongPress = { onChange(cfg.copy(savedColors = cfg.savedColors - argb)) },
+                                    )
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) { if (sel) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = bestOnColor(Color(argb))) }
+                    }
+                    repeat(7 - cfg.savedColors.take(7).size) { Spacer(Modifier.size(38.dp)) }
+                }
+            }
 
             if (showPicker) {
+                Spacer(Modifier.height(10.dp))
                 CustomColorPicker(
-                    initial = cfg.seedColor,
+                    initial = cfg.customColor, // 用单独保存的自定义色，不跟着预设色变
                     onCancel = { showPicker = false },
+                    onSave = { argb ->
+                        // 保存到“我的配色”并使用
+                        showPicker = false
+                        onChange(cfg.copy(colorMode = "custom", seedColor = argb, customColor = argb,
+                            savedColors = (listOf(argb) + (cfg.savedColors - argb)).take(7)))
+                    },
                     onConfirm = { argb ->
                         showPicker = false
-                        onChange(cfg.copy(colorMode = "custom", seedColor = argb))
+                        onChange(cfg.copy(colorMode = "custom", seedColor = argb, customColor = argb))
                     },
                 )
             }
@@ -510,18 +541,18 @@ private fun StyleOptionCard(
 }
 
 @Composable
-private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onConfirm: (Int) -> Unit) {
+private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onSave: (Int) -> Unit, onConfirm: (Int) -> Unit) {
     val initHsv = remember(initial) {
         FloatArray(3).also { android.graphics.Color.colorToHSV(initial, it) }
     }
     var h by remember(initial) { mutableFloatStateOf(initHsv[0]) }
     var s by remember(initial) { mutableFloatStateOf(initHsv[1].coerceAtLeast(0.15f)) }
     var v by remember(initial) { mutableFloatStateOf(initHsv[2].coerceAtLeast(0.25f)) }
-    var hex by remember(initial) { mutableStateOf(String.format("#%06X", initial and 0xFFFFFF)) }
+    var hex by remember(initial) { mutableStateOf(String.format("%06X", initial and 0xFFFFFF)) } // 不含 #
 
     fun syncHex() {
         val argb = android.graphics.Color.HSVToColor(floatArrayOf(h, s, v))
-        hex = String.format("#%06X", argb and 0xFFFFFF)
+        hex = String.format("%06X", argb and 0xFFFFFF)
     }
 
     val previewArgb = android.graphics.Color.HSVToColor(floatArrayOf(h, s, v))
@@ -534,12 +565,12 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onConfirm: (In
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // 彩虹色相滑条
-            Text("色相", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr("色相"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -570,7 +601,7 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onConfirm: (In
 
             // 饱和度
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("饱和度", Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("饱和度"), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Slider(
                     value = s,
                     onValueChange = { s = it; syncHex() },
@@ -582,7 +613,7 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onConfirm: (In
 
             // 明度
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("亮度", Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("亮度"), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Slider(
                     value = v,
                     onValueChange = { v = it; syncHex() },
@@ -599,9 +630,8 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onConfirm: (In
                 OutlinedTextField(
                     value = hex,
                     onValueChange = { raw ->
-                        val cleaned = raw.uppercase().filter { it == '#' || it in '0'..'9' || it in 'A'..'F' }.take(7)
-                        hex = cleaned
-                        val digits = cleaned.removePrefix("#")
+                        val digits = raw.uppercase().filter { it in '0'..'9' || it in 'A'..'F' }.take(6)
+                        hex = digits
                         if (digits.length == 6) {
                             runCatching { (0xFF000000.toInt() or digits.toInt(16)) }.onSuccess { argb ->
                                 val out = FloatArray(3)
@@ -611,19 +641,23 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onConfirm: (In
                         }
                     },
                     singleLine = true,
-                    label = { Text("自定义色值 (HEX)") },
+                    prefix = { Text("#") }, // 固定的 #，删不掉
+                    label = { Text(tr("自定义色值 (HEX)")) },
                     modifier = Modifier.weight(1f),
                 )
             }
 
-            // 取消 / 确认保存
+            // 取消 / 使用；下面一行“保存到我的配色”
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("取消") }
+                OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text(tr("取消")) }
                 Button(
                     onClick = { onConfirm(previewArgb) },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = preview, contentColor = bestOnColor(preview)),
-                ) { Text("确认保存") }
+                ) { Text(tr("使用")) }
+            }
+            OutlinedButton(onClick = { onSave(previewArgb) }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("保存到我的配色"))
             }
         }
     }

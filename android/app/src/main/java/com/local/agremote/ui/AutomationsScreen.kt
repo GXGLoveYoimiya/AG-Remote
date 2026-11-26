@@ -69,15 +69,32 @@ fun cronText(s: String): String {
     if (parts.size != 5) return s
     val (min, hour, dom, mon, dow) = parts
     val m = min.toIntOrNull(); val h = hour.toIntOrNull()
-    if (m != null && hour == "*" && dom == "*" && mon == "*" && dow == "*") return "每小时第 $m 分"
+    fun f(key: String, vararg a: Any): String {
+        var r = I18n.t(key)
+        a.forEachIndexed { i, v -> r = r.replace("{$i}", v.toString()) }
+        return r
+    }
+    if (m != null && hour == "*" && dom == "*" && mon == "*" && dow == "*") return f("每小时第 {0} 分", m)
     if (m == null || h == null || dom != "*" || mon != "*") return parts.joinToString(" ")
     val t = "%02d:%02d".format(h, m)
     return when (dow) {
-        "*" -> "每天 $t"
-        "1-5" -> "工作日 $t"
-        "0,6", "6,0" -> "周末 $t"
-        else -> "每周" + dow.split(',').mapNotNull { it.toIntOrNull()?.let { d -> WEEK.getOrNull(d % 7) } }.joinToString("、") + " $t"
+        "*" -> f("每天 {0}", t)
+        "1-5" -> f("工作日 {0}", t)
+        "0,6", "6,0" -> f("周末 {0}", t)
+        else -> {
+            val zh = I18n.currentLang.startsWith("zh")
+            val days = dow.split(',').mapNotNull { it.toIntOrNull()?.let { d -> if (zh) WEEK.getOrNull(d % 7) else weekdayName(d) } }
+            f("每周{0} {1}", days.joinToString(if (zh) "、" else ", "), t)
+        }
     }
+}
+
+/** 星期几的简称（cron 里 0 = 周日），按界面语言显示：周一 / Mon / 月… */
+fun weekdayName(d: Int): String {
+    val lang = I18n.currentLang
+    if (lang.startsWith("zh")) return "周" + WEEK[d % 7]
+    val dw = java.time.DayOfWeek.of(if (d % 7 == 0) 7 else d % 7)
+    return dw.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.forLanguageTag(lang))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,9 +121,9 @@ fun AutomationsScreen(vm: AppViewModel, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.Center) {
                 Icon(Icons.Rounded.Schedule, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.outline)
                 Spacer(Modifier.height(12.dp))
-                Text("还没有自动化", style = MaterialTheme.typography.titleMedium)
+                Text(tr("还没有自动化"), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(6.dp))
-                Text("自动化会按你设定的时间，在电脑上自动开一个新对话，让 agent 去做你写好的事。",
+                Text(tr("自动化会按你设定的时间，在电脑上自动开一个新对话，让 agent 去做你写好的事。"),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             else -> LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 96.dp),
@@ -180,29 +197,29 @@ private fun AutomationEditor(vm: AppViewModel, a: Automation?, onClose: () -> Un
         Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().imePadding().padding(horizontal = 20.dp)
             .padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (a == null) "新建自动化" else "编辑自动化", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                if (a != null) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Rounded.Delete, "删除", tint = MaterialTheme.colorScheme.error) }
+                Text(if (a == null) tr("新建自动化") else tr("编辑自动化"), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                if (a != null) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Rounded.Delete, tr("删除"), tint = MaterialTheme.colorScheme.error) }
             }
-            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text("名称") }, singleLine = true)
-            OutlinedTextField(prompt, { prompt = it }, Modifier.fillMaxWidth().height(140.dp), label = { Text("到时间让 agent 做什么") })
-            Text("什么时候运行", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(tr("名称")) }, singleLine = true)
+            OutlinedTextField(prompt, { prompt = it }, Modifier.fillMaxWidth().height(140.dp), label = { Text(tr("到时间让 agent 做什么")) })
+            Text(tr("什么时候运行"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("daily" to "每天", "weekday" to "工作日", "weekly" to "每周", "hourly" to "每小时", "custom" to "自定义").forEach { (k, l) ->
-                    FilterChip(selected = mode == k, onClick = { mode = k }, label = { Text(l) })
+                    FilterChip(selected = mode == k, onClick = { mode = k }, label = { Text(tr(l)) })
                 }
             }
             if (mode == "weekly") FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 (1..7).map { it % 7 }.forEach { d ->
-                    FilterChip(selected = d in days, onClick = { if (d in days) days.remove(d) else days.add(d) }, label = { Text("周" + WEEK[d]) })
+                    FilterChip(selected = d in days, onClick = { if (d in days) days.remove(d) else days.add(d) }, label = { Text(weekdayName(d)) })
                 }
             }
             when (mode) {
                 "custom" -> OutlinedTextField(custom, { custom = it }, Modifier.fillMaxWidth(), singleLine = true,
-                    label = { Text("cron 表达式（分 时 日 月 周）") }, supportingText = { Text("时区：$tz") })
-                "hourly" -> TextButton(onClick = { pickTime = true }) { Text("每小时第 ${time.minute} 分（点这里修改）") }
-                else -> TextButton(onClick = { pickTime = true }) { Text("时间：%02d:%02d（点这里修改）".format(time.hour, time.minute)) }
+                    label = { Text(tr("cron 表达式（分 时 日 月 周）")) }, supportingText = { Text(tr("时区：{0}", tz)) })
+                "hourly" -> TextButton(onClick = { pickTime = true }) { Text(tr("每小时第 {0} 分（点这里修改）", time.minute)) }
+                else -> TextButton(onClick = { pickTime = true }) { Text(tr("时间：{0}（点这里修改）", "%02d:%02d".format(time.hour, time.minute))) }
             }
-            Text("将会：" + cronText(cron()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            Text(tr("将会：") + cronText(cron()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             Button(
                 onClick = {
                     busy = true
@@ -210,21 +227,21 @@ private fun AutomationEditor(vm: AppViewModel, a: Automation?, onClose: () -> Un
                 },
                 enabled = !busy && prompt.isNotBlank() && (mode != "weekly" || days.isNotEmpty()),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) { if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("保存") }
+            ) { if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text(tr("保存")) }
         }
     }
 
     if (pickTime) AlertDialog(
         onDismissRequest = { pickTime = false },
-        confirmButton = { TextButton(onClick = { pickTime = false }) { Text("好") } },
+        confirmButton = { TextButton(onClick = { pickTime = false }) { Text(tr("好")) } },
         text = { TimePicker(time) },
     )
     if (confirmDelete && a != null) AlertDialog(
         onDismissRequest = { confirmDelete = false },
-        title = { Text("删除自动化？") },
-        text = { Text("「${a.name}」会被删除，不会再自动运行。") },
+        title = { Text(tr("删除自动化？")) },
+        text = { Text(tr("「{0}」会被删除，不会再自动运行。", a.name)) },
         confirmButton = { TextButton(onClick = { confirmDelete = false; vm.automationAction(a.id, "delete"); onClose() }) {
-            Text("删除", color = MaterialTheme.colorScheme.error) } },
-        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("取消") } },
+            Text(tr("删除"), color = MaterialTheme.colorScheme.error) } },
+        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(tr("取消")) } },
     )
 }

@@ -132,18 +132,10 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
 
     Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = {
         AppTopBar(tr("自定义"), onBack = onBack) {
-                TextButton(onClick = { translateOn = !translateOn }) {
-                    Icon(
-                        Icons.Rounded.Translate, null, Modifier.size(18.dp),
-                        tint = if (translateOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        if (translateOn) tr("显示原文") else tr("Google 翻译"),
-                        maxLines = 1,
-                        softWrap = false,
-                        color = if (translateOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                androidx.compose.material3.FilledTonalIconToggleButton(checked = translateOn, onCheckedChange = { translateOn = it },
+                    colors = androidx.compose.material3.IconButtonDefaults.filledTonalIconToggleButtonColors(
+                        containerColor = androidx.compose.ui.graphics.Color.Transparent)) {
+                    Icon(Icons.Rounded.Translate, if (translateOn) tr("显示原文") else tr("Google 翻译"))
                 }
         }
     }) { pad ->
@@ -204,7 +196,7 @@ private fun MarketTab(vm: AppViewModel, q: String, translateOn: Boolean, onOpen:
             val shown = if (open || members.size <= 6) members else members.take(6)
             item(key = "m_" + g.id) { PluginGroup(vm, shown, market.installed, translateOn, onOpen) }
             if (members.size > 6) item(key = "more_" + g.id) {
-                TextButton(onClick = { expanded[g.id] = !open }) { Text(if (open) "收起" else "展开更多（${members.size - 6}）") }
+                TextButton(onClick = { expanded[g.id] = !open }) { Text(if (open) tr("收起") else tr("展开更多（{0}）", members.size - 6)) }
             }
         }
     }
@@ -377,7 +369,7 @@ private fun PluginDetail(vm: AppViewModel, p: MarketItem, initialTranslate: Bool
                 installed -> OutlinedButton(onClick = { confirmRemove = true }, Modifier.fillMaxWidth()) { Text(tr("移除")) }
                 else -> Button(onClick = { vm.marketAction(p.id, "install") }, Modifier.fillMaxWidth()) { Text(tr("添加")) }
             }
-            Text("添加后会装到电脑上的 Antigravity 里。有些插件需要在电脑上登录对应账号后才能用。",
+            Text(tr("添加后会装到电脑上的 Antigravity 里。有些插件需要在电脑上登录对应账号后才能用。"),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

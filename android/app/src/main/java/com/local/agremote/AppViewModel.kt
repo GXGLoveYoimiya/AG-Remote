@@ -612,7 +612,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         JSONObject(prefs.i18nJson).let { o -> o.keys().asSequence().associateWith { o.optString(it) } }
     }.getOrElse { emptyMap() })
     val i18n = _i18n.asStateFlow()
-    fun zh(s: String): String = _i18n.value[s] ?: s
+    /** Antigravity 官方中文译文：只在简体中文界面用；其他语言保持英文原文，再由谷歌翻译成对应语言。 */
+    fun zh(s: String): String = if (com.local.agremote.ui.I18n.currentLang == "zh-CN") _i18n.value[s] ?: s else s
 
     // ---------- 语音输入状态 ----------
     private val _recording = MutableStateFlow(false)

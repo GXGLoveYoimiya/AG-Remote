@@ -114,12 +114,13 @@ fun ListRow(
                 tint = if (titleColor == MaterialTheme.colorScheme.onSurface) MaterialTheme.colorScheme.primary else titleColor)
             Spacer(Modifier.width(14.dp))
         }
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(2f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = titleColor)
             if (!desc.isNullOrBlank()) Text(desc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (!value.isNullOrBlank()) Text(value, Modifier.padding(start = 8.dp).widthIn(max = 170.dp), style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (!value.isNullOrBlank()) Text(value, Modifier.weight(1f, fill = false).padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End)
         trailing?.invoke()
         when (end) {
             RowEnd.Chevron -> Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

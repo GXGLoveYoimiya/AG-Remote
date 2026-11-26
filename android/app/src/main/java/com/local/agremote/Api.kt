@@ -191,6 +191,8 @@ data class ThemeConfig(
     val darkMode: String = "system",     // system / light / dark
     val colorMode: String = "custom",    // system / custom
     val seedColor: Int = 0xFFD97757.toInt(),
+    val customColor: Int = 0xFFD97757.toInt(), // 取色器里调的颜色，单独保存，点预设色不会改它
+    val savedColors: List<Int> = emptyList(),  // 我的配色（最多 7 个）
 )
 
 /** 已保存的电脑端设备（支持多设备切换，每个设备可自定义名称和 IP/端口）。 */
@@ -291,12 +293,16 @@ class Prefs(ctx: Context) {
             darkMode = sp.getString("theme_dark", "system") ?: "system",
             colorMode = sp.getString("theme_color_mode", "custom") ?: "custom",
             seedColor = sp.getInt("theme_seed", 0xFFD97757.toInt()),
+            customColor = sp.getInt("theme_custom", sp.getInt("theme_seed", 0xFFD97757.toInt())),
+            savedColors = (sp.getString("theme_saved", "") ?: "").split(',').mapNotNull { it.trim().toLongOrNull()?.toInt() },
         )
         set(v) = sp.edit()
             .putString("theme_style", v.style)
             .putString("theme_dark", v.darkMode)
             .putString("theme_color_mode", v.colorMode)
             .putInt("theme_seed", v.seedColor)
+            .putInt("theme_custom", v.customColor)
+            .putString("theme_saved", v.savedColors.joinToString(",") { (it.toLong() and 0xFFFFFFFFL).toString() })
             .apply()
     val base get() = "http://$host:$port"
 }

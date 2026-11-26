@@ -321,7 +321,7 @@ private fun OverviewDetailSheet(
                                             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.End) {
                                                 TextButton(onClick = {
                                                     vm.openPreview(vm.previewOf(StepAttachment(f.name, Attachments.mimeOf(f.name), f.path)))
-                                                }) { Text("查看完整文件") }
+                                                }) { Text(tr("查看完整文件")) }
                                             }
                                             if (diff.isNotBlank()) {
                                                 Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
@@ -418,8 +418,8 @@ private fun OverviewDetailSheet(
                                         if (open) {
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                                             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.End) {
-                                                TextButton(onClick = { vm.copy(cmd.text, "已复制命令") }) { Text("复制命令") }
-                                                if (cmd.detail.isNotBlank()) TextButton(onClick = { vm.copy(cmd.detail, "已复制输出") }) { Text("复制输出") }
+                                                TextButton(onClick = { vm.copy(cmd.text, "已复制命令") }) { Text(tr("复制命令")) }
+                                                if (cmd.detail.isNotBlank()) TextButton(onClick = { vm.copy(cmd.detail, "已复制输出") }) { Text(tr("复制输出")) }
                                             }
                                             if (cmd.detail.isNotBlank()) {
                                                 Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
@@ -484,11 +484,11 @@ private fun OverviewDetailSheet(
                             Surface(shape = RoundedCornerShape(20.dp), color = sheetCardColor()) {
                                 Column(Modifier.fillMaxWidth().padding(12.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("命令", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(tr("命令"), Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         TextButton(onClick = { vm.copy(task.command, "已复制命令") }) {
                                             Icon(Icons.Rounded.ContentCopy, null, Modifier.size(14.dp))
                                             Spacer(Modifier.width(4.dp))
-                                            Text("复制")
+                                            Text(tr("复制"))
                                         }
                                     }
                                     Text(task.command, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 16.sp)
@@ -502,7 +502,7 @@ private fun OverviewDetailSheet(
                                         style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     val body = logText ?: ""
                                     if (body.isNotBlank()) {
-                                        TextButton(onClick = { vm.copy(body, "已复制日志") }) { Text("复制日志") }
+                                        TextButton(onClick = { vm.copy(body, "已复制日志") }) { Text(tr("复制日志")) }
                                     }
                                 }
                                 when (val body = logText) {

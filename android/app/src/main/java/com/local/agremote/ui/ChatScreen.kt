@@ -116,13 +116,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.SpaceDashboard
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import android.Manifest
@@ -146,7 +144,6 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -227,7 +224,7 @@ fun ChatScreen(
     }
 
     // 额度圆环：进来先读一次，之后每分钟刷新；每轮回复结束也刷新
-    LaunchedEffect(Unit) { while (true) { vm.refreshQuota(); kotlinx.coroutines.delay(60_000) } }
+    LaunchedEffect(Unit) { while (true) { if (com.local.agremote.AppState.foreground) vm.refreshQuota(); kotlinx.coroutines.delay(60_000) } } // 在后台不刷新
     LaunchedEffect(working) { if (!working) vm.refreshQuota() }
 
     val projects by vm.projects.collectAsState()
@@ -440,7 +437,7 @@ internal fun ModelSheet(models: List<ModelInfo>, selected: String, onPick: (Stri
                 Text(when (page) { "levels" -> "Thinking"; "more" -> tr("更多"); else -> tr("选择模型") },
                     Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
-            if (models.isEmpty()) Text("读取中…", Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (models.isEmpty()) Text(tr("读取中…"), Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Column(Modifier.noSheetOverscroll().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 when (page) {
@@ -1134,21 +1131,21 @@ private fun WaitingCard(vm: AppViewModel, hasWorkspace: Boolean, step: Step) {
     if (denyDialog) {
         AlertDialog(
             onDismissRequest = { denyDialog = false },
-            title = { Text("拒绝并告诉 agent 原因") },
+            title = { Text(tr("拒绝并告诉 agent 原因")) },
             text = {
                 OutlinedTextField(
                     value = denyReason,
                     onValueChange = { denyReason = it },
-                    placeholder = { Text("例如：换一种方式，不要修改这个文件") },
+                    placeholder = { Text(tr("例如：换一种方式，不要修改这个文件")) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 4,
                 )
             },
             confirmButton = {
-                Button(onClick = { denyDialog = false; send(false, text = denyReason.trim()) }) { Text("拒绝") }
+                Button(onClick = { denyDialog = false; send(false, text = denyReason.trim()) }) { Text(tr("拒绝")) }
             },
             dismissButton = {
-                TextButton(onClick = { denyDialog = false }) { Text("取消") }
+                TextButton(onClick = { denyDialog = false }) { Text(tr("取消")) }
             },
         )
     }
@@ -1194,7 +1191,7 @@ private fun AskQuestionForm(step: Step, busy: Boolean, onSubmit: (JSONArray) -> 
                     }, label = { Text(label) })
                 }
             }
-            OutlinedTextField(texts[qi], { texts[qi] = it }, Modifier.fillMaxWidth(), placeholder = { Text("或者自己写…") }, singleLine = false)
+            OutlinedTextField(texts[qi], { texts[qi] = it }, Modifier.fillMaxWidth(), placeholder = { Text(tr("或者自己写…")) }, singleLine = false)
         }
     }
     Button(onClick = {
@@ -1204,7 +1201,7 @@ private fun AskQuestionForm(step: Step, busy: Boolean, onSubmit: (JSONArray) -> 
                 .put("text", texts.getOrElse(qi) { "" }))
         }
         onSubmit(arr)
-    }, enabled = !busy) { Text("提交") }
+    }, enabled = !busy) { Text(tr("提交")) }
 }
 
 private fun assistantName(modelLabel: String): String = when {
@@ -1606,7 +1603,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                     }
                                 }, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                             } else if (!holdMode) {
-                                Text("正在识别，请说话…", style = MaterialTheme.typography.bodyLarge,
+                                Text(tr("正在识别，请说话…"), style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
                                 val ai = assistantName(fullLabel)
@@ -1620,7 +1617,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                         Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                             Spacer(Modifier.size(44.dp))
                             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                Text("正在转录…", style = MaterialTheme.typography.bodyMedium,
+                                Text(tr("正在转录…"), style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             FilledTonalIconButton(onClick = {}, enabled = false, modifier = Modifier.size(44.dp)) {
@@ -1729,14 +1726,14 @@ private fun cjkSpace(s: String): String = s
     .replace(Regex("([\u4e00-\u9fff\u3040-\u30ff])([A-Za-z0-9])"), "$1 $2")
     .replace(Regex("([A-Za-z0-9])([\u4e00-\u9fff\u3040-\u30ff])"), "$1 $2")
 
-/** 额度圆环：圈的长度是这 5 小时已用掉的比例；用得少是强调色，过 60% 变橙黄，过 85% 变红。 */
+/** 额度圆环：圈的长度是这 5 小时已用掉的比例；用得少是蓝色，过 60% 变橙黄，过 85% 变红。 */
 @Composable
 private fun QuotaRing(remaining: Double) {
     val used = ((1.0 - remaining) * 100).toInt().coerceIn(0, 100)
     val color = when {
         used >= 85 -> MaterialTheme.colorScheme.error
         used >= 60 -> Color(0xFFF0A030)
-        else -> accent()
+        else -> Color(0xFF3B82F6) // 用得少：蓝色
     }
     CircularProgressIndicator(progress = { used / 100f }, modifier = Modifier.size(20.dp), color = color,
         trackColor = color.copy(alpha = 0.2f), strokeWidth = 2.5.dp, strokeCap = StrokeCap.Round, gapSize = 0.dp)

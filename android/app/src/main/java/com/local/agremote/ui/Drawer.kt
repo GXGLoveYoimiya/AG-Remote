@@ -207,13 +207,13 @@ internal fun ProjectDialog(title: String, initName: String, showFolder: Boolean,
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("名称") })
-                if (showFolder) OutlinedTextField(folder, { folder = it }, singleLine = true, label = { Text("电脑上的文件夹（可不填）") },
+                OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(tr("名称")) })
+                if (showFolder) OutlinedTextField(folder, { folder = it }, singleLine = true, label = { Text(tr("电脑上的文件夹（可不填）")) },
                     placeholder = { Text("D:/Projects/xxx") })
             }
         },
-        confirmButton = { TextButton(onClick = { onOk(name.trim(), folder.trim()) }, enabled = name.isNotBlank()) { Text("好") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(onClick = { onOk(name.trim(), folder.trim()) }, enabled = name.isNotBlank()) { Text(tr("好")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("取消")) } },
     )
 }
 

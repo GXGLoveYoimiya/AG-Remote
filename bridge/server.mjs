@@ -207,45 +207,45 @@ function csrfFrom(cl) {
   return (String(cl || '').match(/--csrf_token(?:=|\s+)"?([^\s"]+)/) || [])[1] || '';
 }
 
-/** Antigravity 的数据目录（~/.gemini/antigravity）。 */
-const AG_HOME = join(process.env.USERPROFILE || process.env.HOME || '', '.gemini', 'antigravity');
-
-/** 进程还在不在（Windows 上 signal 0 也能用）。 */
-function pidAlive(pid) {
-  try { process.kill(Number(pid), 0); return true; } catch (e) { return e.code === 'EPERM'; }
-}
-
-/**
- * 首选方式：Antigravity 的后台服务每次启动都会写 ~/.gemini/antigravity/daemon/hub_<端口>.json
- * （pid、httpPort、httpsPort、lsVersion、csrfToken）。2.35 起令牌不再出现在启动参数里，只能从这里拿；
- * 这样也不依赖 PowerShell，Antigravity 以管理员身份运行时同样能读到。目录里会残留旧进程的文件，所以要确认进程还在。
- */
-async function discoverFromDaemonFiles(diag) {
-  const dir = join(AG_HOME, 'daemon');
-  let files = [];
-  try {
-    files = readdirSync(dir).filter(f => /\.json$/i.test(f))
-      .map(f => ({ f, t: statSync(join(dir, f)).mtimeMs })).sort((a, b) => b.t - a.t);
-  } catch { /* 没有这个目录：老版本或没装 */ }
-  diag.daemonFiles = files.length;
-  for (const { f } of files) {
-    let j;
-    try { j = JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { continue; }
-    const port = Number(j.httpPort), token = String(j.csrfToken || '');
-    const d = { file: f, pid: j.pid, version: j.lsVersion || '', alive: pidAlive(j.pid), hasToken: !!token, port, probe: '' };
-    diag.daemon.push(d);
-    if (!d.alive || !token || !port) continue;
-    const cand = { base: `http://127.0.0.1:${port}`, token, pid: j.pid, version: d.version, exe: '' };
-    if (lastGood && lastGood.base === cand.base && lastGood.token === token && lastGood.pid === cand.pid) { d.probe = 'ok'; return lastGood; }
-    try {
-      await probe(cand);
-      d.probe = 'ok';
-      return cand;
-    } catch (e) {
-      d.probe = String(e.status ? `HTTP ${e.status}` : (e.cause?.code || e.name || e.message)).slice(0, 120);
-    }
-  }
-  return null;
+/** Antigravity 的数据目录（~/.gemini/antigravity）。 */
+const AG_HOME = join(process.env.USERPROFILE || process.env.HOME || '', '.gemini', 'antigravity');
+
+/** 进程还在不在（Windows 上 signal 0 也能用）。 */
+function pidAlive(pid) {
+  try { process.kill(Number(pid), 0); return true; } catch (e) { return e.code === 'EPERM'; }
+}
+
+/**
+ * 首选方式：Antigravity 的后台服务每次启动都会写 ~/.gemini/antigravity/daemon/hub_<端口>.json
+ * （pid、httpPort、httpsPort、lsVersion、csrfToken）。2.35 起令牌不再出现在启动参数里，只能从这里拿；
+ * 这样也不依赖 PowerShell，Antigravity 以管理员身份运行时同样能读到。目录里会残留旧进程的文件，所以要确认进程还在。
+ */
+async function discoverFromDaemonFiles(diag) {
+  const dir = join(AG_HOME, 'daemon');
+  let files = [];
+  try {
+    files = readdirSync(dir).filter(f => /\.json$/i.test(f))
+      .map(f => ({ f, t: statSync(join(dir, f)).mtimeMs })).sort((a, b) => b.t - a.t);
+  } catch { /* 没有这个目录：老版本或没装 */ }
+  diag.daemonFiles = files.length;
+  for (const { f } of files) {
+    let j;
+    try { j = JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { continue; }
+    const port = Number(j.httpPort), token = String(j.csrfToken || '');
+    const d = { file: f, pid: j.pid, version: j.lsVersion || '', alive: pidAlive(j.pid), hasToken: !!token, port, probe: '' };
+    diag.daemon.push(d);
+    if (!d.alive || !token || !port) continue;
+    const cand = { base: `http://127.0.0.1:${port}`, token, pid: j.pid, version: d.version, exe: '' };
+    if (lastGood && lastGood.base === cand.base && lastGood.token === token && lastGood.pid === cand.pid) { d.probe = 'ok'; return lastGood; }
+    try {
+      await probe(cand);
+      d.probe = 'ok';
+      return cand;
+    } catch (e) {
+      d.probe = String(e.status ? `HTTP ${e.status}` : (e.cause?.code || e.name || e.message)).slice(0, 120);
+    }
+  }
+  return null;
 }
 
 async function discover() {
@@ -1255,36 +1255,23 @@ async function closePcBrowserTab(targetCid, tabId, curCid) {
   return { ok: true, removed, ...(await getPcBrowserTabs(curCid || targetCid || '')) };
 }
 
-/** 捕获电脑上 Antigravity 窗口画面（mode=pane 只截右侧内置浏览器区，mode=full 截整个窗口）。 */
+/** 截一张电脑屏幕（视频流连不上时的备用方式）。 */
 const WINCAP_EXE = join(ROOT, 'wincap.exe');
-let screenInflight = new Map();
-function captureAntigravityScreen(mode = 'screen') {
-  const m = mode === 'pane' ? 'pane' : 'screen';
-  if (screenInflight.has(m)) return screenInflight.get(m);
+let screenInflight = null;
+function captureAntigravityScreen() {
+  if (screenInflight) return screenInflight;
   const p = new Promise(resolve => {
     if (!existsSync(WINCAP_EXE)) return resolve({ ok: false, reason: 'NO_WINCAP' });
-    const target = m === 'pane' ? paneRatioFor('pane') : 'screen';
-    const maxW = m === 'pane' ? '1280' : '1600';
-    execFile(WINCAP_EXE, [target, '80', maxW], { encoding: 'buffer', maxBuffer: 8 << 20, windowsHide: true, timeout: 4000 }, (err, stdout, stderr) => {
+    execFile(WINCAP_EXE, ['screen', '80', '1600'], { encoding: 'buffer', maxBuffer: 8 << 20, windowsHide: true, timeout: 4000 }, (err, stdout, stderr) => {
       if (err || !stdout || stdout.length < 100) {
         const reason = (stderr ? stderr.toString('utf8').trim() : '') || (err?.message || 'CAPTURE_FAILED');
         return resolve({ ok: false, reason });
       }
       resolve({ ok: true, data: stdout });
     });
-  }).finally(() => screenInflight.delete(m));
-  screenInflight.set(m, p);
+  }).finally(() => { screenInflight = null; });
+  screenInflight = p;
   return p;
-}
-
-function paneRatioFor(mode) {
-  if (mode !== 'pane') return 'screen';
-  try {
-    const file = join(process.env.APPDATA || '', 'Antigravity', 'app_storage.json');
-    const st = JSON.parse(readFileSync(file, 'utf8'));
-    const pct = Math.min(85, Math.max(35, Number(st.auxPaneWidth) || 60));
-    return (pct / 100).toFixed(2);
-  } catch { return '0.60'; }
 }
 
 /** 常驻 wincap.exe daemon，把手机鼠标/拖拽/滚轮/键盘/读取编辑输入框以 <2ms 延迟发往电脑。 */
@@ -1320,10 +1307,10 @@ function ensureInputDaemon() {
   return p;
 }
 
-function sendAntigravityInput({ action, mode = 'screen', nx = 0.5, ny = 0.5, delta = 0, text = '', key = '' }) {
+function sendAntigravityInput({ action, nx = 0.5, ny = 0.5, delta = 0, text = '', key = '' }) {
   const allowed = new Set(['move', 'mousedown', 'mouseup', 'click', 'dblclick', 'rightclick', 'wheel', 'text', 'key', 'readfield', 'replacefield', 'cursor', 'touchdown', 'touchmove', 'touchup', 'touchcancel']);
   if (!allowed.has(action)) return Promise.reject(new Error('不支持的操作'));
-  const target = mode === 'pane' ? paneRatioFor('pane') : 'screen';
+  const target = 'screen'; // 画面始终是整个电脑屏幕
   const extra = action === 'wheel' ? String(Math.round(Number(delta) || -240))
     : (action === 'text' || action === 'replacefield' || action === 'cursor') ? String(text ?? '')
     : action === 'key' ? String(key || '') : '';
@@ -2407,6 +2394,10 @@ async function dl(){
       res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' });
       res.socket?.setNoDelay?.(true);
       let buf = Buffer.alloc(0);
+      let lastSent = Date.now();
+      // 手机网络断了但连接没正常关闭时，帧会一直积压发不出去：15 秒没能发出任何一帧就停掉截图程序
+      const stall = setInterval(() => { if (Date.now() - lastSent > 15000) { try { p.kill(); } catch {} try { res.destroy(); } catch {} } }, 5000);
+      p.on('exit', () => clearInterval(stall));
       p.stdout.on('data', chunk => {
         buf = buf.length ? Buffer.concat([buf, chunk]) : chunk;
         let latest = null;
@@ -2415,7 +2406,7 @@ async function dl(){
           if (buf.length < 4 + n) break;
           latest = buf.subarray(0, 4 + n);
           buf = buf.subarray(4 + n);
-          if (res.writableLength < (1 << 20)) { res.write(Buffer.from(latest)); latest = null; } // 积压太多就丢这一帧（高画质帧更大，阈值放宽到 1MB）
+          if (res.writableLength < (1 << 20)) { res.write(Buffer.from(latest)); latest = null; lastSent = Date.now(); } // 积压太多就丢这一帧（高画质帧更大，阈值放宽到 1MB）
         }
       });
       p.on('exit', () => { try { res.end(); } catch {} });
@@ -2424,8 +2415,7 @@ async function dl(){
       return;
     }
     if (path === '/api/browser/screen' && req.method === 'GET') {
-      const mode = url.searchParams.get('mode') === 'pane' ? 'pane' : 'full';
-      const r = await captureAntigravityScreen(mode);
+      const r = await captureAntigravityScreen();
       if (!r.ok) return send(res, 404, { error: r.reason || '窗口不可见' });
       res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': r.data.length, 'Cache-Control': 'no-store' });
       return res.end(r.data);

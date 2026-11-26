@@ -88,7 +88,7 @@ fun PreviewDialog(item: PreviewItem, onClose: () -> Unit) {
             val b = bytes
             when {
                 b == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                b.isEmpty() -> Text("读取失败", Modifier.align(Alignment.Center), color = if (darkStage) Color.White else MaterialTheme.colorScheme.error)
+                b.isEmpty() -> Text(tr("读取失败"), Modifier.align(Alignment.Center), color = if (darkStage) Color.White else MaterialTheme.colorScheme.error)
                 image -> ZoomImage(b)
                 video -> VideoPlayer(b, item.name)
                 text -> {
@@ -151,7 +151,7 @@ private fun VideoPlayer(bytes: ByteArray, name: String) {
 @Composable
 private fun ZoomImage(bytes: ByteArray) {
     val bmp = remember(bytes) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
-    if (bmp == null) { Box(Modifier.fillMaxSize()) { Text("图片打不开", Modifier.align(Alignment.Center), color = Color.White) }; return }
+    if (bmp == null) { Box(Modifier.fillMaxSize()) { Text(tr("图片打不开"), Modifier.align(Alignment.Center), color = Color.White) }; return }
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     Image(
