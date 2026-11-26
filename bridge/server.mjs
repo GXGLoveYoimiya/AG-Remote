@@ -7,7 +7,7 @@ import net from 'node:net';
 import tls from 'node:tls';
 import { execFile, spawn } from 'node:child_process';
 import { randomBytes, randomInt, timingSafeEqual, createHash } from 'node:crypto';
-import { networkInterfaces, hostname } from 'node:os';
+import { networkInterfaces, hostname, release } from 'node:os';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
@@ -24,6 +24,8 @@ const DATA = join(ROOT, 'data');
 const CONFIG_FILE = join(DATA, 'config.json');
 const DRAFTS_FILE = join(DATA, 'drafts.json');
 const PORT = Number(process.env.AGR_PORT || 5100);
+const APP_VERSION = '1.0.1';
+let lastAdminDiscover = 0;
 const SVC = '/exa.language_server_pb.LanguageServerService/';
 
 mkdirSync(DATA, { recursive: true });
@@ -98,6 +100,7 @@ function adminState() {
     host: hostname(),
     addrs: tailscaleAddrs(),
     antigravity: !!ls,
+    agState: ls ? 'ok' : agDiag.state,
     devices: config.devices.map(d => {
       const id = deviceId(d);
       const seen = deviceSeen.get(id);
@@ -108,6 +111,13 @@ function adminState() {
       };
     }),
   };
+}
+/** 诊断信息会被贴到公开的 GitHub issue：把路径里的用户目录换成 %USERPROFILE%，不暴露 Windows 用户名。 */
+function redactUser(obj) {
+  const home = process.env.USERPROFILE || '';
+  let s = JSON.stringify(obj);
+  if (home) s = s.split(JSON.stringify(home).slice(1, -1)).join('%USERPROFILE%');
+  return JSON.parse(s);
 }
 /** 配对页和它的接口；不是这些路径返回 false。 */
 async function handleAdmin(req, res, path) {
@@ -123,7 +133,18 @@ async function handleAdmin(req, res, path) {
     res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'max-age=86400' });
     return res.end(readFileSync(join(ROOT, 'app-icon.svg')));
   }
-  if (path === '/admin/api/state' && req.method === 'GET') return send(res, 200, adminState());
+  if (path === '/admin/api/state' && req.method === 'GET') {
+    // 手机还没连上时没人去找 Antigravity：配对页打开着就每 5 秒找一次，免得一直显示“没开”
+    if (!ls && !discovering && Date.now() - lastAdminDiscover > 5000) {
+      lastAdminDiscover = Date.now();
+      discovering = discover().then(x => { ls = x; return x; }).finally(() => { discovering = null; });
+    }
+    return send(res, 200, adminState());
+  }
+  if (path === '/admin/api/diagnostics' && req.method === 'GET') {
+    return send(res, 200, { version: APP_VERSION, node: process.versions.node, os: `${process.platform} ${release()}`,
+      connected: !!ls, port: PORT, tailscaleAddrs: tailscaleAddrs().length, discovery: redactUser(agDiag) });
+  }
   if (path === '/admin/api/new-code' && req.method === 'POST') {
     newPairCode();
     log(`配对码已更换：${config.pairCode}`);
@@ -169,36 +190,86 @@ function allowedRemote(addr = '') {
 // ---------------- 找到 language_server ----------------
 let ls = null; // { base, token, pid }
 
-function ps(cmd) {
-  return new Promise(res => execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', cmd],
-    { windowsHide: true, maxBuffer: 4 << 20 }, (e, out) => res(e ? '' : out)));
+function ps(cmd, timeoutMs = 20000) {
+  // 输出强制 UTF-8：用户名/安装路径里有中文等字符时，默认的控制台代码页会把它们弄成乱码
+  const full = '[Console]::OutputEncoding = [Text.Encoding]::UTF8; ' + cmd;
+  return new Promise(res => execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', full],
+    { windowsHide: true, maxBuffer: 4 << 20, encoding: 'buffer', timeout: timeoutMs },
+    (e, out, err) => res({ out: out ? out.toString('utf8') : '', err: e ? (String(err || '') || e.message).trim().slice(0, 300) : '' })));
 }
 
 let lastGood = null; // 上次连上的 language_server（同进程、同端口、同令牌时不用再试探）
+/** 最近一次查找 Antigravity 的经过，给配对页显示原因、给用户复制去报问题（不含令牌）。 */
+let agDiag = { at: '', state: 'pending', detail: '', processes: [] };
+
+/** 从启动参数里取 CSRF 令牌：兼容 `--csrf_token xxx`、`--csrf_token=xxx` 和带引号的写法。 */
+function csrfFrom(cl) {
+  return (String(cl || '').match(/--csrf_token(?:=|\s+)"?([^\s"]+)/) || [])[1] || '';
+}
+
 async function discover() {
-  const out = await ps(
-    "Get-CimInstance Win32_Process -Filter \"Name='language_server.exe'\" | ForEach-Object { " +
+  const r = await ps(
+    // 不同版本进程名可能带后缀（如 language_server_windows_x64.exe），所以按前缀找；顺便看主程序在不在，用来区分“没开”和“开了但找不到后台”
+    "$ag = @(Get-CimInstance Win32_Process -Filter \"Name='Antigravity.exe'\" -ErrorAction SilentlyContinue).Count; " +
+    "$ls = @(Get-CimInstance Win32_Process -Filter \"Name LIKE 'language_server%'\" -ErrorAction SilentlyContinue | ForEach-Object { " +
     "$p=$_.ProcessId; $ports=(Get-NetTCPConnection -State Listen -OwningProcess $p -ErrorAction SilentlyContinue).LocalPort -join ','; " +
-    "[pscustomobject]@{pid=$p; ports=$ports; cl=$_.CommandLine; exe=$_.ExecutablePath} } | ConvertTo-Json -Compress");
-  let list = [];
-  try { list = JSON.parse(out || '[]'); } catch {}
+    "[pscustomobject]@{pid=$p; name=$_.Name; ports=$ports; cl=$_.CommandLine; exe=$_.ExecutablePath} }); " +
+    "[pscustomobject]@{ag=$ag; ls=$ls} | ConvertTo-Json -Compress -Depth 4");
+  const diag = { at: new Date().toISOString(), state: '', detail: '', antigravityProcesses: 0, processes: [] };
+  let data = null;
+  try { data = JSON.parse(r.out || 'null'); } catch {}
+  if (!data) {
+    agDiag = { ...diag, state: 'psFailed', detail: r.err || 'PowerShell returned nothing' };
+    return null;
+  }
+  diag.antigravityProcesses = Number(data.ag) || 0;
+  let list = data.ls || [];
   if (!Array.isArray(list)) list = [list];
   for (const p of list) {
-    const token = (String(p.cl || '').match(/--csrf_token\s+(\S+)/) || [])[1];
-    if (!token || !p.ports) continue;
-    for (const port of String(p.ports).split(',').filter(Boolean)) {
+    const token = csrfFrom(p.cl);
+    const d = { pid: p.pid, name: p.name || '', exe: p.exe || '', canReadArgs: !!p.cl, hasToken: !!token,
+      ports: String(p.ports || '').split(',').filter(Boolean).map(Number), probes: [] };
+    diag.processes.push(d);
+    if (!token) continue;
+    for (const port of d.ports) {
       const cand = { base: `http://127.0.0.1:${port}`, token, pid: p.pid, exe: p.exe || '' };
-      if (lastGood && lastGood.base === cand.base && lastGood.token === token && lastGood.pid === p.pid) return lastGood;
+      if (lastGood && lastGood.base === cand.base && lastGood.token === token && lastGood.pid === p.pid) {
+        agDiag = { ...diag, state: 'ok', detail: `pid ${p.pid} port ${port}` };
+        return lastGood;
+      }
       try {
-        // Antigravity 忙（跑任务）时这个接口可能要好几秒，给足时间，免得误判成“没开”
-        await rawRpc(cand, 'GetAllCascadeTrajectories', {}, 12000);
+        await probe(cand);
         lastGood = cand;
         log(`language_server 已连接：pid ${p.pid} 端口 ${port}`);
+        d.probes.push({ port, ok: true });
+        agDiag = { ...diag, state: 'ok', detail: `pid ${p.pid} port ${port}` };
         return cand;
-      } catch {}
+      } catch (e) {
+        d.probes.push({ port, ok: false, error: String(e.status ? `HTTP ${e.status}` : (e.cause?.code || e.name || e.message)).slice(0, 120) });
+      }
     }
   }
+  // 没连上：给出最可能的原因
+  const procs = diag.processes;
+  let state;
+  if (!procs.length) state = diag.antigravityProcesses ? 'noLanguageServer' : 'notRunning';
+  else if (procs.every(p => !p.canReadArgs)) state = 'noAccess';     // 多半是 Antigravity 以管理员身份运行
+  else if (procs.every(p => !p.hasToken)) state = 'noToken';         // 启动参数里没有令牌：可能是不兼容的新版本
+  else if (procs.every(p => !p.ports.length)) state = 'noPort';
+  else state = 'probeFailed';
+  agDiag = { ...diag, state };
+  if (state !== 'notRunning') log('没连上 Antigravity：', state, JSON.stringify(procs.map(p => ({ pid: p.pid, args: p.canReadArgs, token: p.hasToken, ports: p.ports, probes: p.probes }))));
   return null;
+}
+
+/** 试探一个端口是不是 Antigravity 的接口：先用很轻的模型配置接口；老版本没有它时再用对话列表接口。 */
+async function probe(cand) {
+  try {
+    await rawRpc(cand, 'GetCascadeModelConfigData', {}, 12000);
+  } catch (e) {
+    if (e.status === 404) await rawRpc(cand, 'GetAllCascadeTrajectories', {}, 12000);
+    else throw e;
+  }
 }
 
 async function rawRpc(target, method, body, timeoutMs = 15000) {
