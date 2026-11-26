@@ -136,7 +136,7 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
                     Icon(Icons.Rounded.Translate, null, Modifier.size(18.dp),
                         tint = if (translateOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
-                    Text(if (translateOn) tr("显示原文") else tr("Google 翻译"), maxLines = 1, softWrap = false,
+                    Text(if (translateOn) tr("显示原文") else tr("翻译"), maxLines = 1, softWrap = false,
                         color = if (translateOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
         }
@@ -415,7 +415,7 @@ private fun InstalledTab(
                     TextButton(onClick = onToggleTranslate) {
                         Icon(Icons.Rounded.Translate, null, Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(if (translateOn) tr("显示原文") else tr("Google 翻译"), style = MaterialTheme.typography.labelMedium)
+                        Text(if (translateOn) tr("显示原文") else tr("翻译"), style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
