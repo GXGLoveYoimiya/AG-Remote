@@ -902,6 +902,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** 读回手机浏览器的标签页：(标签页, 当前标签 id, 上次的模式 live/web)。 */
+    fun loadBrowserTabs(): Triple<List<BrowserTab>, String, String> = runCatching {
+        val o = JSONObject(prefs.browserTabs)
+        val a = o.optJSONArray("tabs") ?: JSONArray()
+        val tabs = (0 until a.length()).map { i -> a.getJSONObject(i).let { BrowserTab(it.optString("id"), it.optString("url"), it.optString("title"), "", "", "") } }
+            .filter { it.id.isNotBlank() && it.url.isNotBlank() }
+        Triple(tabs, o.optString("active"), o.optString("mode", "live"))
+    }.getOrDefault(Triple(emptyList(), "", "live"))
+
+    fun saveBrowserTabs(tabs: List<BrowserTab>, active: String, mode: String) {
+        val a = JSONArray()
+        tabs.forEach { a.put(JSONObject().put("id", it.id).put("url", it.url).put("title", it.title)) }
+        prefs.browserTabs = JSONObject().put("tabs", a).put("active", active).put("mode", mode).toString()
+    }
+
+    /** 网页翻译：把页面上的文字整批交给电脑翻译（不存盘）。 */
+    suspend fun translatePageTexts(texts: List<String>, lang: String): Map<String, String> {
+        val target = when (lang) { "zh-HK" -> "zh-TW"; "" -> "zh-CN"; else -> lang }
+        val out = HashMap<String, String>()
+        for (chunk in texts.chunked(1000)) runCatching { out.putAll(api.translateMany(chunk, target, keep = false)) }
+        return out
+    }
+
     /** 浏览器首页里删掉的“当前对话中的链接”（这次打开 App 期间不再显示）。 */
     private val _hiddenLinks = MutableStateFlow<Set<String>>(emptySet())
     val hiddenLinks = _hiddenLinks.asStateFlow()

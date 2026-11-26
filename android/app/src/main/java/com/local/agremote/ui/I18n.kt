@@ -115,6 +115,10 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "电脑上没有新的标签页" to "電腦上沒有新的分頁",
+        "正在翻译…" to "正在翻譯…",
+        "翻译失败" to "翻譯失敗",
+        "在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来" to "在上方輸入網址或搜尋；右上角「⋯」可以把電腦上開啟的網頁複製過來",
         "复制链接" to "複製連結",
         "已复制链接" to "已複製連結",
         "新建标签页" to "新增分頁",
@@ -399,6 +403,10 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "电脑上没有新的标签页" to "PC に新しいタブはありません",
+        "正在翻译…" to "翻訳中…",
+        "翻译失败" to "翻訳に失敗しました",
+        "在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来" to "上で URL を入力するか検索。右上の「⋯」から PC で開いているページをコピーできます",
         "复制链接" to "リンクをコピー",
         "已复制链接" to "リンクをコピーしました",
         "新建标签页" to "新しいタブ",
@@ -660,6 +668,10 @@ object I18n {
     )
 
     private val en = mapOf(
+        "电脑上没有新的标签页" to "No new tabs on your PC",
+        "正在翻译…" to "Translating…",
+        "翻译失败" to "Translation failed",
+        "在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来" to "Enter a URL or search above. Use ⋯ to copy pages open on your PC.",
         "复制链接" to "Copy link",
         "已复制链接" to "Link copied",
         "新建标签页" to "New tab",
@@ -921,6 +933,10 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "电脑上没有新的标签页" to "PC에 새 탭이 없습니다",
+        "正在翻译…" to "번역 중…",
+        "翻译失败" to "번역 실패",
+        "在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来" to "위에 URL을 입력하거나 검색하세요. ⋯에서 PC에 열린 페이지를 가져올 수 있습니다",
         "复制链接" to "링크 복사",
         "已复制链接" to "링크를 복사했습니다",
         "新建标签页" to "새 탭",
@@ -1199,6 +1215,10 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "电脑上没有新的标签页" to "No hay pestañas nuevas en el PC",
+        "正在翻译…" to "Traduciendo…",
+        "翻译失败" to "Error al traducir",
+        "在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来" to "Escribe una URL o busca arriba. Con ⋯ puedes copiar las páginas abiertas en el PC",
         "复制链接" to "Copiar enlace",
         "已复制链接" to "Enlace copiado",
         "新建标签页" to "Nueva pestaña",
@@ -1484,6 +1504,10 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "电脑上没有新的标签页" to "Aucun nouvel onglet sur le PC",
+        "正在翻译…" to "Traduction…",
+        "翻译失败" to "Échec de la traduction",
+        "在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来" to "Saisissez une URL ou recherchez ci-dessus. ⋯ copie les pages ouvertes sur le PC",
         "复制链接" to "Copier le lien",
         "已复制链接" to "Lien copié",
         "新建标签页" to "Nouvel onglet",
@@ -1769,6 +1793,10 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "电脑上没有新的标签页" to "Keine neuen Tabs am PC",
+        "正在翻译…" to "Wird übersetzt…",
+        "翻译失败" to "Übersetzung fehlgeschlagen",
+        "在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来" to "Oben URL eingeben oder suchen. Über ⋯ lassen sich am PC geöffnete Seiten übernehmen",
         "复制链接" to "Link kopieren",
         "已复制链接" to "Link kopiert",
         "新建标签页" to "Neuer Tab",
@@ -2054,6 +2082,10 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "电脑上没有新的标签页" to "На ПК нет новых вкладок",
+        "正在翻译…" to "Перевод…",
+        "翻译失败" to "Не удалось перевести",
+        "在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来" to "Введите адрес или запрос выше. Через ⋯ можно скопировать страницы с ПК",
         "复制链接" to "Копировать ссылку",
         "已复制链接" to "Ссылка скопирована",
         "新建标签页" to "Новая вкладка",
@@ -2339,6 +2371,10 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "电脑上没有新的标签页" to "Nenhuma aba nova no PC",
+        "正在翻译…" to "Traduzindo…",
+        "翻译失败" to "Falha na tradução",
+        "在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来" to "Digite uma URL ou pesquise acima. Em ⋯ você copia as páginas abertas no PC",
         "复制链接" to "Copiar link",
         "已复制链接" to "Link copiado",
         "新建标签页" to "Nova aba",

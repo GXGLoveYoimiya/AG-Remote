@@ -592,7 +592,7 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onSave: (Int) 
                     label = { Text(tr("自定义色值 (HEX)")) },
                     modifier = Modifier.weight(1f).onFocusChanged { f ->
                         // 键盘弹起后，把输入框和下面的按钮一起滚到键盘上方，留出空隙
-                        if (f.isFocused) scope.launch { kotlinx.coroutines.delay(350); bottomPart.bringIntoView() }
+                        if (f.isFocused) scope.launch { repeat(8) { kotlinx.coroutines.delay(120); bottomPart.bringIntoView() } } // 键盘升起过程中持续跟上
                     },
                 )
             }

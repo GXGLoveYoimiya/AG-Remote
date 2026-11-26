@@ -1616,6 +1616,26 @@ async function translateOne(q, to) {
   });
 }
 
+/** 网页翻译：很多小段文字按行拼成大段一起翻（一次请求顶几十句），行数对不上时再逐句翻。 */
+async function translateJoined(texts, to) {
+  const out = {};
+  const chunks = [];
+  let cur = [], len = 0;
+  for (const s of texts) {
+    const one = s.replace(/\s*\n\s*/g, ' ');
+    if (cur.length && len + one.length > 3500) { chunks.push(cur); cur = []; len = 0; }
+    cur.push([s, one]); len += one.length + 1;
+  }
+  if (cur.length) chunks.push(cur);
+  await Promise.all(chunks.map(async ch => {
+    let parts = null;
+    try { parts = (await translateOne(ch.map(x => x[1]).join('\n'), to)).split('\n'); } catch {}
+    if (parts && parts.length === ch.length) ch.forEach((x, i) => { out[x[0]] = parts[i].trim(); });
+    else for (const x of ch) { try { out[x[0]] = await translate(x[1], to); } catch {} }
+  }));
+  return out;
+}
+
 async function translate(text, to = 'zh-CN', keep = false) {
   const key = to + '\n' + text;
   if (trDisk[key] !== undefined) return trDisk[key];
@@ -2101,7 +2121,9 @@ async function dl(){
     if (path === '/api/translate/many' && req.method === 'POST') {
       const b = await readBody(req);
       const to = String(b.to || 'zh-CN');
-      const texts = [...new Set((Array.isArray(b.texts) ? b.texts : []).map(String).filter(Boolean))].slice(0, 500);
+      const keep = b.keep !== false; // 插件简介这类要存；网页文字（keep=false）只翻不存，而且拼成整段一起翻
+      const texts = [...new Set((Array.isArray(b.texts) ? b.texts : []).map(String).filter(Boolean))].slice(0, keep ? 500 : 3000);
+      if (!keep) return send(res, 200, { map: await translateJoined(texts, to) });
       const map = {};
       await Promise.all(texts.map(async x => { try { map[x] = await translate(x, to, true); } catch {} }));
       return send(res, 200, { map });

@@ -232,6 +232,10 @@ class Prefs(ctx: Context) {
     var votesJson: String
         get() = sp.getString("votes_json", "{}") ?: "{}"
         set(v) = sp.edit().putString("votes_json", v).apply()
+    /** 手机浏览器自己的标签页（JSON：tabs、active、mode），关掉浏览器或重启 App 都能恢复。 */
+    var browserTabs: String
+        get() = sp.getString("browser_tabs", "") ?: ""
+        set(v) = sp.edit().putString("browser_tabs", v).apply()
     /** 电脑实况画质档位：smooth / balanced / clear / ultra。 */
     var streamQuality: String
         get() = sp.getString("stream_quality", "balanced") ?: "balanced"
@@ -732,8 +736,8 @@ class Api(private val prefs: Prefs) {
         post("/api/translate", JSONObject().put("text", text).put("to", to)).optString("text")
 
     /** 批量翻译（电脑会把译文存到硬盘），返回 原文 -> 译文。 */
-    suspend fun translateMany(texts: List<String>, to: String): Map<String, String> {
-        val m = post("/api/translate/many", JSONObject().put("texts", JSONArray(texts)).put("to", to)).optJSONObject("map") ?: return emptyMap()
+    suspend fun translateMany(texts: List<String>, to: String, keep: Boolean = true): Map<String, String> {
+        val m = post("/api/translate/many", JSONObject().put("texts", JSONArray(texts)).put("to", to).put("keep", keep)).optJSONObject("map") ?: return emptyMap()
         return m.keys().asSequence().associateWith { m.optString(it) }
     }
 

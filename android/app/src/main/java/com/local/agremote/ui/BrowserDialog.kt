@@ -190,8 +190,10 @@ fun BrowserDialog(
     val isDark = surfaceColor.luminance() < 0.5f
 
     // explicitUrl 非空（点链接进来）→ 默认网页浏览；点右上角图标进来 → 默认电脑实况
-    var viewMode by remember(explicitUrl) { mutableStateOf(if (explicitUrl != null) "web" else "live") }
-    var webEverMounted by remember(explicitUrl) { mutableStateOf(explicitUrl != null) }
+    // 手机浏览器独立管理自己的标签页（不自动和电脑同步）；关掉再打开、重启 App 都会恢复
+    val savedTabs = remember { vm.loadBrowserTabs() }
+    var viewMode by remember(explicitUrl) { mutableStateOf(if (explicitUrl != null) "web" else savedTabs.third) }
+    var webEverMounted by remember(explicitUrl) { mutableStateOf(explicitUrl != null || savedTabs.third == "web") }
     LaunchedEffect(viewMode) { if (viewMode == "web") webEverMounted = true }
 
     // 「电脑实况」状态（默认截取实时电脑屏幕 + 默认开启虚拟鼠标操控）
@@ -310,7 +312,21 @@ fun BrowserDialog(
         }
     }
 
-    var activeUrl by remember { mutableStateOf(explicitUrl?.let { normalizeUrl(it, vm.prefs.host) } ?: "") }
+    val initTabs = remember {
+        val tabs = savedTabs.first.toMutableList()
+        var active = savedTabs.second.takeIf { id -> tabs.any { it.id == id } } ?: ""
+        explicitUrl?.let { normalizeUrl(it, vm.prefs.host) }?.takeIf { it.isNotBlank() }?.let { u ->
+            val hit = tabs.find { normalizeUrl(it.url, vm.prefs.host) == u }
+            if (hit != null) active = hit.id
+            else {
+                val id = "local-${System.currentTimeMillis()}"
+                tabs += BrowserTab(id, u, runCatching { android.net.Uri.parse(u).host ?: u }.getOrElse { u }, "", chatId, "")
+                active = id
+            }
+        }
+        tabs.toList() to active
+    }
+    var activeUrl by remember { mutableStateOf(initTabs.first.find { it.id == initTabs.second }?.url?.let { normalizeUrl(it, vm.prefs.host) } ?: "") }
     var urlInput by remember { mutableStateOf(activeUrl) }
     // 地址栏光标：网址被页面跳转等自动改写时，光标放到末尾（否则会停在旧位置，出现在网址中间）
     var urlField by remember { mutableStateOf(TextFieldValue(urlInput, TextRange(urlInput.length))) }
@@ -327,27 +343,11 @@ fun BrowserDialog(
     var popupTitle by remember { mutableStateOf("") }
     var lastSyncedPcUrl by remember { mutableStateOf("") }
     var userNavigated by remember { mutableStateOf(explicitUrl != null) }
-    var localTabs by remember {
-        mutableStateOf(
-            if (activeUrl.isNotBlank()) listOf(
-                BrowserTab(
-                    id = "local-1",
-                    url = activeUrl,
-                    title = runCatching { android.net.Uri.parse(activeUrl).host ?: activeUrl }.getOrElse { activeUrl },
-                    favicon = "",
-                    cid = chatId,
-                    convTitle = "",
-                )
-            ) else emptyList()
-        )
-    }
-    var activeTabId by remember { mutableStateOf(if (activeUrl.isNotBlank()) "local-1" else "") }
+    var localTabs by remember { mutableStateOf(initTabs.first) }
+    var activeTabId by remember { mutableStateOf(initTabs.second) }
+    LaunchedEffect(localTabs, activeTabId, viewMode) { vm.saveBrowserTabs(localTabs, activeTabId, viewMode) }
 
-    val pcAllTabs = remember(pcData) { pcData.tabs + pcData.otherTabs }
-    val allSyncedTabs = remember(pcAllTabs, localTabs, vm.prefs.host) {
-        val pcUrls = pcAllTabs.map { normalizeUrl(it.url, vm.prefs.host) }.toSet()
-        pcAllTabs + localTabs.filter { normalizeUrl(it.url, vm.prefs.host) !in pcUrls }
-    }
+    val allSyncedTabs = localTabs
 
     fun updateActiveLocalTab(newUrl: String? = null, newTitle: String? = null) {
         if (!activeTabId.startsWith("local-")) return
@@ -425,70 +425,47 @@ fun BrowserDialog(
     }
 
     fun handleCloseTab(t: BrowserTab) {
-        val closingCurrent = (activeTabId.isNotBlank() && t.id == activeTabId) ||
-            (activeUrl.isNotBlank() && normalizeUrl(t.url, vm.prefs.host) == activeUrl)
-        if (t.id.startsWith("local-")) {
-            val nextLocal = localTabs.filterNot { it.id == t.id }
-            localTabs = nextLocal
-            val pcUrls = pcAllTabs.map { normalizeUrl(it.url, vm.prefs.host) }.toSet()
-            val remaining = (pcAllTabs + nextLocal.filter { normalizeUrl(it.url, vm.prefs.host) !in pcUrls })
-                .filter { it.url.isNotBlank() }
-            if (remaining.isEmpty()) {
-                clearToHome()
-            } else if (closingCurrent) {
-                val nextTab = remaining.first()
-                activeTabId = nextTab.id
-                if (viewMode == "web") {
-                    openUrl(nextTab.url, tabId = nextTab.id)
-                } else {
-                    activeUrl = normalizeUrl(nextTab.url, vm.prefs.host)
-                    urlInput = nextTab.url
-                    webViewRef?.loadUrl(activeUrl)
-                }
-            }
-            return
-        }
-        vm.closeBrowserTab(t, chatId) { updated ->
-            val pcNext = updated.tabs + updated.otherTabs
-            val pcUrls = pcNext.map { normalizeUrl(it.url, vm.prefs.host) }.toSet()
-            val remaining = (pcNext + localTabs.filter { normalizeUrl(it.url, vm.prefs.host) !in pcUrls })
-                .filter { it.url.isNotBlank() }
-            if (remaining.isEmpty()) {
-                clearToHome()
-            } else if (closingCurrent) {
-                val nextTab = remaining.first()
-                activeTabId = nextTab.id
-                if (viewMode == "web") {
-                    openUrl(nextTab.url, tabId = nextTab.id)
-                } else {
-                    activeUrl = normalizeUrl(nextTab.url, vm.prefs.host)
-                    urlInput = nextTab.url
-                    webViewRef?.loadUrl(activeUrl)
-                }
-            }
+        val closingCurrent = t.id == activeTabId
+        val next = localTabs.filterNot { it.id == t.id }
+        localTabs = next
+        if (next.isEmpty()) clearToHome()
+        else if (closingCurrent) {
+            val nextTab = next.last()
+            if (viewMode == "web") openUrl(nextTab.url, tabId = nextTab.id)
+            else { activeTabId = nextTab.id; activeUrl = normalizeUrl(nextTab.url, vm.prefs.host); urlInput = nextTab.url }
         }
     }
 
-    // 打开期间每 4 秒同步一次电脑标签页
-    LaunchedEffect(chatId) {
-        vm.refreshBrowserTabs(chatId)
-        while (true) {
-            delay(4000)
-            vm.refreshBrowserTabs(chatId)
-        }
+    // “同步电脑标签页”：把电脑上 Antigravity 打开的网页复制一份到手机（之后各管各的，不再自动同步）
+    var importPcTabs by remember { mutableStateOf(false) }
+    LaunchedEffect(pcData, importPcTabs) {
+        if (!importPcTabs || pcLoading) return@LaunchedEffect
+        importPcTabs = false
+        val have = localTabs.map { normalizeUrl(it.url, vm.prefs.host) }.toSet()
+        val add = (pcData.tabs + pcData.otherTabs).filter { it.url.isNotBlank() && normalizeUrl(it.url, vm.prefs.host) !in have }
+            .distinctBy { normalizeUrl(it.url, vm.prefs.host) }
+            .mapIndexed { i, pt -> BrowserTab("local-${System.currentTimeMillis()}-$i", pt.url, pt.title.ifBlank { pt.url }, "", chatId, "") }
+        localTabs = localTabs + add
+        vm.showToast(if (add.isEmpty()) "电脑上没有新的标签页" else "已从电脑复制 ${add.size} 个标签页")
     }
 
-    val curPcTab = remember(pcData) {
-        pcData.tabs.find { it.id == pcData.activeTabId } ?: pcData.tabs.firstOrNull()
-    }
-    LaunchedEffect(curPcTab?.url) {
-        val pcUrl = curPcTab?.url?.trim().orEmpty()
-        if (pcUrl.isNotBlank() && pcUrl != lastSyncedPcUrl) {
-            lastSyncedPcUrl = pcUrl
-            if (!userNavigated || activeUrl.isBlank()) {
-                activeTabId = curPcTab?.id.orEmpty()
-                urlInput = pcUrl
-                activeUrl = normalizeUrl(pcUrl, vm.prefs.host)
+    // 网页翻译：取出页面上的文字，交给电脑整批翻译，再替换回页面
+    var pageTranslated by remember { mutableStateOf(false) }
+    var translating by remember { mutableStateOf(false) }
+    fun translatePage() {
+        val wv = webViewRef ?: return
+        translating = true
+        vm.showToast("正在翻译…")
+        wv.evaluateJavascript(PAGE_TEXT_JS) { res ->
+            scope.launch {
+                val arr = runCatching { org.json.JSONArray(org.json.JSONTokener(res).nextValue() as String) }.getOrNull()
+                val texts = if (arr == null) emptyList() else (0 until arr.length()).map { arr.getString(it) }
+                val map = if (texts.isEmpty()) emptyMap() else vm.translatePageTexts(texts.distinct(), I18n.currentLang)
+                translating = false
+                if (map.isEmpty()) { vm.showToast("翻译失败"); return@launch }
+                val ordered = org.json.JSONArray(texts.map { map[it] ?: "" })
+                webViewRef?.evaluateJavascript("($APPLY_TEXT_JS)($ordered)", null)
+                pageTranslated = true
             }
         }
     }
@@ -540,6 +517,9 @@ fun BrowserDialog(
                         }
                     }
                 }
+                IconButton(onClick = { newTab() }, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 48.dp)) {
+                    Icon(Icons.Rounded.Add, tr("新建标签页"))
+                }
                 Box(Modifier.align(Alignment.CenterEnd)) {
                     IconButton(onClick = { topMenu = true }) { Icon(Icons.Rounded.MoreHoriz, tr("更多操作")) }
                     DropdownMenu(topMenu, { topMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
@@ -549,19 +529,11 @@ fun BrowserDialog(
                                 onClick = { topMenu = false; livePaused = !livePaused })
                             DropdownMenuItem(text = { Text(tr("刷新画面")) }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
                                 onClick = { topMenu = false; liveTick++ })
-                            DropdownMenuItem(text = { Text(tr("新建标签页")) }, leadingIcon = { Icon(Icons.Rounded.Add, null) },
-                                onClick = { topMenu = false; newTab() })
                         } else {
-                            DropdownMenuItem(text = { Text(tr("新建标签页")) }, leadingIcon = { Icon(Icons.Rounded.Add, null) },
-                                onClick = { topMenu = false; newTab() })
-                            if (activeUrl.isNotBlank() && !activeUrl.contains("translate.goog") && !activeUrl.contains("translate.google.")) {
-                                DropdownMenuItem(text = { Text(tr("翻译此页")) }, leadingIcon = { Icon(Icons.Rounded.Translate, null) },
-                                    onClick = {
-                                        topMenu = false
-                                        // 用谷歌翻译打开当前网页（走电脑网络），翻成界面语言
-                                        val lang = when (val l = I18n.currentLang) { "zh-HK" -> "zh-TW"; else -> l }
-                                        openUrl("https://translate.google.com/translate?sl=auto&tl=$lang&u=" + java.net.URLEncoder.encode(activeUrl, "UTF-8"))
-                                    })
+                            if (activeUrl.isNotBlank()) {
+                                DropdownMenuItem(text = { Text(if (pageTranslated) tr("显示原文") else tr("翻译此页")) },
+                                    leadingIcon = { Icon(Icons.Rounded.Translate, null) }, enabled = !translating,
+                                    onClick = { topMenu = false; if (pageTranslated) webViewRef?.reload() else translatePage() })
                             }
                             if (activeUrl.isNotBlank()) {
                                 DropdownMenuItem(text = { Text(if (loading) tr("停止加载") else tr("刷新")) },
@@ -573,7 +545,7 @@ fun BrowserDialog(
                                     onClick = { topMenu = false; openWebLink(ctx, activeUrl) })
                             }
                             DropdownMenuItem(text = { Text(tr("同步电脑标签页")) }, leadingIcon = { Icon(Icons.Rounded.Sync, null) },
-                                onClick = { topMenu = false; vm.refreshBrowserTabs(chatId); vm.showToast("已同步电脑标签页") })
+                                onClick = { topMenu = false; importPcTabs = true; vm.refreshBrowserTabs(chatId) })
                         }
                     }
                 }
@@ -656,8 +628,8 @@ fun BrowserDialog(
                         Box(Modifier.weight(1f).fillMaxWidth().clipToBounds().background(surfaceColor)) {
                             if (activeUrl.isBlank()) {
                                 BrowserSyncHome(
-                                    pcTabs = pcData.tabs,
-                                    otherPcTabs = pcData.otherTabs,
+                                    pcTabs = emptyList(),
+                                    otherPcTabs = emptyList(),
                                     quickLinks = quickLinks.filter { it !in hiddenLinks },
                                     onRemoveLink = { vm.hideLink(it) },
                                     onCopyLink = { vm.copy(it, "已复制链接") },
@@ -739,6 +711,7 @@ fun BrowserDialog(
                                                     return true
                                                 }
                                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                                    pageTranslated = false
                                                     loading = true
                                                     webError = null
                                                     url?.let { urlInput = it; activeUrl = it }
@@ -1688,10 +1661,8 @@ private fun BrowserSyncHome(
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(tr("走电脑网络浏览"), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        if (pcTabs.isEmpty()) tr("当前对话在电脑上还没有打开网页") else tr("已同步当前对话的 {0} 个标签页", pcTabs.size),
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Text(tr("在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来"),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (syncing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
             }
@@ -1776,3 +1747,9 @@ private fun openAppLink(ctx: android.content.Context, url: String, onFallback: (
         android.widget.Toast.makeText(ctx, I18n.t("没有可以打开这个链接的应用"), android.widget.Toast.LENGTH_SHORT).show()
     }
 }
+
+/** 取出页面上要翻译的文字（跳过脚本、样式、代码），节点存在 window.__agr 里，返回 JSON 数组。 */
+private const val PAGE_TEXT_JS = """(function(){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:function(n){var p=n.parentElement;if(!p)return 2;var t=p.tagName;if(t==='SCRIPT'||t==='STYLE'||t==='NOSCRIPT'||t==='CODE'||t==='PRE'||t==='TEXTAREA')return 2;var v=n.nodeValue;if(!v||v.trim().length<2)return 2;return 1;}});var a=[],n;window.__agr=[];while((n=w.nextNode())&&a.length<3000){window.__agr.push(n);a.push(n.nodeValue.trim());}return JSON.stringify(a);})()"""
+
+/** 把译文按顺序换回去（保留原来前后的空白）。 */
+private const val APPLY_TEXT_JS = """function(r){var ns=window.__agr||[];for(var i=0;i<ns.length&&i<r.length;i++){if(!r[i])continue;var v=ns[i].nodeValue;var a=v.match(/^\s*/)[0],b=v.match(/\s*$/)[0];ns[i].nodeValue=a+r[i]+b;}}"""
