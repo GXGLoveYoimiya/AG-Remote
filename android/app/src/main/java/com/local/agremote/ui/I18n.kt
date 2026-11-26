@@ -115,6 +115,8 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "复制链接" to "複製連結",
+        "已复制链接" to "已複製連結",
         "新建标签页" to "新增分頁",
         "翻译此页" to "翻譯此頁",
         "每小时第" to "每小時第",
@@ -397,6 +399,8 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "复制链接" to "リンクをコピー",
+        "已复制链接" to "リンクをコピーしました",
         "新建标签页" to "新しいタブ",
         "翻译此页" to "このページを翻訳",
         "每小时第" to "毎時",
@@ -656,6 +660,8 @@ object I18n {
     )
 
     private val en = mapOf(
+        "复制链接" to "Copy link",
+        "已复制链接" to "Link copied",
         "新建标签页" to "New tab",
         "翻译此页" to "Translate page",
         "每小时第" to "Every hour at",
@@ -915,6 +921,8 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "复制链接" to "링크 복사",
+        "已复制链接" to "링크를 복사했습니다",
         "新建标签页" to "새 탭",
         "翻译此页" to "이 페이지 번역",
         "每小时第" to "매시",
@@ -1191,6 +1199,8 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "复制链接" to "Copiar enlace",
+        "已复制链接" to "Enlace copiado",
         "新建标签页" to "Nueva pestaña",
         "翻译此页" to "Traducir página",
         "每小时第" to "Cada hora en",
@@ -1474,6 +1484,8 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "复制链接" to "Copier le lien",
+        "已复制链接" to "Lien copié",
         "新建标签页" to "Nouvel onglet",
         "翻译此页" to "Traduire la page",
         "每小时第" to "Chaque heure à",
@@ -1757,6 +1769,8 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "复制链接" to "Link kopieren",
+        "已复制链接" to "Link kopiert",
         "新建标签页" to "Neuer Tab",
         "翻译此页" to "Seite übersetzen",
         "每小时第" to "Jede Stunde um",
@@ -2040,6 +2054,8 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "复制链接" to "Копировать ссылку",
+        "已复制链接" to "Ссылка скопирована",
         "新建标签页" to "Новая вкладка",
         "翻译此页" to "Перевести страницу",
         "每小时第" to "Каждый час в",
@@ -2323,6 +2339,8 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "复制链接" to "Copiar link",
+        "已复制链接" to "Link copiado",
         "新建标签页" to "Nova aba",
         "翻译此页" to "Traduzir página",
         "每小时第" to "A cada hora em",

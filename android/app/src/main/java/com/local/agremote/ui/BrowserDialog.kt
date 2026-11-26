@@ -1,5 +1,7 @@
 package com.local.agremote.ui
 
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
@@ -658,6 +660,7 @@ fun BrowserDialog(
                                     otherPcTabs = pcData.otherTabs,
                                     quickLinks = quickLinks.filter { it !in hiddenLinks },
                                     onRemoveLink = { vm.hideLink(it) },
+                                    onCopyLink = { vm.copy(it, "已复制链接") },
                                     syncing = pcLoading,
                                     onOpen = { openUrl(it) },
                                     onCloseTab = { t -> vm.closeBrowserTab(t, chatId) },
@@ -1663,6 +1666,7 @@ private fun SyncedTabsRow(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun BrowserSyncHome(
     pcTabs: List<BrowserTab>,
@@ -1672,6 +1676,7 @@ private fun BrowserSyncHome(
     onOpen: (String) -> Unit,
     onCloseTab: (BrowserTab) -> Unit,
     onRemoveLink: (String) -> Unit = {},
+    onCopyLink: (String) -> Unit = {},
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1722,13 +1727,26 @@ private fun BrowserSyncHome(
             CardGroup {
                 quickLinks.take(8).forEachIndexed { i, u ->
                     if (i > 0) CardDivider()
-                    Row(Modifier.fillMaxWidth().clickable { onOpen(u) }.padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Link, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(14.dp))
-                        Text(u, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        IconButton(onClick = { onRemoveLink(u) }) {
-                            Icon(Icons.Rounded.Close, tr("删除"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // 点开；长按弹出“复制链接 / 删除”
+                    var menu by remember(u) { mutableStateOf(false) }
+                    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+                    Box {
+                        Row(Modifier.fillMaxWidth()
+                            .combinedClickable(onClick = { onOpen(u) }, onLongClick = {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); menu = true
+                            })
+                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Link, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(14.dp))
+                            Text(u, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                        DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
+                            DropdownMenuItem(text = { Text(tr("复制链接")) }, leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) },
+                                onClick = { menu = false; onCopyLink(u) })
+                            DropdownMenuItem(text = { Text(tr("删除"), color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                                onClick = { menu = false; onRemoveLink(u) })
                         }
                     }
                 }
