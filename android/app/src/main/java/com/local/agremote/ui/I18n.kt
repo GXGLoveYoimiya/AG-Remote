@@ -115,6 +115,7 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "这个页面没有可翻译的文字" to "這個頁面沒有可翻譯的文字",
         "电脑上没有新的标签页" to "電腦上沒有新的分頁",
         "正在翻译…" to "正在翻譯…",
         "翻译失败" to "翻譯失敗",
@@ -403,6 +404,7 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "这个页面没有可翻译的文字" to "このページには翻訳する文字がありません",
         "电脑上没有新的标签页" to "PC に新しいタブはありません",
         "正在翻译…" to "翻訳中…",
         "翻译失败" to "翻訳に失敗しました",
@@ -668,6 +670,7 @@ object I18n {
     )
 
     private val en = mapOf(
+        "这个页面没有可翻译的文字" to "Nothing to translate on this page",
         "电脑上没有新的标签页" to "No new tabs on your PC",
         "正在翻译…" to "Translating…",
         "翻译失败" to "Translation failed",
@@ -933,6 +936,7 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "这个页面没有可翻译的文字" to "이 페이지에는 번역할 텍스트가 없습니다",
         "电脑上没有新的标签页" to "PC에 새 탭이 없습니다",
         "正在翻译…" to "번역 중…",
         "翻译失败" to "번역 실패",
@@ -1215,6 +1219,7 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "这个页面没有可翻译的文字" to "No hay texto que traducir en esta página",
         "电脑上没有新的标签页" to "No hay pestañas nuevas en el PC",
         "正在翻译…" to "Traduciendo…",
         "翻译失败" to "Error al traducir",
@@ -1504,6 +1509,7 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "这个页面没有可翻译的文字" to "Rien à traduire sur cette page",
         "电脑上没有新的标签页" to "Aucun nouvel onglet sur le PC",
         "正在翻译…" to "Traduction…",
         "翻译失败" to "Échec de la traduction",
@@ -1793,6 +1799,7 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "这个页面没有可翻译的文字" to "Auf dieser Seite gibt es nichts zu übersetzen",
         "电脑上没有新的标签页" to "Keine neuen Tabs am PC",
         "正在翻译…" to "Wird übersetzt…",
         "翻译失败" to "Übersetzung fehlgeschlagen",
@@ -2082,6 +2089,7 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "这个页面没有可翻译的文字" to "На странице нечего переводить",
         "电脑上没有新的标签页" to "На ПК нет новых вкладок",
         "正在翻译…" to "Перевод…",
         "翻译失败" to "Не удалось перевести",
@@ -2371,6 +2379,7 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "这个页面没有可翻译的文字" to "Não há texto para traduzir nesta página",
         "电脑上没有新的标签页" to "Nenhuma aba nova no PC",
         "正在翻译…" to "Traduzindo…",
         "翻译失败" to "Falha na tradução",

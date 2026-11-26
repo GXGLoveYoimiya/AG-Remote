@@ -1589,18 +1589,22 @@ async function pcFetch(urlStr, { method = 'GET', headers = {}, body = null, time
   });
 }
 
+let trMainBlockedUntil = 0; // 主接口被限流（429）后先别再试，直接用备用接口
 async function translateOne(q, to) {
   return withTrSlot(async () => {
     const form = new URLSearchParams({ q }).toString();
-    const r = await pcFetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(to)}&dt=t`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-      body: form,
-      timeoutMs: 20000,
-    });
-    if (r.ok) {
-      const j = JSON.parse(r.data.toString('utf8'));
-      return (j[0] || []).map(x => x?.[0] || '').join('');
+    if (Date.now() >= trMainBlockedUntil) {
+      const r = await pcFetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(to)}&dt=t`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: form,
+        timeoutMs: 20000,
+      });
+      if (r.ok) {
+        const j = JSON.parse(r.data.toString('utf8'));
+        return (j[0] || []).map(x => x?.[0] || '').join('');
+      }
+      if (r.status === 429) trMainBlockedUntil = Date.now() + 10 * 60 * 1000;
     }
     // 主接口限流时自动切换备用谷歌翻译接口
     const r2 = await pcFetch(`https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=${encodeURIComponent(to)}`, {

@@ -459,15 +459,26 @@ fun BrowserDialog(
         wv.evaluateJavascript(PAGE_TEXT_JS) { res ->
             scope.launch {
                 val arr = runCatching { org.json.JSONArray(org.json.JSONTokener(res).nextValue() as String) }.getOrNull()
-                val texts = if (arr == null) emptyList() else (0 until arr.length()).map { arr.getString(it) }
-                val map = if (texts.isEmpty()) emptyMap() else vm.translatePageTexts(texts.distinct(), I18n.currentLang)
+                val texts = if (arr == null) emptyList() else (0 until arr.length()).map { arr.getString(it) }.distinct()
+                var done = 0
+                // 一批 250 段，翻好一批就换一批（长页面不会等太久，也不会超时）
+                for (chunk in texts.chunked(250)) {
+                    val map = vm.translatePageTexts(chunk, I18n.currentLang)
+                    if (map.isEmpty()) continue
+                    done += map.size
+                    webViewRef?.evaluateJavascript("($APPLY_TEXT_JS)(${org.json.JSONObject(map as Map<*, *>)})", null)
+                    pageTranslated = true
+                }
                 translating = false
-                if (map.isEmpty()) { vm.showToast("翻译失败"); return@launch }
-                val ordered = org.json.JSONArray(texts.map { map[it] ?: "" })
-                webViewRef?.evaluateJavascript("($APPLY_TEXT_JS)($ordered)", null)
-                pageTranslated = true
+                if (done == 0) vm.showToast(if (texts.isEmpty()) "这个页面没有可翻译的文字" else "翻译失败")
             }
         }
+    }
+
+    /** 显示原文：把保存的原文换回去，不刷新页面。 */
+    fun showOriginal() {
+        webViewRef?.evaluateJavascript(RESTORE_TEXT_JS, null)
+        pageTranslated = false
     }
 
     Dialog(
@@ -533,7 +544,7 @@ fun BrowserDialog(
                             if (activeUrl.isNotBlank()) {
                                 DropdownMenuItem(text = { Text(if (pageTranslated) tr("显示原文") else tr("翻译此页")) },
                                     leadingIcon = { Icon(Icons.Rounded.Translate, null) }, enabled = !translating,
-                                    onClick = { topMenu = false; if (pageTranslated) webViewRef?.reload() else translatePage() })
+                                    onClick = { topMenu = false; if (pageTranslated) showOriginal() else translatePage() })
                             }
                             if (activeUrl.isNotBlank()) {
                                 DropdownMenuItem(text = { Text(if (loading) tr("停止加载") else tr("刷新")) },
@@ -1748,8 +1759,11 @@ private fun openAppLink(ctx: android.content.Context, url: String, onFallback: (
     }
 }
 
-/** 取出页面上要翻译的文字（跳过脚本、样式、代码），节点存在 window.__agr 里，返回 JSON 数组。 */
-private const val PAGE_TEXT_JS = """(function(){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:function(n){var p=n.parentElement;if(!p)return 2;var t=p.tagName;if(t==='SCRIPT'||t==='STYLE'||t==='NOSCRIPT'||t==='CODE'||t==='PRE'||t==='TEXTAREA')return 2;var v=n.nodeValue;if(!v||v.trim().length<2)return 2;return 1;}});var a=[],n;window.__agr=[];while((n=w.nextNode())&&a.length<3000){window.__agr.push(n);a.push(n.nodeValue.trim());}return JSON.stringify(a);})()"""
+/** 取出页面上要翻译的文字（跳过脚本、样式、代码），节点存在 window.__agr 里；已翻过的取原文。返回 JSON 数组。 */
+private const val PAGE_TEXT_JS = """(function(){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:function(n){var p=n.parentElement;if(!p)return 2;var t=p.tagName;if(t==='SCRIPT'||t==='STYLE'||t==='NOSCRIPT'||t==='CODE'||t==='PRE'||t==='TEXTAREA')return 2;var v=n.__o!=null?n.__o:n.nodeValue;if(!v||v.trim().length<2)return 2;return 1;}});var a=[],n;window.__agr=[];while((n=w.nextNode())&&a.length<3000){window.__agr.push(n);a.push((n.__o!=null?n.__o:n.nodeValue).trim());}return JSON.stringify(a);})()"""
 
-/** 把译文按顺序换回去（保留原来前后的空白）。 */
-private const val APPLY_TEXT_JS = """function(r){var ns=window.__agr||[];for(var i=0;i<ns.length&&i<r.length;i++){if(!r[i])continue;var v=ns[i].nodeValue;var a=v.match(/^\s*/)[0],b=v.match(/\s*$/)[0];ns[i].nodeValue=a+r[i]+b;}}"""
+/** 按“原文 → 译文”换上译文（原文存在节点的 __o 上，保留前后空白）。 */
+private const val APPLY_TEXT_JS = """function(m){var ns=window.__agr||[];for(var i=0;i<ns.length;i++){var n=ns[i];var v=n.__o!=null?n.__o:n.nodeValue;var tr=m[v.trim()];if(!tr)continue;if(n.__o==null)n.__o=v;var a=v.match(/^\s*/)[0],b=v.match(/\s*$/)[0];n.nodeValue=a+tr+b;}}"""
+
+/** 换回原文。 */
+private const val RESTORE_TEXT_JS = """(function(){var ns=window.__agr||[];for(var i=0;i<ns.length;i++){var n=ns[i];if(n.__o!=null){n.nodeValue=n.__o;n.__o=null;}}})()"""
