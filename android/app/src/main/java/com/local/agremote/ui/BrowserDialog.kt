@@ -210,6 +210,7 @@ fun BrowserDialog(
 ) {
     val ctx = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val dialogFocusRef = remember { arrayOfNulls<androidx.compose.ui.focus.FocusManager>(1) } // 浏览器窗口自己的焦点控制（打开后才有）
     var engineKey by remember { mutableStateOf(vm.prefs.searchEngine) }
     searchPrefix = (SEARCH_ENGINES.find { it.first == engineKey } ?: SEARCH_ENGINES[0]).third
     val pcData by vm.pcBrowserTabs.collectAsState()
@@ -366,7 +367,17 @@ fun BrowserDialog(
     var urlInput by remember { mutableStateOf(activeUrl) }
     var urlFocused by remember { mutableStateOf(false) } // 正在编辑地址栏
     // 地址栏光标：网址被页面跳转等自动改写时，光标放到末尾（否则会停在旧位置，出现在网址中间）
-    var urlField by remember { mutableStateOf(TextFieldValue(urlInput, TextRange(urlInput.length))) }
+    val urlState = remember { androidx.compose.foundation.text.input.TextFieldState(urlInput, TextRange(0)) }
+    // 页面跳转改了网址：没在编辑地址栏时同步过去，光标放开头（长网址显示前面）
+    LaunchedEffect(urlInput) {
+        if (!urlFocused && urlState.text.toString() != urlInput) {
+            urlState.edit { replace(0, length, urlInput); selection = TextRange(0) }
+        }
+    }
+    // 编辑地址栏时，把输入同步回 urlInput（清空按钮、占位文字用）
+    LaunchedEffect(urlState) {
+        androidx.compose.runtime.snapshotFlow { urlState.text.toString() }.collect { if (urlFocused) urlInput = it }
+    }
     var pageTitle by remember { mutableStateOf("") }
     var progress by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(false) }
@@ -445,7 +456,7 @@ fun BrowserDialog(
         } else {
             webViewRef?.reload()
         }
-        focusManager.clearFocus()
+        (dialogFocusRef[0] ?: focusManager).clearFocus(force = true)
     }
 
     fun clearToHome() {
@@ -561,6 +572,12 @@ fun BrowserDialog(
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true),
     ) {
+        // 浏览器在单独的窗口里，要用这个窗口自己的焦点控制，外面那个管不到地址栏
+        val dialogFocus = LocalFocusManager.current
+        dialogFocusRef[0] = dialogFocus
+        LaunchedEffect(viewMode, showTabs) {
+            if (viewMode != "web" || showTabs) dialogFocus.clearFocus(force = true) // 光标、拖动小水滴、键盘一起收起
+        }
         BackHandler {
             val wv = webViewRef
             val pv = popupView
@@ -571,7 +588,7 @@ fun BrowserDialog(
                 viewMode == "web" && wv != null && wv.canGoBack() -> wv.goBack()
                 viewMode == "web" && explicitUrl == null -> {
                     webViewRef?.visibility = android.view.View.INVISIBLE
-                    focusManager.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
+                    dialogFocus.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
                     viewMode = "live"
                 }
                 else -> onClose()
@@ -597,7 +614,7 @@ fun BrowserDialog(
                     Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
                         ModePill(tr("电脑实况"), viewMode == "live") {
                             webViewRef?.visibility = android.view.View.INVISIBLE
-                            focusManager.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
+                            dialogFocus.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
                             viewMode = "live"
                         }
                         ModePill(tr("网页浏览"), viewMode == "web") {
@@ -653,26 +670,23 @@ fun BrowserDialog(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                         BasicTextField(
-                                            // 网址被页面跳转改写时光标放在开头：长网址显示前面、隐去后面；点进来编辑时整段选中，直接输入就替换
-                                            value = if (urlField.text == urlInput) urlField
-                                                else TextFieldValue(urlInput, TextRange(0)),
-                                            onValueChange = { urlField = it; urlInput = it.text },
-                                            singleLine = true,
+                                            state = urlState,
+                                            lineLimits = androidx.compose.foundation.text.input.TextFieldLineLimits.SingleLine,
                                             modifier = Modifier.fillMaxWidth().onFocusChanged { f ->
-                                                // 编辑时光标放末尾（可以拖动光标看被隐去的部分）；离开时回到开头，长网址显示前面
+                                                // 编辑时光标放末尾；离开时回到开头，长网址显示前面
                                                 if (f.isFocused != urlFocused) {
                                                     urlFocused = f.isFocused
-                                                    urlField = TextFieldValue(urlInput, TextRange(if (f.isFocused) urlInput.length else 0))
+                                                    urlState.edit { selection = TextRange(if (f.isFocused) length else 0) }
                                                 }
                                             },
                                             textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                                            keyboardActions = KeyboardActions(onGo = { openUrl(urlInput) }),
+                                            onKeyboardAction = { openUrl(urlState.text.toString()) },
                                         )
                                     }
                                     if (urlInput.isNotEmpty()) {
-                                        IconButton(onClick = { urlInput = "" }, modifier = Modifier.size(28.dp)) {
+                                        IconButton(onClick = { urlInput = ""; urlState.edit { replace(0, length, "") } }, modifier = Modifier.size(28.dp)) {
                                             Icon(Icons.Rounded.Close, "清空", Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
