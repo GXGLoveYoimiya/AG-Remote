@@ -115,6 +115,7 @@ object I18n {
     }
 
     private val zhTW = mapOf(
+        "搜索或输入网址" to "搜尋或輸入網址",
         "网络" to "網路",
         "电脑网络" to "電腦網路",
         "手机网络" to "手機網路",
@@ -419,6 +420,7 @@ object I18n {
     )
 
     private val ja = mapOf(
+        "搜索或输入网址" to "検索または URL を入力",
         "网络" to "ネットワーク",
         "电脑网络" to "PC のネットワーク",
         "手机网络" to "スマホのネットワーク",
@@ -700,6 +702,7 @@ object I18n {
     )
 
     private val en = mapOf(
+        "搜索或输入网址" to "Search or enter URL",
         "网络" to "Network",
         "电脑网络" to "Via PC",
         "手机网络" to "Phone network",
@@ -981,6 +984,7 @@ object I18n {
     )
 
     private val ko = en + mapOf(
+        "搜索或输入网址" to "검색 또는 URL 입력",
         "网络" to "네트워크",
         "电脑网络" to "PC 네트워크",
         "手机网络" to "휴대폰 네트워크",
@@ -1279,6 +1283,7 @@ object I18n {
     )
 
     private val es = en + mapOf(
+        "搜索或输入网址" to "Busca o escribe una URL",
         "网络" to "Red",
         "电脑网络" to "A través del PC",
         "手机网络" to "Red del móvil",
@@ -1584,6 +1589,7 @@ object I18n {
     )
 
     private val fr = en + mapOf(
+        "搜索或输入网址" to "Rechercher ou saisir une URL",
         "网络" to "Réseau",
         "电脑网络" to "Via le PC",
         "手机网络" to "Réseau du téléphone",
@@ -1889,6 +1895,7 @@ object I18n {
     )
 
     private val de = en + mapOf(
+        "搜索或输入网址" to "Suchen oder URL eingeben",
         "网络" to "Netzwerk",
         "电脑网络" to "Über PC",
         "手机网络" to "Handynetz",
@@ -2194,6 +2201,7 @@ object I18n {
     )
 
     private val ru = en + mapOf(
+        "搜索或输入网址" to "Поиск или адрес",
         "网络" to "Сеть",
         "电脑网络" to "Через ПК",
         "手机网络" to "Сеть телефона",
@@ -2499,6 +2507,7 @@ object I18n {
     )
 
     private val pt = en + mapOf(
+        "搜索或输入网址" to "Pesquise ou digite uma URL",
         "网络" to "Rede",
         "电脑网络" to "Pelo PC",
         "手机网络" to "Rede do celular",

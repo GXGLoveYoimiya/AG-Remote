@@ -640,7 +640,7 @@ fun BrowserDialog(
                                     Spacer(Modifier.width(8.dp))
                                     Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                                         if (urlInput.isEmpty()) {
-                                            Text(tr("输入网址或搜索（走电脑网络）…"), style = MaterialTheme.typography.bodyMedium,
+                                            Text(tr("搜索或输入网址"), style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                         BasicTextField(
@@ -1890,19 +1890,6 @@ private fun BrowserSyncHome(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        CardBox {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Computer, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(tr("走电脑网络浏览"), style = MaterialTheme.typography.bodyLarge)
-                    Text(tr("在上方输入网址或搜索；右上角“⋯”可以把电脑上打开的网页复制过来"),
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (syncing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-            }
-        }
-
         if (otherPcTabs.isNotEmpty()) {
             SectionLabel(tr("电脑上已打开的标签页"))
             CardGroup {
