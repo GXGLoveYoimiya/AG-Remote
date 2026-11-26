@@ -162,7 +162,7 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
             // 新建对话：右下角一颗小胶囊（照 Claude）
             Button(onClick = { vm.newChat(); onClose() }, modifier = Modifier.height(42.dp),
                 contentPadding = PaddingValues(start = 14.dp, end = 18.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
                 Icon(Icons.Rounded.EditNote, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(tr("新建对话"), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -177,7 +177,7 @@ private fun DrawerRow(icon: androidx.compose.ui.graphics.vector.ImageVector, lab
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
         .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent)
         .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(22.dp))
+        Icon(icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(14.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }

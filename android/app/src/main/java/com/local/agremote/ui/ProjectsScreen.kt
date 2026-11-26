@@ -70,7 +70,7 @@ fun ProjectsScreen(vm: AppViewModel, onBack: () -> Unit, onOpenChat: () -> Unit)
         topBar = { AppTopBar(tr("项目"), onBack = onBack) },
         floatingActionButton = {
             ExtendedFloatingActionButton(onClick = { creating = true },
-                containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface,
+                containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(50), icon = { Icon(Icons.Rounded.Add, null) }, text = { Text(tr("新建项目")) })
         },
     ) { pad ->
@@ -122,7 +122,7 @@ private fun ProjectItem(vm: AppViewModel, p: Project, count: Int, onClick: () ->
                 if (!p.sidecar) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); menu = true }
             })
             .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.Inventory2, null, Modifier.size(22.dp))
+            Icon(Icons.Outlined.Inventory2, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(p.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)

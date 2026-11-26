@@ -108,7 +108,8 @@ fun ListRow(
         .padding(horizontal = 16.dp, vertical = if (desc.isNullOrBlank()) 15.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
         if (icon != null) {
-            Icon(icon, null, Modifier.size(22.dp), tint = titleColor)
+            Icon(icon, null, Modifier.size(22.dp),
+                tint = if (titleColor == MaterialTheme.colorScheme.onSurface) MaterialTheme.colorScheme.primary else titleColor)
             Spacer(Modifier.width(14.dp))
         }
         Column(Modifier.weight(1f)) {

@@ -130,9 +130,9 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
                                 Text(account?.name?.ifBlank { null } ?: "Antigravity", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 account?.plan?.takeIf { it.isNotBlank() }?.let { plan ->
-                                    Surface(color = MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(50)) {
+                                    Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(50)) {
                                         Text(plan, Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.surface, maxLines = 1)
+                                            color = MaterialTheme.colorScheme.onPrimary, maxLines = 1)
                                     }
                                 }
                                 Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

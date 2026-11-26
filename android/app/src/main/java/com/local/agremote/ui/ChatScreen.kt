@@ -1418,7 +1418,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                         colors = when {
                             hasContent -> IconButtonDefaults.filledIconButtonColors(containerColor = accent(), contentColor = onAccent()) // 发送：强调色
                             canStop -> IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)
+                                containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
                             else -> IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface)
                         },
