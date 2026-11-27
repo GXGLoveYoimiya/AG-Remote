@@ -1200,6 +1200,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val id = _chat.value.id ?: return
         if (m.id in _sendingQueuedIds.value) return
         _sendingQueuedIds.value = _sendingQueuedIds.value + m.id
+        // 立刻乐观切换为「发送中…」，避免请求期间和返回后按钮反复显隐闪烁
+        _chat.value = _chat.value.copy(
+            queued = _chat.value.queued.map { q -> if (q.id == m.id) q.copy(immediate = true) else q }
+        )
         viewModelScope.launch {
             try {
                 val res = runCatching { kotlinx.coroutines.withTimeout(10_000L) { api.sendQueued(id, m.id, m.text) } }

@@ -375,24 +375,24 @@ private fun WorkingRow(canceling: Boolean) {
     }
 }
 
-/** 思考中的小动画：一颗四角星慢慢转、轻轻“呼吸”，右上角一颗小星和它错开节奏一闪一闪。 */
+/** 思考中的小动画：仅在 Draw 阶段读取动画值，零重组、零触发布局，避免思考中阻塞列表滚动与点击。 */
 @Composable
 private fun ThinkingSpark(color: Color, modifier: Modifier = Modifier) {
     val tr = rememberInfiniteTransition(label = "spark")
-    val ph by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = LinearEasing)), label = "ph")
+    val phState = tr.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = LinearEasing)), label = "ph")
+    val path = remember { androidx.compose.ui.graphics.Path() }
     androidx.compose.foundation.Canvas(modifier) {
+        val ph = phState.value
         val twoPi = (2 * Math.PI).toFloat()
         fun star(c: Offset, r: Float, col: Color) {
-            // 四角星：四个尖之间用向中心凹的曲线连起来
-            val p = androidx.compose.ui.graphics.Path().apply {
-                moveTo(c.x, c.y - r)
-                quadraticTo(c.x, c.y, c.x + r, c.y)
-                quadraticTo(c.x, c.y, c.x, c.y + r)
-                quadraticTo(c.x, c.y, c.x - r, c.y)
-                quadraticTo(c.x, c.y, c.x, c.y - r)
-                close()
-            }
-            drawPath(p, col)
+            path.reset()
+            path.moveTo(c.x, c.y - r)
+            path.quadraticTo(c.x, c.y, c.x + r, c.y)
+            path.quadraticTo(c.x, c.y, c.x, c.y + r)
+            path.quadraticTo(c.x, c.y, c.x - r, c.y)
+            path.quadraticTo(c.x, c.y, c.x, c.y - r)
+            path.close()
+            drawPath(path, col)
         }
         val big = size.minDimension * 0.42f * (0.78f + 0.22f * (0.5f - 0.5f * kotlin.math.cos(ph * twoPi)))
         val mainC = Offset(size.width * 0.44f, size.height * 0.56f)
@@ -402,15 +402,21 @@ private fun ThinkingSpark(color: Color, modifier: Modifier = Modifier) {
     }
 }
 
-/** 文字上有一道高光从左往右扫过（思考中的提示）。 */
+/** 思考中的柔和呼吸提示：仅在 GPU graphicsLayer 阶段改透明度，零重组、零文本重排。 */
 @Composable
 private fun ShimmerText(text: String) {
-    val base = MaterialTheme.colorScheme.onSurfaceVariant
-    val hi = MaterialTheme.colorScheme.onSurface
     val tr = rememberInfiniteTransition(label = "shimmer")
-    val x by tr.animateFloat(-200f, 600f, infiniteRepeatable(tween(1600, easing = LinearEasing)), label = "x")
-    Text(text, style = MaterialTheme.typography.bodyMedium.copy(
-        brush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(base, hi, base), start = Offset(x, 0f), end = Offset(x + 160f, 0f))))
+    val alphaState = tr.animateFloat(
+        0.42f, 1f,
+        infiniteRepeatable(tween(900, easing = androidx.compose.animation.core.FastOutSlowInEasing), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "alpha",
+    )
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.graphicsLayer { alpha = alphaState.value },
+    )
 }
 
 /** 模型选择：主力模型一组，下面是思考强度和更多模型。 */

@@ -183,7 +183,8 @@ fun UndoBar(vm: com.local.agremote.AppViewModel, modifier: Modifier = Modifier) 
     }
 }
 
-/** 统一的对话框：白色卡片底、大圆角（和其他卡片一致）。 */
+/** 统一的对话框：白色卡片底、大圆角，所有语言统一左对齐标题/内容、单行右对齐操作栏（避免德语/俄语等长文案换行错位）。 */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppAlertDialog(
     onDismissRequest: () -> Unit,
@@ -194,11 +195,68 @@ fun AppAlertDialog(
     title: (@Composable () -> Unit)? = null,
     text: (@Composable () -> Unit)? = null,
     properties: androidx.compose.ui.window.DialogProperties = androidx.compose.ui.window.DialogProperties(),
-) = androidx.compose.material3.AlertDialog(
-    onDismissRequest = onDismissRequest, confirmButton = confirmButton, modifier = modifier, dismissButton = dismissButton,
-    icon = icon, title = title, text = text, shape = RoundedCornerShape(28.dp), containerColor = sheetCardColor(),
-    properties = properties,
-)
+) {
+    androidx.compose.material3.BasicAlertDialog(
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        properties = properties,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = sheetCardColor(),
+            tonalElevation = 6.dp,
+            modifier = Modifier.widthIn(min = 280.dp, max = 360.dp),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(24.dp)) {
+                if (icon != null) {
+                    androidx.compose.foundation.layout.Box(
+                        Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { icon() }
+                }
+                if (title != null) {
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onSurface,
+                        androidx.compose.material3.LocalTextStyle provides MaterialTheme.typography.headlineSmall.copy(
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                        ),
+                    ) {
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                            contentAlignment = Alignment.CenterStart,
+                        ) { title() }
+                    }
+                }
+                if (text != null) {
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant,
+                        androidx.compose.material3.LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                        ),
+                    ) {
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.fillMaxWidth().weight(1f, fill = false).padding(bottom = 24.dp),
+                            contentAlignment = Alignment.CenterStart,
+                        ) { text() }
+                    }
+                }
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.primary,
+                    androidx.compose.material3.LocalTextStyle provides MaterialTheme.typography.labelLarge,
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        dismissButton?.invoke()
+                        confirmButton()
+                    }
+                }
+            }
+        }
+    }
+}
 
 /** 统一的滑块：圆形白色滑块头 + 圆头轨道（不用新版的竖条滑块头）。 */
 @OptIn(ExperimentalMaterial3Api::class)
