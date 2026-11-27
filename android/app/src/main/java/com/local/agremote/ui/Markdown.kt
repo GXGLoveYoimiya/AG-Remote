@@ -204,17 +204,24 @@ private fun CodeBlockCard(lang: String, code: String) {
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
-            Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 4.dp)) {
+            val lines = remember(code) { code.split('\n') }
+            Box(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 6.dp)) {
                 SelectionContainer {
-                    Text(
-                        code,
-                        style = MaterialTheme.typography.bodySmall.copy(
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val codeStyle = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp,
-                            lineHeight = 19.sp,
+                            lineHeight = 18.sp,
                             color = MaterialTheme.colorScheme.onSurface,
-                        ),
-                    )
+                        )
+                        lines.forEach { line ->
+                            Text(
+                                line.ifEmpty { " " },
+                                softWrap = true,
+                                style = codeStyle,
+                            )
+                        }
+                    }
                 }
             }
             // 左下角：与对话回复底部同款的复制和分享图标按钮
