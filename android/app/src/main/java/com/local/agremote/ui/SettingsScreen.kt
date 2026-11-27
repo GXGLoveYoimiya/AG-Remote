@@ -1,5 +1,6 @@
 package com.local.agremote.ui
 
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.animation.togetherWith
 import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.ui.graphics.asImageBitmap
@@ -325,7 +326,17 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
                 )
-                Column(Modifier.verticalScroll(rememberScrollState())) {
+                // 列表滑到底后剩下的上滑不交给面板，否则面板会被往上拖、来回抽动（往下拉照常能关闭面板）
+                val noSheetUp = remember {
+                    object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+                        override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset,
+                            source: androidx.compose.ui.input.nestedscroll.NestedScrollSource) =
+                            if (available.y < 0) available.copy(x = 0f) else androidx.compose.ui.geometry.Offset.Zero
+                        override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity) =
+                            if (available.y < 0) available.copy(x = 0f) else androidx.compose.ui.unit.Velocity.Zero
+                    }
+                }
+                Column(Modifier.nestedScroll(noSheetUp).verticalScroll(rememberScrollState())) {
                     APP_LANGUAGES.forEachIndexed { idx, item ->
                         if (idx > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                         val selected = langCode == item.code
