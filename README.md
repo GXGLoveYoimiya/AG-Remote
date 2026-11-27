@@ -21,11 +21,13 @@
 <img src="docs/screenshots/live-voice.jpg" width="160" alt="live-voice">
 <img src="docs/screenshots/models.jpg" width="160" alt="models">
 <img src="docs/screenshots/attach.jpg" width="160" alt="attach">
-<img src="docs/screenshots/drawer.jpg" width="160" alt="drawer"></p>
+<img src="docs/screenshots/drawer.jpg" width="160" alt="drawer">
+<img src="docs/screenshots/command-palette.jpg" width="160" alt="command-palette"></p>
 
 **浏览器与电脑实况 · Browser & PC live view**
 
 <p><img src="docs/screenshots/browser.jpg" width="160" alt="browser">
+<img src="docs/screenshots/tabs.jpg" width="160" alt="tabs">
 <img src="docs/screenshots/pc-live.jpg" width="160" alt="pc-live"></p>
 
 **自定义 · Customization**
