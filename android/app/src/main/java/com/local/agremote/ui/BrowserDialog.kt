@@ -290,7 +290,9 @@ fun BrowserDialog(
 
     // 实时电脑画面：优先用视频流（连续推帧），连不上再退回一张张截图
     var streamQ by remember { mutableStateOf(vm.prefs.streamQuality) }
-    LaunchedEffect(viewMode, captureCrop, livePaused, liveTick, streamQ) {
+    var streamCustomVer by remember { mutableIntStateOf(0) }
+    var showCustomStream by remember { mutableStateOf(false) }
+    LaunchedEffect(viewMode, captureCrop, livePaused, liveTick, streamQ, streamCustomVer) {
         if (viewMode != "live") return@LaunchedEffect
         if (!livePaused) {
             var failures = 0
@@ -614,8 +616,9 @@ fun BrowserDialog(
                     Modifier.align(Alignment.Center),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (viewMode == "live") {
-                        Box(Modifier.padding(end = 8.dp), contentAlignment = Alignment.Center) {
+                    // 左右对称预留 16dp，保证中间的「电脑实况 | 网页浏览」胶囊无论绿点显隐都严格居中不偏移
+                    Box(Modifier.width(16.dp), contentAlignment = Alignment.CenterStart) {
+                        if (viewMode == "live") {
                             if (!livePaused && liveError == null) {
                                 StatusDot(true, color = Green)
                             } else if (livePaused) {
@@ -626,31 +629,22 @@ fun BrowserDialog(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.height(38.dp),
+                        modifier = Modifier.width(200.dp).height(38.dp),
                     ) {
-                        Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
-                            ModePill(tr("电脑实况"), viewMode == "live") {
+                        Row(Modifier.fillMaxSize().padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                            ModePill(tr("电脑实况"), viewMode == "live", Modifier.weight(1f)) {
                                 webViewRef?.visibility = android.view.View.INVISIBLE
                                 dialogFocus.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
                                 viewMode = "live"
                             }
-                            ModePill(tr("网页浏览"), viewMode == "web") {
+                            ModePill(tr("网页浏览"), viewMode == "web", Modifier.weight(1f)) {
                                 webEverMounted = true
                                 viewMode = "web"
                                 webViewRef?.visibility = android.view.View.VISIBLE
                             }
                         }
                     }
-                }
-                if (viewMode == "live") Box(Modifier.align(Alignment.CenterEnd)) {
-                    IconButton(onClick = { topMenu = true }) { Icon(Icons.Rounded.MoreVert, tr("更多操作")) }
-                    DropdownMenu(topMenu, { topMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
-                        DropdownMenuItem(text = { Text(if (livePaused) tr("继续实时同步") else tr("暂停同步")) },
-                            leadingIcon = { Icon(if (livePaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, null) },
-                            onClick = { topMenu = false; livePaused = !livePaused })
-                        DropdownMenuItem(text = { Text(tr("刷新画面")) }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
-                            onClick = { topMenu = false; liveTick++ })
-                    }
+                    Spacer(Modifier.width(16.dp))
                 }
             }
 
@@ -716,12 +710,24 @@ fun BrowserDialog(
                                     }
                                 }
                             }
-                            // 翻译：点一下翻译，再点显示原文
-                            IconButton(onClick = { if (translating) return@IconButton; if (pageTranslated) showOriginal() else translatePage() },
-                                enabled = activeUrl.isNotBlank(), modifier = Modifier.size(44.dp)) {
-                                // 点下去立刻变成强调色（翻译中、已翻译都是）；显示原文后恢复。所有主题都一样，不加底色
-                                Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
-                                    tint = if (pageTranslated || translating) accent() else LocalContentColor.current)
+                            // 翻译：点一下立刻反馈（翻译中转圈，已翻译变为强调色，无背景底色；关闭立刻恢复并轻震反馈）
+                            val trActive = pageTranslated || translating
+                            val trTint = if (trActive) accentText() else LocalContentColor.current
+                            IconButton(
+                                onClick = {
+                                    if (translating) return@IconButton
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    if (pageTranslated) showOriginal() else translatePage()
+                                },
+                                enabled = activeUrl.isNotBlank(),
+                                modifier = Modifier.size(44.dp),
+                            ) {
+                                if (translating) {
+                                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = trTint)
+                                } else {
+                                    Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
+                                        Modifier.size(20.dp), tint = trTint)
+                                }
                             }
                             // 标签页数：点开标签页切换页
                             IconButton(onClick = { snapThumb(); showTabs = true }, modifier = Modifier.size(44.dp)) {
@@ -1174,12 +1180,16 @@ fun BrowserDialog(
                 // 2) 电脑实况层（覆盖在 WebView 上方，切换时瞬间显隐零闪烁）
                 if (viewMode == "live") {
                     Column(Modifier.fillMaxSize().zIndex(3f).background(surfaceColor)) {
-                // 「电脑实况」顶部控制条：操控模式 + 画质 + 光标尺寸
+                // 「电脑实况」顶部控制条：操控模式 + 画质 + 光标尺寸（最右侧与浏览器同位置的三个点菜单）
                 Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Row(
+                        Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                     TogglePill(
                         selected = controlMode != "view",
                         onClick = {
@@ -1204,13 +1214,14 @@ fun BrowserDialog(
                             Text(when (controlMode) { "mouse" -> tr("鼠标"); "touch" -> tr("触摸"); else -> tr("查看") })
                         },
                     )
-                    // 画质档位：流畅 / 平衡 / 清晰 / 极致清晰（切换后按新档位重连，并记住）
+                    // 画质档位：流畅 / 平衡 / 清晰 / 极致清晰 / 自定义（切换后按新档位重连，并记住）
                     Box {
                         var qMenu by remember { mutableStateOf(false) }
-                        val cur = vm.streamPresets.find { it.key == streamQ } ?: vm.streamPresets[1]
+                        val curLabel = if (streamQ == "custom") tr("自定义")
+                        else tr((vm.streamPresets.find { it.key == streamQ } ?: vm.streamPresets[1]).label)
                         TogglePill(selected = false, onClick = { qMenu = true },
                             leadingIcon = { Icon(Icons.Rounded.HighQuality, null, Modifier.size(16.dp)) },
-                            label = { Text(tr(cur.label)) })
+                            label = { Text(curLabel) })
                         DropdownMenu(qMenu, { qMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
                             vm.streamPresets.forEach { ps ->
                                 DropdownMenuItem(
@@ -1224,6 +1235,24 @@ fun BrowserDialog(
                                     onClick = { qMenu = false; vm.prefs.streamQuality = ps.key; streamQ = ps.key },
                                 )
                             }
+                            HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(tr("自定义"), style = MaterialTheme.typography.bodyLarge)
+                                        Text(
+                                            if (streamQ == "custom") {
+                                                val resName = when (vm.prefs.streamCustomWidth) { 640 -> "360P"; 854 -> "480P"; 2560 -> "2K"; else -> "1080P" }
+                                                "$resName · ${vm.prefs.streamCustomFps} FPS"
+                                            } else tr("自定义分辨率与帧率"),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                },
+                                trailingIcon = { if (streamQ == "custom") Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)) },
+                                onClick = { qMenu = false; showCustomStream = true },
+                            )
                         }
                     }
                     if (controlMode == "mouse") {
@@ -1233,6 +1262,65 @@ fun BrowserDialog(
                             label = { Text("${tr("尺寸")} ${String.format("%.1f", cursorScale)}×") },
                         )
                     }
+                    }
+                    Box {
+                        IconButton(onClick = { topMenu = true }, modifier = Modifier.size(44.dp)) {
+                            Icon(Icons.Rounded.MoreVert, tr("更多操作"))
+                        }
+                        DropdownMenu(topMenu, { topMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
+                            DropdownMenuItem(text = { Text(if (livePaused) tr("继续实时同步") else tr("暂停同步")) },
+                                leadingIcon = { Icon(if (livePaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, null) },
+                                onClick = { topMenu = false; livePaused = !livePaused })
+                            DropdownMenuItem(text = { Text(tr("刷新画面")) }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
+                                onClick = { topMenu = false; liveTick++ })
+                        }
+                    }
+                }
+
+                if (showCustomStream) {
+                    var pickedW by remember { mutableIntStateOf(vm.prefs.streamCustomWidth) }
+                    var pickedFps by remember { mutableIntStateOf(vm.prefs.streamCustomFps) }
+                    AppAlertDialog(
+                        onDismissRequest = { showCustomStream = false },
+                        title = { Text(tr("自定义")) },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(tr("分辨率"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(640 to "360P", 854 to "480P", 1920 to "1080P", 2560 to "2K").forEach { (w, lbl) ->
+                                        androidx.compose.material3.FilterChip(
+                                            selected = pickedW == w,
+                                            onClick = { pickedW = w },
+                                            label = { Text(lbl, maxLines = 1) },
+                                        )
+                                    }
+                                }
+                                Text(tr("帧率"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(10, 30, 60).forEach { f ->
+                                        androidx.compose.material3.FilterChip(
+                                            selected = pickedFps == f,
+                                            onClick = { pickedFps = f },
+                                            label = { Text("$f FPS", maxLines = 1) },
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            androidx.compose.material3.Button(onClick = {
+                                vm.prefs.streamCustomWidth = pickedW
+                                vm.prefs.streamCustomFps = pickedFps
+                                vm.prefs.streamQuality = "custom"
+                                streamQ = "custom"
+                                streamCustomVer++
+                                showCustomStream = false
+                            }) { Text(tr("确定")) }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(onClick = { showCustomStream = false }) { Text(tr("取消")) }
+                        },
+                    )
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
@@ -1798,17 +1886,17 @@ fun BrowserDialog(
 }
 
 @Composable
-private fun ModePill(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ModePill(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(50),
         color = if (selected) sheetCardColor() else androidx.compose.ui.graphics.Color.Transparent,
         shadowElevation = if (selected) 1.dp else 0.dp,
-        modifier = Modifier.fillMaxHeight().clip(RoundedCornerShape(50)).clickable(onClick = onClick),
+        modifier = modifier.fillMaxHeight().clip(RoundedCornerShape(50)).clickable(onClick = onClick),
     ) {
-        Box(Modifier.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
             Text(label, style = MaterialTheme.typography.labelLarge,
                 color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1, softWrap = false)
+                maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
         }
     }
 }

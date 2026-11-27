@@ -213,10 +213,16 @@ fun ChatScreen(
     // 跟着 listState 重建：换对话后 listState 是新的，不能还盯着旧列表判断“是否在底部”
     val atBottom by remember(listState) { derivedStateOf { !listState.canScrollForward } }
     var firstScroll by remember(s.id) { mutableStateOf(true) }
+    var prevQueuedCount by remember(s.id) { mutableIntStateOf(0) }
+    var prevPending by remember(s.id) { mutableStateOf<String?>(null) }
     LaunchedEffect(visible.size, visible.lastOrNull()?.text?.length, visible.lastOrNull()?.status, s.pending, s.queued.size, working) {
+        val newQueued = s.queued.size > prevQueuedCount
+        val newPending = s.pending != null && s.pending != prevPending
+        prevQueuedCount = s.queued.size
+        prevPending = s.pending
         if (visible.isEmpty() && s.pending == null && s.queued.isEmpty()) return@LaunchedEffect
         if (listState.isScrollInProgress) return@LaunchedEffect
-        if (firstScroll || atBottom || s.pending != null || s.queued.isNotEmpty()) {
+        if (firstScroll || atBottom || newPending || newQueued) {
             listState.scrollToItem(listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
             firstScroll = false
         }
@@ -601,107 +607,107 @@ private fun UserBubble(vm: AppViewModel, text: String, remote: List<com.local.ag
             }
             val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
             val density = androidx.compose.ui.platform.LocalDensity.current
-            androidx.compose.foundation.layout.BoxWithConstraints {
-                val maxTextPx = with(density) { (maxWidth - 28.dp).roundToPx().coerceAtLeast(1) }
-                // 折叠静止时只测量前 7 行（O(1) 极快，避免滑过超长文本时主线程卡顿）
-                val probe = remember(annotated, bodyStyle, maxTextPx) {
-                    textMeasurer.measure(
-                        text = annotated,
+            val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+            val maxBubbleDp = (screenWidthDp - 28.dp).coerceAtMost(320.dp)
+            val maxTextPx = with(density) { (maxBubbleDp - 28.dp).roundToPx().coerceAtLeast(1) }
+            // 折叠静止时只测量前 7 行（O(1) 极快，且不用 BoxWithConstraints 避免 LazyColumn 滚动子组合卡顿）
+            val probe = remember(annotated, bodyStyle, maxTextPx) {
+                textMeasurer.measure(
+                    text = annotated,
+                    style = bodyStyle,
+                    maxLines = 7,
+                    constraints = androidx.compose.ui.unit.Constraints(maxWidth = maxTextPx),
+                )
+            }
+            val canCollapse = probe.lineCount > 6 || probe.hasVisualOverflow
+            val collapsedPx = remember(probe) {
+                with(density) {
+                    if (probe.lineCount >= 6) probe.getLineBottom(5) + 20.dp.toPx() else probe.size.height + 20.dp.toPx()
+                }
+            }
+            var fullPx by remember(text, maxTextPx) { androidx.compose.runtime.mutableFloatStateOf(0f) }
+            if (expanded && fullPx == 0f && canCollapse) {
+                val fullMeasured = textMeasurer.measure(
+                    text = annotated,
+                    style = bodyStyle,
+                    constraints = androidx.compose.ui.unit.Constraints(maxWidth = maxTextPx),
+                )
+                fullPx = with(density) { fullMeasured.size.height + 38.dp.toPx() }
+            }
+            val heightAnim = remember(text, maxTextPx) {
+                androidx.compose.animation.core.Animatable(if (expanded && fullPx > 0f) fullPx else collapsedPx)
+            }
+            val fadeAnim = remember(text) {
+                androidx.compose.animation.core.Animatable(if (canCollapse && !expanded) 1f else 0f)
+            }
+            LaunchedEffect(expanded, canCollapse, collapsedPx, fullPx) {
+                if (!canCollapse) return@LaunchedEffect
+                val targetH = if (expanded) fullPx.takeIf { it > 0f } ?: collapsedPx else collapsedPx
+                if (kotlin.math.abs(heightAnim.value - targetH) > 1f) {
+                    heightAnim.animateTo(targetH, tween(170, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                }
+            }
+            LaunchedEffect(expanded, canCollapse) {
+                val targetA = if (canCollapse && !expanded) 1f else 0f
+                if (kotlin.math.abs(fadeAnim.value - targetA) > 0.01f) {
+                    fadeAnim.animateTo(targetA, tween(140))
+                }
+            }
+            val animatingOrExpanded = expanded || heightAnim.value > collapsedPx + 1f
+            val animHDp = with(density) { heightAnim.value.toDp() }
+            Box(
+                if (canCollapse) Modifier.height(animHDp).clipToBounds()
+                else Modifier
+            ) {
+                SelectionContainer {
+                    Text(
+                        annotated,
+                        Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = bodyStyle,
-                        maxLines = 7,
-                        constraints = androidx.compose.ui.unit.Constraints(maxWidth = maxTextPx),
+                        maxLines = if (!canCollapse || animatingOrExpanded) Int.MAX_VALUE else 7,
                     )
                 }
-                val canCollapse = probe.lineCount > 6 || probe.hasVisualOverflow
-                val collapsedPx = remember(probe) {
-                    with(density) {
-                        if (probe.lineCount >= 6) probe.getLineBottom(5) + 20.dp.toPx() else probe.size.height + 20.dp.toPx()
-                    }
-                }
-                var fullPx by remember(text, maxTextPx) { androidx.compose.runtime.mutableFloatStateOf(0f) }
-                if (expanded && fullPx == 0f && canCollapse) {
-                    val fullMeasured = textMeasurer.measure(
-                        text = annotated,
-                        style = bodyStyle,
-                        constraints = androidx.compose.ui.unit.Constraints(maxWidth = maxTextPx),
-                    )
-                    fullPx = with(density) { fullMeasured.size.height + 38.dp.toPx() }
-                }
-                val heightAnim = remember(text, maxTextPx) {
-                    androidx.compose.animation.core.Animatable(if (expanded && fullPx > 0f) fullPx else collapsedPx)
-                }
-                val fadeAnim = remember(text) {
-                    androidx.compose.animation.core.Animatable(if (canCollapse && !expanded) 1f else 0f)
-                }
-                LaunchedEffect(expanded, canCollapse, collapsedPx, fullPx) {
-                    if (!canCollapse) return@LaunchedEffect
-                    val targetH = if (expanded) fullPx.takeIf { it > 0f } ?: collapsedPx else collapsedPx
-                    if (kotlin.math.abs(heightAnim.value - targetH) > 1f) {
-                        heightAnim.animateTo(targetH, tween(170, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-                    }
-                }
-                LaunchedEffect(expanded, canCollapse) {
-                    val targetA = if (canCollapse && !expanded) 1f else 0f
-                    if (kotlin.math.abs(fadeAnim.value - targetA) > 0.01f) {
-                        fadeAnim.animateTo(targetA, tween(140))
-                    }
-                }
-                val animatingOrExpanded = expanded || heightAnim.value > collapsedPx + 1f
-                val animHDp = with(density) { heightAnim.value.toDp() }
-                Box(
-                    if (canCollapse) Modifier.height(animHDp).clipToBounds()
-                    else Modifier
-                ) {
-                    SelectionContainer {
-                        Text(
-                            annotated,
-                            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            style = bodyStyle,
-                            maxLines = if (!canCollapse || animatingOrExpanded) Int.MAX_VALUE else 7,
+                if (canCollapse) {
+                    val fadeAlpha = fadeAnim.value
+                    if (fadeAlpha > 0.01f) {
+                        Box(
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        0f to bubbleBg.copy(alpha = 0f),
+                                        0.65f to bubbleBg.copy(alpha = 0.9f * fadeAlpha),
+                                        1f to bubbleBg.copy(alpha = fadeAlpha),
+                                    ),
+                                ),
                         )
                     }
-                    if (canCollapse) {
-                        val fadeAlpha = fadeAnim.value
-                        if (fadeAlpha > 0.01f) {
-                            Box(
-                                Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .height(40.dp)
-                                    .background(
-                                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                                            0f to bubbleBg.copy(alpha = 0f),
-                                            0.65f to bubbleBg.copy(alpha = 0.9f * fadeAlpha),
-                                            1f to bubbleBg.copy(alpha = fadeAlpha),
-                                        ),
-                                    ),
-                            )
-                        }
-                        val subTint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
-                        Row(
-                            Modifier
-                                .align(Alignment.BottomEnd)
-                                .clickable(
-                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                    indication = null,
-                                ) { expanded = !expanded }
-                                .padding(start = 16.dp, end = 12.dp, top = 6.dp, bottom = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                if (expanded) tr("收起") else tr("展开"),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = subTint,
-                            )
-                            Spacer(Modifier.width(2.dp))
-                            Icon(
-                                if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                                if (expanded) tr("收起") else tr("展开"),
-                                Modifier.size(16.dp),
-                                tint = subTint,
-                            )
-                        }
+                    val subTint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+                    Row(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null,
+                            ) { expanded = !expanded }
+                            .padding(start = 16.dp, end = 12.dp, top = 6.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            if (expanded) tr("收起") else tr("展开"),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = subTint,
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Icon(
+                            if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                            if (expanded) tr("收起") else tr("展开"),
+                            Modifier.size(16.dp),
+                            tint = subTint,
+                        )
                     }
                 }
             }

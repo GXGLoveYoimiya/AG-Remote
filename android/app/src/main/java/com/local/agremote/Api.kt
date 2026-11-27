@@ -257,10 +257,18 @@ class Prefs(ctx: Context) {
     var browserTabs: String
         get() = sp.getString("browser_tabs", "") ?: ""
         set(v) = sp.edit().putString("browser_tabs", v).apply()
-    /** 电脑实况画质档位：smooth / balanced / clear / ultra。 */
+    /** 电脑实况画质档位：smooth / balanced / clear / ultra / custom。 */
     var streamQuality: String
         get() = sp.getString("stream_quality", "balanced") ?: "balanced"
         set(v) = sp.edit().putString("stream_quality", v).apply()
+    /** 电脑实况自定义分辨率（宽度像素：640=360P, 854=480P, 1920=1080P, 2560=2K）。 */
+    var streamCustomWidth: Int
+        get() = sp.getInt("stream_custom_width", 1920)
+        set(v) = sp.edit().putInt("stream_custom_width", v).apply()
+    /** 电脑实况自定义帧率（10 / 30 / 60）。 */
+    var streamCustomFps: Int
+        get() = sp.getInt("stream_custom_fps", 30)
+        set(v) = sp.edit().putInt("stream_custom_fps", v).apply()
     /** 远程电脑虚拟光标缩放倍率（默认 1.0，范围 0.4..2.2）。 */
     var cursorScale: Float
         get() = sp.getFloat("cursor_scale", 1.0f).coerceIn(0.4f, 2.2f)

@@ -176,12 +176,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** 电脑实况的画质档位：宽度、每秒帧数、JPEG 质量。 */
     data class StreamPreset(val key: String, val label: String, val desc: String, val width: Int, val fps: Int, val quality: Int)
     val streamPresets = listOf(
-        StreamPreset("smooth", "流畅", "省流量，网差时用", 960, 24, 50),
-        StreamPreset("balanced", "平衡", "清晰和流畅兼顾", 1280, 20, 65),
-        StreamPreset("clear", "清晰", "画面更细，帧率稍低", 1600, 15, 80),
-        StreamPreset("ultra", "极致清晰", "原始分辨率，看小字用", 2560, 10, 90),
+        StreamPreset("smooth", "流畅", "省流量，网差时用", 640, 10, 55),
+        StreamPreset("balanced", "平衡", "清晰和流畅兼顾", 854, 30, 68),
+        StreamPreset("clear", "清晰", "画面更细，流畅观感", 1920, 30, 80),
+        StreamPreset("ultra", "极致清晰", "原画细节，看小字用", 2560, 30, 90),
     )
-    fun streamPreset(): StreamPreset = streamPresets.find { it.key == prefs.streamQuality } ?: streamPresets[1]
+    fun streamPreset(): StreamPreset {
+        if (prefs.streamQuality == "custom") {
+            val w = prefs.streamCustomWidth.coerceIn(480, 3840)
+            val f = prefs.streamCustomFps.coerceIn(2, 60)
+            val q = when { w >= 2560 -> 88; w >= 1920 -> 80; w >= 854 -> 68; else -> 55 }
+            return StreamPreset("custom", "自定义", "", w, f, q)
+        }
+        return streamPresets.find { it.key == prefs.streamQuality } ?: streamPresets[1]
+    }
 
     fun pcScreenStream(preset: StreamPreset = streamPreset()): kotlinx.coroutines.flow.Flow<android.graphics.Bitmap> = kotlinx.coroutines.flow.flow {
         val call = api.browserStreamCall(preset.width, preset.fps, preset.quality)
@@ -1037,9 +1045,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             markViewed(id, force = conv.status == "idle")
                             conv.copy(unread = false)
                         } else conv
-                        _chat.value = now.copy(conv = finalConv, steps = steps, queued = d.queued, voiceChats = d.voiceChats,
+                        val filteredQueued = d.queued.filterNot { it.id in deletingQueuedIds }
+                        val nextState = now.copy(conv = finalConv, steps = steps, queued = filteredQueued, voiceChats = d.voiceChats,
                             pendingFiles = if (pending == null) emptyList() else now.pendingFiles,
                             loading = false, error = null, model = model, pending = pending)
+                        if (nextState != now) _chat.value = nextState
                         // 模型默认始终跟随电脑端同步；仅在还没拿到电脑端模型时才兜底用本对话历史模型
                         if (!userPicked && pcModel.isBlank() && model.isNotBlank()) _selected.value = model
                     }
@@ -1184,19 +1194,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _sendingQueuedIds = MutableStateFlow<Set<String>>(emptySet())
     val sendingQueuedIds = _sendingQueuedIds.asStateFlow()
+    private val deletingQueuedIds = mutableSetOf<String>()
 
     fun sendQueuedNow(m: QueuedMsg) {
         val id = _chat.value.id ?: return
         if (m.id in _sendingQueuedIds.value) return
         _sendingQueuedIds.value = _sendingQueuedIds.value + m.id
         viewModelScope.launch {
-            runCatching { api.sendQueued(id, m.id, m.text) }
-                .onSuccess {
-                    _sendingQueuedIds.value = _sendingQueuedIds.value - m.id
+            try {
+                val res = runCatching { kotlinx.coroutines.withTimeout(10_000L) { api.sendQueued(id, m.id, m.text) } }
+                res.onSuccess {
                     reloadChat(id, full = false)
-                }
-                .onFailure {
-                    _sendingQueuedIds.value = _sendingQueuedIds.value - m.id
+                }.onFailure {
                     if (_chat.value.id == id) {
                         _chat.value = _chat.value.copy(
                             queued = _chat.value.queued.map { q -> if (q.id == m.id) q.copy(immediate = false) else q }
@@ -1205,37 +1214,52 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     _toast.tryEmit("立刻发送失败：" + err(it))
                     reloadChat(id, full = false)
                 }
+            } finally {
+                _sendingQueuedIds.value = _sendingQueuedIds.value - m.id
+            }
         }
     }
 
     fun deleteQueued(m: QueuedMsg) {
         val id = _chat.value.id ?: return
+        if (!deletingQueuedIds.add(m.id)) return
         _chat.value = _chat.value.copy(queued = _chat.value.queued.filterNot { it.id == m.id })
         viewModelScope.launch {
-            runCatching { api.deleteQueued(id, m.id) }
-                .onSuccess { reloadChat(id, full = false) }
-                .onFailure {
-                    reloadChat(id, full = false)
-                    val msg = it.message ?: ""
-                    _toast.tryEmit(if (msg.contains("already been delivered")) "这条消息已经发出去了" else "取消排队失败：" + err(it))
-                }
+            try {
+                runCatching { kotlinx.coroutines.withTimeout(10_000L) { api.deleteQueued(id, m.id) } }
+                    .onSuccess { reloadChat(id, full = false) }
+                    .onFailure {
+                        deletingQueuedIds.remove(m.id)
+                        reloadChat(id, full = false)
+                        val msg = it.message ?: ""
+                        _toast.tryEmit(if (msg.contains("already been delivered")) "这条消息已经发出去了" else "取消排队失败：" + err(it))
+                    }
+            } finally {
+                deletingQueuedIds.remove(m.id)
+            }
         }
     }
 
     fun editQueued(m: QueuedMsg) {
         val id = _chat.value.id ?: return
+        if (!deletingQueuedIds.add(m.id)) return
         _chat.value = _chat.value.copy(queued = _chat.value.queued.filterNot { it.id == m.id })
         viewModelScope.launch {
-            runCatching { api.deleteQueued(id, m.id) }
-                .onSuccess {
-                    insertDraft(m.text)
-                    reloadChat(id, full = false)
-                }
-                .onFailure {
-                    reloadChat(id, full = false)
-                    val msg = it.message ?: ""
-                    _toast.tryEmit(if (msg.contains("already been delivered")) "这条消息已经发出去了，无法再编辑" else "编辑失败：" + err(it))
-                }
+            try {
+                runCatching { kotlinx.coroutines.withTimeout(10_000L) { api.deleteQueued(id, m.id) } }
+                    .onSuccess {
+                        insertDraft(m.text)
+                        reloadChat(id, full = false)
+                    }
+                    .onFailure {
+                        deletingQueuedIds.remove(m.id)
+                        reloadChat(id, full = false)
+                        val msg = it.message ?: ""
+                        _toast.tryEmit(if (msg.contains("already been delivered")) "这条消息已经发出去了，无法再编辑" else "编辑失败：" + err(it))
+                    }
+            } finally {
+                deletingQueuedIds.remove(m.id)
+            }
         }
     }
 

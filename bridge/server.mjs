@@ -1908,11 +1908,7 @@ async function tick() {
   try {
     const list = await listConversations();
     const now = new Map(list.map(c => [c.id, `${c.status}|${c.steps}|${c.updated}|${c.title}|${c.pinned}|${c.archived}|${c.unread}|${c.waiting}`]));
-    // 正在运行的对话（思考中/流式输出中）steps 数量和 updated 未必立刻变化，每轮都通知手机增量拉取实时思考与正文
-    const changed = list.filter(c =>
-      lastList.get(c.id) !== now.get(c.id) ||
-      c.status === 'running' || c.status === 'busy' || c.status === 'canceling'
-    ).map(c => c.id);
+    const changed = list.filter(c => lastList.get(c.id) !== now.get(c.id)).map(c => c.id);
     const removed = [...lastList.keys()].some(k => !now.has(k));
     if (changed.length || removed) push({ type: 'changed', ids: changed });
     lastList = now;
@@ -2417,7 +2413,7 @@ async function dl(){
     if (path === '/api/browser/stream' && req.method === 'GET') {
       if (!existsSync(WINCAP_EXE)) return send(res, 404, { error: 'NO_WINCAP' });
       const clamp = (v, lo, hi, d) => Math.min(hi, Math.max(lo, Number(v) || d));
-      const fps = clamp(url.searchParams.get('fps'), 2, 30, 20);
+      const fps = clamp(url.searchParams.get('fps'), 2, 60, 20);
       const width = clamp(url.searchParams.get('w'), 480, 3840, 1280);
       const quality = clamp(url.searchParams.get('q'), 30, 95, 65);
       const p = spawn(WINCAP_EXE, ['stream', String(quality), String(width), String(fps)], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -2509,7 +2505,16 @@ async function dl(){
         if (action === 'sendQueued') {
           const mid = String(b.messageId || '');
           const text = String(b.text || '');
-          if (mid) await rpc('DeleteAgentMessage', { recipient: id, messageId: mid });
+          if (mid) {
+            try { await rpc('DeleteAgentMessage', { recipient: id, messageId: mid }); }
+            catch (e) {
+              if (/already been delivered|not found/i.test(String(e?.message || ''))) {
+                push({ type: 'changed', ids: [id] });
+                return send(res, 200, { ok: true });
+              }
+              throw e;
+            }
+          }
           if (text.trim()) await sendMessage(id, text, String(b.model || ''), [], [], 'now');
           push({ type: 'changed', ids: [id] });
           return send(res, 200, { ok: true });
