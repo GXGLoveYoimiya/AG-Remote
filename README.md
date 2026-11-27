@@ -12,6 +12,42 @@
 
 ---
 
+## 截图 · Screenshots
+
+**对话 · Chat**
+
+<p><img src="docs/screenshots/home.jpg" width="160" alt="home">
+<img src="docs/screenshots/voice-chat.jpg" width="160" alt="voice-chat">
+<img src="docs/screenshots/live-voice.jpg" width="160" alt="live-voice">
+<img src="docs/screenshots/models.jpg" width="160" alt="models">
+<img src="docs/screenshots/attach.jpg" width="160" alt="attach">
+<img src="docs/screenshots/drawer.jpg" width="160" alt="drawer"></p>
+
+**浏览器与电脑实况 · Browser & PC live view**
+
+<p><img src="docs/screenshots/browser.jpg" width="160" alt="browser">
+<img src="docs/screenshots/pc-live.jpg" width="160" alt="pc-live"></p>
+
+**自定义 · Customization**
+
+<p><img src="docs/screenshots/plugins.jpg" width="160" alt="plugins">
+<img src="docs/screenshots/installed.jpg" width="160" alt="installed">
+<img src="docs/screenshots/projects.jpg" width="160" alt="projects">
+<img src="docs/screenshots/automations.jpg" width="160" alt="automations">
+<img src="docs/screenshots/new-automation.jpg" width="160" alt="new-automation"></p>
+
+**设置 · Settings**
+
+<p><img src="docs/screenshots/settings.jpg" width="160" alt="settings">
+<img src="docs/screenshots/settings-2.jpg" width="160" alt="settings-2">
+<img src="docs/screenshots/usage.jpg" width="160" alt="usage">
+<img src="docs/screenshots/voice-settings.jpg" width="160" alt="voice-settings">
+<img src="docs/screenshots/theme.jpg" width="160" alt="theme">
+<img src="docs/screenshots/font.jpg" width="160" alt="font">
+<img src="docs/screenshots/language.jpg" width="160" alt="language"></p>
+
+---
+
 ## 中文
 
 AG Remote 由两部分组成：
