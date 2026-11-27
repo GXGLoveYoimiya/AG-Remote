@@ -86,6 +86,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.Web
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -565,31 +566,6 @@ fun BrowserDialog(
         }
     }
 
-    // 打开外语网页时自动问要不要翻译（像 Chrome 那样）；关掉后这个网站这次不再问
-    var offerTranslate by remember { mutableStateOf<String?>(null) } // 网页的语言名（空 = 不确定）
-    var offerLangCode by remember { mutableStateOf("") }
-    val noOfferHosts = remember { mutableSetOf<String>() }
-    fun checkTranslateOffer() {
-        val wv = webViewRef ?: return
-        val host = runCatching { android.net.Uri.parse(activeUrl).host }.getOrNull() ?: return
-        if (host in noOfferHosts || host in vm.prefs.trNeverHosts || pageTranslated) return
-        wv.evaluateJavascript(LANG_SAMPLE_JS) { res ->
-            val arr = runCatching { org.json.JSONArray(org.json.JSONTokener(res).nextValue() as String) }.getOrNull() ?: return@evaluateJavascript
-            val declared = arr.optString(0).lowercase().substringBefore('-').substringBefore('_')
-            val sample = arr.optString(1)
-            val app = I18n.currentLang
-            val (foreign, guessed) = mostlyForeign(sample, declared, app)
-            val pageBase = declared.ifBlank { guessed }
-            if (foreign && !pageTranslated) {
-                if (pageBase.isNotBlank() && pageBase in vm.prefs.trNeverLangs) return@evaluateJavascript
-                if (pageBase.isNotBlank() && pageBase in vm.prefs.trAutoLangs) { translatePage(); return@evaluateJavascript } // 一律翻译这种语言
-                offerLangCode = pageBase
-                offerTranslate = if (pageBase.isBlank()) "" else
-                    java.util.Locale.forLanguageTag(pageBase).getDisplayLanguage(java.util.Locale.forLanguageTag(app))
-            }
-        }
-    }
-
     /** 显示原文：把保存的原文换回去，不刷新页面。 */
     fun showOriginal() {
         webViewRef?.evaluateJavascript(RESTORE_TEXT_JS, null)
@@ -634,21 +610,35 @@ fun BrowserDialog(
                 IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterStart)) {
                     Icon(Icons.Rounded.Close, tr("关闭"))
                 }
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.align(Alignment.Center).height(38.dp),
+                Row(
+                    Modifier.align(Alignment.Center),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
-                        ModePill(tr("电脑实况"), viewMode == "live") {
-                            webViewRef?.visibility = android.view.View.INVISIBLE
-                            dialogFocus.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
-                            viewMode = "live"
+                    if (viewMode == "live") {
+                        Box(Modifier.padding(end = 8.dp), contentAlignment = Alignment.Center) {
+                            if (!livePaused && liveError == null) {
+                                StatusDot(true, color = Green)
+                            } else if (livePaused) {
+                                Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.outline, CircleShape))
+                            }
                         }
-                        ModePill(tr("网页浏览"), viewMode == "web") {
-                            webEverMounted = true
-                            viewMode = "web"
-                            webViewRef?.visibility = android.view.View.VISIBLE
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.height(38.dp),
+                    ) {
+                        Row(Modifier.padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                            ModePill(tr("电脑实况"), viewMode == "live") {
+                                webViewRef?.visibility = android.view.View.INVISIBLE
+                                dialogFocus.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
+                                viewMode = "live"
+                            }
+                            ModePill(tr("网页浏览"), viewMode == "web") {
+                                webEverMounted = true
+                                viewMode = "web"
+                                webViewRef?.visibility = android.view.View.VISIBLE
+                            }
                         }
                     }
                 }
@@ -727,7 +717,7 @@ fun BrowserDialog(
                                 }
                             }
                             // 翻译：点一下翻译，再点显示原文
-                            IconButton(onClick = { offerTranslate = null; if (translating) return@IconButton; if (pageTranslated) showOriginal() else translatePage() },
+                            IconButton(onClick = { if (translating) return@IconButton; if (pageTranslated) showOriginal() else translatePage() },
                                 enabled = activeUrl.isNotBlank(), modifier = Modifier.size(44.dp)) {
                                 // 点下去立刻变成强调色（翻译中、已翻译都是）；显示原文后恢复。所有主题都一样，不加底色
                                 Icon(Icons.Rounded.Translate, if (pageTranslated) tr("显示原文") else tr("翻译此页"),
@@ -839,12 +829,70 @@ fun BrowserDialog(
                             } else {
                               // 网页深浅色跟随 app：WebView 按它所在 Context 的主题告诉网站 prefers-color-scheme，
                               // 而 app 的 XML 主题是深色 Theme.Material，所以这里按 app 当前主题包一层；切换主题时重建并重新加载
+                              var pullOffset by remember { mutableFloatStateOf(0f) }
+                              var pullRefreshing by remember { mutableStateOf(false) }
+                              LaunchedEffect(loading) { if (!loading) pullRefreshing = false }
+                              val pullDensity = androidx.compose.ui.platform.LocalDensity.current
+                              val triggerPx = with(pullDensity) { 68.dp.toPx() }
+                              val maxPullPx = with(pullDensity) { 104.dp.toPx() }
                               androidx.compose.runtime.key(isDark) {
                                 AndroidView(
                                     factory = { c ->
                                         WebView(android.view.ContextThemeWrapper(c,
                                             if (isDark) android.R.style.Theme_Material_NoActionBar
                                             else android.R.style.Theme_Material_Light_NoActionBar)).apply {
+                                            // 下拉页面刷新：仅在页面顶部（scrollY == 0）单指竖直下拉时触发，不影响网页滚动和双指缩放
+                                            val touchSlop = android.view.ViewConfiguration.get(c).scaledTouchSlop.toFloat()
+                                            var startX = 0f; var startY = 0f
+                                            var tracking = false; var pulling = false; var hapticFired = false
+                                            setOnTouchListener { v, ev ->
+                                                when (ev.actionMasked) {
+                                                    android.view.MotionEvent.ACTION_DOWN -> {
+                                                        tracking = v.scrollY == 0 && !pullRefreshing
+                                                        pulling = false; hapticFired = false
+                                                        startX = ev.rawX; startY = ev.rawY
+                                                        false
+                                                    }
+                                                    android.view.MotionEvent.ACTION_POINTER_DOWN -> {
+                                                        if (pulling) { pullOffset = 0f; pulling = false }
+                                                        tracking = false; false
+                                                    }
+                                                    android.view.MotionEvent.ACTION_MOVE -> {
+                                                        if (!tracking || ev.pointerCount > 1) return@setOnTouchListener false
+                                                        if (!pulling && v.scrollY > 0) { tracking = false; return@setOnTouchListener false }
+                                                        val dx = ev.rawX - startX
+                                                        val dy = ev.rawY - startY
+                                                        if (!pulling) {
+                                                            if (dy > touchSlop && dy > kotlin.math.abs(dx) * 1.3f) {
+                                                                pulling = true
+                                                            } else if (kotlin.math.abs(dx) > touchSlop || dy < -touchSlop) {
+                                                                tracking = false; return@setOnTouchListener false
+                                                            } else {
+                                                                return@setOnTouchListener false
+                                                            }
+                                                        }
+                                                        val damped = ((dy - touchSlop) * 0.45f).coerceIn(0f, maxPullPx)
+                                                        pullOffset = damped
+                                                        if (!hapticFired && damped >= triggerPx) {
+                                                            hapticFired = true
+                                                            v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                                                        }
+                                                        true
+                                                    }
+                                                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                                                        val wasPulling = pulling
+                                                        val shouldReload = wasPulling && ev.actionMasked == android.view.MotionEvent.ACTION_UP && pullOffset >= triggerPx
+                                                        tracking = false; pulling = false; pullOffset = 0f
+                                                        if (shouldReload) {
+                                                            pullRefreshing = true
+                                                            webError = null
+                                                            (v as? WebView)?.reload()
+                                                        }
+                                                        wasPulling
+                                                    }
+                                                    else -> false
+                                                }
+                                            }
                                             // 必须是 MATCH_PARENT：AndroidView 默认给 WRAP_CONTENT，WebView 会因此把 vh/vmin 当 0，
                                             // 导致 B 站等用 vh/vmin 排版的网站标题、顶栏、图片尺寸变成 0
                                             layoutParams = android.view.ViewGroup.LayoutParams(
@@ -909,7 +957,6 @@ fun BrowserDialog(
                                                     // 当前是主页：还在收尾的旧页面（比如刚关掉的标签页）不要把网址写回来
                                                     if (activeUrl.isEmpty()) return
                                                     pageTranslated = false
-                                                    offerTranslate = null
                                                     loading = true
                                                     webError = null
                                                     url?.let { if (!urlFocused) urlInput = it; activeUrl = it }
@@ -926,7 +973,6 @@ fun BrowserDialog(
                                                     url?.let { if (!urlFocused) urlInput = it; activeUrl = it }
                                                     pageTitle = view?.title.orEmpty()
                                                     updateActiveLocalTab(newUrl = url, newTitle = view?.title)
-                                                    checkTranslateOffer()
                                                     canBack = view?.canGoBack() == true
                                                     canForward = view?.canGoForward() == true
                                                 }
@@ -1016,48 +1062,35 @@ fun BrowserDialog(
                                     onRelease = { wv -> if (webViewRef === wv) webViewRef = null; wv.stopLoading(); wv.destroy() },
                                 )
                               }
-                                offerTranslate?.let { src ->
-                                    val app = I18n.currentLang
-                                    val target = java.util.Locale.forLanguageTag(app).getDisplayLanguage(java.util.Locale.forLanguageTag(app))
+                                if (pullOffset > 4f || pullRefreshing) {
+                                    val progressRatio = (pullOffset / triggerPx).coerceIn(0f, 1f)
+                                    val yDp = with(pullDensity) {
+                                        if (pullRefreshing) 18.dp else (pullOffset - 24.dp.toPx()).coerceAtLeast(4.dp.toPx()).toDp()
+                                    }
                                     Surface(
-                                        shape = RoundedCornerShape(20.dp), color = sheetCardColor(), shadowElevation = 6.dp,
-                                        modifier = Modifier.align(Alignment.TopCenter).zIndex(4f).padding(top = 8.dp, start = 12.dp, end = 12.dp).fillMaxWidth(),
+                                        shape = CircleShape,
+                                        color = sheetCardColor(),
+                                        shadowElevation = 4.dp,
+                                        modifier = Modifier
+                                            .align(Alignment.TopCenter)
+                                            .zIndex(5f)
+                                            .padding(top = yDp)
+                                            .size(38.dp),
                                     ) {
-                                        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Rounded.Translate, null, tint = accent())
-                                            Spacer(Modifier.width(12.dp))
-                                            Column(Modifier.weight(1f)) {
-                                                Text(tr("翻译网页吗？"), style = MaterialTheme.typography.bodyLarge)
-                                                Text(if (src.isBlank()) tr("翻译成{0}", target) else tr("从{0}到{1}", src, target),
-                                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Box(contentAlignment = Alignment.Center) {
+                                            if (pullRefreshing) {
+                                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.2.dp)
+                                            } else {
+                                                Icon(
+                                                    Icons.Rounded.Refresh,
+                                                    tr("刷新"),
+                                                    Modifier.size(20.dp).graphicsLayer {
+                                                        rotationZ = progressRatio * 270f
+                                                        alpha = (0.35f + 0.65f * progressRatio).coerceIn(0f, 1f)
+                                                    },
+                                                    tint = if (progressRatio >= 1f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
                                             }
-                                            Box {
-                                                var gear by remember { mutableStateOf(false) }
-                                                IconButton(onClick = { gear = true }) { Icon(Icons.Rounded.Settings, tr("翻译设置"), Modifier.size(20.dp)) }
-                                                DropdownMenu(gear, { gear = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
-                                                    val code = offerLangCode
-                                                    val host = runCatching { android.net.Uri.parse(activeUrl).host }.getOrNull().orEmpty()
-                                                    if (code.isNotBlank()) {
-                                                        DropdownMenuItem(text = { Text(tr("一律翻译{0}网页", src)) }, onClick = {
-                                                            gear = false; vm.prefs.trAutoLangs = vm.prefs.trAutoLangs + code
-                                                            vm.prefs.trNeverLangs = vm.prefs.trNeverLangs - code
-                                                            offerTranslate = null; translatePage()
-                                                        })
-                                                        DropdownMenuItem(text = { Text(tr("一律不翻译{0}网页", src)) }, onClick = {
-                                                            gear = false; vm.prefs.trNeverLangs = vm.prefs.trNeverLangs + code
-                                                            vm.prefs.trAutoLangs = vm.prefs.trAutoLangs - code; offerTranslate = null
-                                                        })
-                                                    }
-                                                    if (host.isNotBlank()) DropdownMenuItem(text = { Text(tr("一律不翻译此网站")) }, onClick = {
-                                                        gear = false; vm.prefs.trNeverHosts = vm.prefs.trNeverHosts + host; offerTranslate = null
-                                                    })
-                                                }
-                                            }
-                                            androidx.compose.material3.TextButton(onClick = { offerTranslate = null; translatePage() }) { Text(tr("翻译")) }
-                                            IconButton(onClick = {
-                                                runCatching { android.net.Uri.parse(activeUrl).host }.getOrNull()?.let { noOfferHosts += it }
-                                                offerTranslate = null
-                                            }) { Icon(Icons.Rounded.Close, tr("关闭"), Modifier.size(18.dp)) }
                                         }
                                     }
                                 }
@@ -1141,7 +1174,7 @@ fun BrowserDialog(
                 // 2) 电脑实况层（覆盖在 WebView 上方，切换时瞬间显隐零闪烁）
                 if (viewMode == "live") {
                     Column(Modifier.fillMaxSize().zIndex(3f).background(surfaceColor)) {
-                // 「电脑实况」顶部控制条：触控操控开关 + 实时状态点
+                // 「电脑实况」顶部控制条：操控模式 + 画质 + 光标尺寸
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 2.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1158,13 +1191,17 @@ fun BrowserDialog(
                         },
                         leadingIcon = {
                             Icon(
-                                if (controlMode == "mouse") Icons.Rounded.Mouse else Icons.Rounded.TouchApp,
+                                when (controlMode) {
+                                    "mouse" -> Icons.Rounded.Mouse
+                                    "touch" -> Icons.Rounded.TouchApp
+                                    else -> Icons.Rounded.Visibility
+                                },
                                 null,
                                 Modifier.size(16.dp),
                             )
                         },
                         label = {
-                            Text(when (controlMode) { "mouse" -> tr("鼠标操控"); "touch" -> tr("直接触控"); else -> tr("仅查看") })
+                            Text(when (controlMode) { "mouse" -> tr("鼠标"); "touch" -> tr("触摸"); else -> tr("查看") })
                         },
                     )
                     // 画质档位：流畅 / 平衡 / 清晰 / 极致清晰（切换后按新档位重连，并记住）
@@ -1193,19 +1230,8 @@ fun BrowserDialog(
                         TogglePill(
                             selected = showCursorSlider,
                             onClick = { showCursorSlider = !showCursorSlider },
-                            label = { Text("${tr("光标")} ${String.format("%.1f", cursorScale)}×") },
+                            label = { Text("${tr("尺寸")} ${String.format("%.1f", cursorScale)}×") },
                         )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(start = 4.dp)) {
-                        if (!livePaused && liveError == null) {
-                            StatusDot(true, color = Green)
-                            Text(if (activity.running) tr("运行中") else tr("实时同步"),
-                                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        } else if (livePaused) {
-                            Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.outline, CircleShape))
-                            Text(tr("已暂停"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
                     }
                 }
 
