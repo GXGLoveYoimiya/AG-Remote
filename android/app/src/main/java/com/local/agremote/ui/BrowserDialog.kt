@@ -851,8 +851,7 @@ fun BrowserDialog(
                                                     onClick = {
                                                         netMenu = false; webMenu = false
                                                         if (pc != viaPc) {
-                                                            viaPc = pc; vm.prefs.browserViaPc = pc
-                                                            scope.launch { delay(300); webViewRef?.reload() }
+                                                            viaPc = pc; vm.prefs.browserViaPc = pc // 只换代理，不刷新页面；之后的请求自动走新网络
                                                         }
                                                     })
                                             }
