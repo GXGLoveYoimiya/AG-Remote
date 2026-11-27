@@ -342,10 +342,10 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit, startPage: String = "ma
                                 Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                color = if (selected) accentText(MaterialTheme.colorScheme.primary) else MaterialTheme.colorScheme.onSurface,
                             )
                             if (selected) {
-                                Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Rounded.Check, null, tint = iconInk())
                             }
                         }
                     }
@@ -473,7 +473,7 @@ private fun ColorModeRow(mode: String, onPick: (String) -> Unit) {
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(label, style = MaterialTheme.typography.labelMedium,
-                        color = if (sel) accent else MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = if (sel) accentText(accent) else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

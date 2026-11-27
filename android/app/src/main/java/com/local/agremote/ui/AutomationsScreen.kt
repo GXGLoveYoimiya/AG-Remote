@@ -140,7 +140,7 @@ fun AutomationsScreen(vm: AppViewModel, onBack: () -> Unit) {
                                     overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.error)
                             }
                             Spacer(Modifier.width(8.dp))
-                            Switch(checked = a.enabled, onCheckedChange = { vm.automationAction(a.id, if (it) "enable" else "disable") })
+                            AppSwitch(checked = a.enabled, onCheckedChange = { vm.automationAction(a.id, if (it) "enable" else "disable") })
                         }
                     }
                 } } }

@@ -488,7 +488,7 @@ fun CommandPaletteDialog(
                                         Text(
                                             row.title,
                                             style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            color = accentText(MaterialTheme.colorScheme.primary),
                                             fontWeight = FontWeight.Medium,
                                             modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 4.dp),
                                         )
@@ -546,11 +546,11 @@ fun CommandPaletteDialog(
                                                     c.waiting -> Icon(Icons.Rounded.TouchApp, "等待确认", Modifier.size(16.dp), tint = Amber)
                                                     isRunning(c.status) -> StatusDot(true)
                                                     c.unread -> Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                                                    row.checked -> Icon(Icons.Rounded.Check, "当前", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                                    row.checked -> Icon(Icons.Rounded.Check, "当前", Modifier.size(18.dp), tint = iconInk())
                                                 }
                                             } else if (row.checked) {
                                                 Spacer(Modifier.width(8.dp))
-                                                Icon(Icons.Rounded.Check, "当前", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                                Icon(Icons.Rounded.Check, "当前", Modifier.size(18.dp), tint = iconInk())
                                             }
                                         }
                                     }

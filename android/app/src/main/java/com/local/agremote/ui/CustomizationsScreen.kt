@@ -267,7 +267,7 @@ private fun PluginRow(vm: AppViewModel, p: MarketItem, installed: Set<String>, t
         Spacer(Modifier.width(8.dp))
         when {
             p.id in busy -> CircularProgressIndicator(Modifier.size(22.dp).padding(2.dp), strokeWidth = 2.dp)
-            p.id in installed -> Icon(Icons.Rounded.Check, "已添加", tint = MaterialTheme.colorScheme.primary)
+            p.id in installed -> Icon(Icons.Rounded.Check, "已添加", tint = iconInk())
             else -> IconButton(onClick = { vm.marketAction(p.id, "install") }) { Icon(Icons.Rounded.Add, "添加") }
         }
     }
@@ -444,7 +444,7 @@ private fun InstalledTab(
                         if (s.error.isNotBlank()) Text(s.error, style = MaterialTheme.typography.bodySmall, maxLines = 3,
                             overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.error)
                     }
-                    Switch(checked = s.enabled, onCheckedChange = { vm.toggleMcp(s.name, it) })
+                    AppSwitch(checked = s.enabled, onCheckedChange = { vm.toggleMcp(s.name, it) })
                 }
             }
         } } }
@@ -512,7 +512,7 @@ private fun CustomizationRow(c: Customization, rawDesc: String, globalTranslate:
                     Text(
                         if (localTr) "原文" else "译",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = accentText(MaterialTheme.colorScheme.primary),
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { localTr = !localTr }
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                     )

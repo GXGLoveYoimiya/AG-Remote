@@ -542,7 +542,7 @@ private fun OverviewDetailSheet(
                                         Text(
                                             when (st.kind) { "user" -> "任务指令"; "assistant" -> "子代理回复"; else -> st.title },
                                             style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            color = accentText(MaterialTheme.colorScheme.primary),
                                             fontWeight = FontWeight.SemiBold,
                                         )
                                         if (st.text.isNotBlank()) {

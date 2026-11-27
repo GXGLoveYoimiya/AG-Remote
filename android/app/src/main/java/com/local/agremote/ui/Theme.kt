@@ -111,79 +111,96 @@ private fun hueShift(color: Color, degrees: Float): Color {
     return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
+/** 按 Material You (M3) Tonal Palette 规则，从任意种子色提取色相并按标准 Tone (0..100) 生成协调色阶，
+ * 无论种子色本身多浅/多深，配色层次都与系统动态取色（dynamicColorScheme）完全一致。 */
+private fun m3Tone(hue: Float, sat: Float, tone: Float): Color {
+    val l = (tone / 100f).coerceIn(0f, 1f)
+    // 中间明度保持饱满，两端（接近纯白/纯黑）自动收低饱和度，贴近 HCT 观感
+    val s = (sat * (1f - kotlin.math.abs(l - 0.5f) * 0.45f)).coerceIn(0f, 0.92f)
+    val c = (1f - kotlin.math.abs(2f * l - 1f)) * s
+    val h6 = ((hue % 360f) + 360f) % 360f / 60f
+    val x = c * (1f - kotlin.math.abs(h6 % 2f - 1f))
+    val (r1, g1, b1) = when {
+        h6 < 1f -> Triple(c, x, 0f)
+        h6 < 2f -> Triple(x, c, 0f)
+        h6 < 3f -> Triple(0f, c, x)
+        h6 < 4f -> Triple(0f, x, c)
+        h6 < 5f -> Triple(x, 0f, c)
+        else -> Triple(c, 0f, x)
+    }
+    val m = l - c / 2f
+    return Color((r1 + m).coerceIn(0f, 1f), (g1 + m).coerceIn(0f, 1f), (b1 + m).coerceIn(0f, 1f), 1f)
+}
+
 private fun materialSchemeFromSeed(seed: Color, dark: Boolean): ColorScheme {
-    val tertSeed = hueShift(seed, 42f)
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(seed.toArgb(), hsv)
+    val h = hsv[0]
+    val primarySat = hsv[1].coerceIn(0.32f, 0.72f)
+    val secondarySat = (primarySat * 0.34f).coerceIn(0.12f, 0.26f)
+    val tertiaryH = (h + 60f) % 360f
+    val tertiarySat = (primarySat * 0.62f).coerceIn(0.24f, 0.52f)
+    val neutralSat = (primarySat * 0.12f).coerceIn(0.03f, 0.09f)
+    val neutralVarSat = (primarySat * 0.20f).coerceIn(0.06f, 0.14f)
+
     return if (!dark) {
-        val primary = lerp(seed, Color.Black, if (seed.luminance() > 0.55f) 0.22f else 0.06f)
-        val primaryContainer = lerp(Color.White, seed, 0.22f)
-        val onPrimaryContainer = lerp(seed, Color.Black, 0.55f)
-        val secondary = lerp(seed, Color(0xFF606068), 0.45f)
-        val secondaryContainer = lerp(Color.White, seed, 0.14f)
-        val tertiary = lerp(tertSeed, Color.Black, if (tertSeed.luminance() > 0.55f) 0.2f else 0.05f)
-        val tertiaryContainer = lerp(Color.White, tertSeed, 0.20f)
-        val surface = lerp(Color(0xFFFDFCFF), seed, 0.025f)
+        val midPrimary = m3Tone(h, primarySat, 58f)
+        val midSecondary = m3Tone(h, secondarySat, 56f)
+        val midTertiary = m3Tone(tertiaryH, tertiarySat, 58f)
         lightColorScheme(
-            primary = primary,
-            onPrimary = bestOnColor(primary),
-            primaryContainer = primaryContainer,
-            onPrimaryContainer = onPrimaryContainer,
-            secondary = secondary,
-            onSecondary = bestOnColor(secondary),
-            secondaryContainer = secondaryContainer,
-            onSecondaryContainer = lerp(secondary, Color.Black, 0.5f),
-            tertiary = tertiary,
-            onTertiary = bestOnColor(tertiary),
-            tertiaryContainer = tertiaryContainer,
-            onTertiaryContainer = lerp(tertSeed, Color.Black, 0.55f),
-            background = surface,
-            onBackground = Color(0xFF1A1B1E),
-            surface = surface,
-            onSurface = Color(0xFF1A1B1E),
-            surfaceVariant = lerp(Color(0xFFEAECEF), seed, 0.08f),
-            onSurfaceVariant = Color(0xFF494A50),
+            primary = midPrimary,
+            onPrimary = bestOnColor(midPrimary),
+            primaryContainer = m3Tone(h, primarySat, 93f),
+            onPrimaryContainer = m3Tone(h, primarySat, 14f),
+            secondary = midSecondary,
+            onSecondary = bestOnColor(midSecondary),
+            secondaryContainer = m3Tone(h, secondarySat, 94f),
+            onSecondaryContainer = m3Tone(h, secondarySat, 14f),
+            tertiary = midTertiary,
+            onTertiary = bestOnColor(midTertiary),
+            tertiaryContainer = m3Tone(tertiaryH, tertiarySat, 93f),
+            onTertiaryContainer = m3Tone(tertiaryH, tertiarySat, 14f),
+            background = m3Tone(h, neutralSat, 99f),
+            onBackground = m3Tone(h, neutralSat, 10f),
+            surface = m3Tone(h, neutralSat, 99f),
+            onSurface = m3Tone(h, neutralSat, 10f),
+            surfaceVariant = m3Tone(h, neutralVarSat, 93f),
+            onSurfaceVariant = m3Tone(h, neutralVarSat, 32f),
             surfaceContainerLowest = Color.White,
-            surfaceContainerLow = lerp(Color(0xFFF7F7FA), seed, 0.04f),
-            surfaceContainer = lerp(Color(0xFFF2F2F6), seed, 0.06f),
-            surfaceContainerHigh = lerp(Color(0xFFECECF1), seed, 0.085f),
-            surfaceContainerHighest = lerp(Color(0xFFE5E6EC), seed, 0.11f),
-            outline = Color(0xFF76777E),
-            outlineVariant = lerp(Color(0xFFD2D3DA), seed, 0.08f),
+            surfaceContainerLow = m3Tone(h, neutralSat, 97f),
+            surfaceContainer = m3Tone(h, neutralSat, 95f),
+            surfaceContainerHigh = m3Tone(h, neutralSat, 93f),
+            surfaceContainerHighest = m3Tone(h, neutralSat, 91f),
+            outline = m3Tone(h, neutralVarSat, 54f),
+            outlineVariant = m3Tone(h, neutralVarSat, 84f),
         )
     } else {
-        val primary = lerp(seed, Color.White, if (seed.luminance() < 0.25f) 0.45f else 0.26f)
-        val primaryContainer = lerp(Color(0xFF1C1D22), seed, 0.34f)
-        val onPrimaryContainer = lerp(seed, Color.White, 0.78f)
-        val secondary = lerp(primary, Color(0xFFB4B6BE), 0.35f)
-        val secondaryContainer = lerp(Color(0xFF202127), seed, 0.24f)
-        val tertiary = lerp(tertSeed, Color.White, 0.32f)
-        val tertiaryContainer = lerp(Color(0xFF222026), tertSeed, 0.32f)
-        val surface = lerp(Color(0xFF121316), seed, 0.03f)
         darkColorScheme(
-            primary = primary,
-            onPrimary = bestOnColor(primary),
-            primaryContainer = primaryContainer,
-            onPrimaryContainer = onPrimaryContainer,
-            secondary = secondary,
-            onSecondary = bestOnColor(secondary),
-            secondaryContainer = secondaryContainer,
-            onSecondaryContainer = lerp(secondary, Color.White, 0.75f),
-            tertiary = tertiary,
-            onTertiary = bestOnColor(tertiary),
-            tertiaryContainer = tertiaryContainer,
-            onTertiaryContainer = lerp(tertSeed, Color.White, 0.78f),
-            background = surface,
-            onBackground = Color(0xFFE6E6EC),
-            surface = surface,
-            onSurface = Color(0xFFE6E6EC),
-            surfaceVariant = lerp(Color(0xFF2B2C32), seed, 0.08f),
-            onSurfaceVariant = Color(0xFFBABBC4),
-            surfaceContainerLowest = lerp(Color(0xFF0D0E11), seed, 0.02f),
-            surfaceContainerLow = lerp(Color(0xFF191A1F), seed, 0.04f),
-            surfaceContainer = lerp(Color(0xFF1E1F25), seed, 0.055f),
-            surfaceContainerHigh = lerp(Color(0xFF272830), seed, 0.075f),
-            surfaceContainerHighest = lerp(Color(0xFF31333B), seed, 0.10f),
-            outline = Color(0xFF8E9099),
-            outlineVariant = lerp(Color(0xFF42434C), seed, 0.08f),
+            primary = m3Tone(h, primarySat, 80f),
+            onPrimary = m3Tone(h, primarySat, 20f),
+            primaryContainer = m3Tone(h, primarySat, 30f),
+            onPrimaryContainer = m3Tone(h, primarySat, 90f),
+            secondary = m3Tone(h, secondarySat, 80f),
+            onSecondary = m3Tone(h, secondarySat, 20f),
+            secondaryContainer = m3Tone(h, secondarySat, 30f),
+            onSecondaryContainer = m3Tone(h, secondarySat, 90f),
+            tertiary = m3Tone(tertiaryH, tertiarySat, 80f),
+            onTertiary = m3Tone(tertiaryH, tertiarySat, 20f),
+            tertiaryContainer = m3Tone(tertiaryH, tertiarySat, 30f),
+            onTertiaryContainer = m3Tone(tertiaryH, tertiarySat, 90f),
+            background = m3Tone(h, neutralSat, 6f),
+            onBackground = m3Tone(h, neutralSat, 90f),
+            surface = m3Tone(h, neutralSat, 6f),
+            onSurface = m3Tone(h, neutralSat, 90f),
+            surfaceVariant = m3Tone(h, neutralVarSat, 30f),
+            onSurfaceVariant = m3Tone(h, neutralVarSat, 80f),
+            surfaceContainerLowest = m3Tone(h, neutralSat, 4f),
+            surfaceContainerLow = m3Tone(h, neutralSat, 10f),
+            surfaceContainer = m3Tone(h, neutralSat, 12f),
+            surfaceContainerHigh = m3Tone(h, neutralSat, 17f),
+            surfaceContainerHighest = m3Tone(h, neutralSat, 22f),
+            outline = m3Tone(h, neutralVarSat, 60f),
+            outlineVariant = m3Tone(h, neutralVarSat, 30f),
         )
     }
 }
@@ -392,6 +409,11 @@ fun onAccent(): Color = bestOnColor(accent())
 fun accentText(c: Color = accent()): Color =
     if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) vividForLight(c) else c
 
+/** 通用黑色图标色：浅色模式下恒为纯黑，深色模式下自动反白保清晰。 */
+@Composable
+fun iconInk(): Color =
+    if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.Black else MaterialTheme.colorScheme.onSurface
+
 /** 设置页里的主题风格 + 配色（深色模式在设置首页的“颜色模式”里）。 */
 @Composable
 fun ThemeSettingsCard(cfg: ThemeConfig, onChange: (ThemeConfig) -> Unit) {
@@ -546,7 +568,7 @@ private fun StyleOptionCard(
                 Text(title, style = MaterialTheme.typography.bodyLarge)
                 Text(desc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (selected) Icon(Icons.Rounded.Check, tr("已选"), Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            if (selected) Icon(Icons.Rounded.Check, tr("已选"), Modifier.size(20.dp), tint = iconInk())
         }
     }
 }

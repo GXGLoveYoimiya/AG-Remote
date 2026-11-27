@@ -115,8 +115,12 @@ fun ListRow(
         .padding(horizontal = 16.dp, vertical = if (desc.isNullOrBlank()) 15.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
         if (icon != null) {
-            Icon(icon, null, Modifier.size(22.dp),
-                tint = if (titleColor == MaterialTheme.colorScheme.onSurface) MaterialTheme.colorScheme.primary else titleColor)
+            val s = MaterialTheme.colorScheme.surface
+            val isLight = (s.red * 0.299f + s.green * 0.587f + s.blue * 0.114f) > 0.5f
+            val iconTint = if (titleColor == MaterialTheme.colorScheme.onSurface) {
+                if (isLight) androidx.compose.ui.graphics.Color.Black else MaterialTheme.colorScheme.onSurface
+            } else titleColor
+            Icon(icon, null, Modifier.size(22.dp), tint = iconTint)
             Spacer(Modifier.width(14.dp))
         }
         Column(Modifier.weight(1f)) {
@@ -128,8 +132,8 @@ fun ListRow(
         trailing?.invoke()
         when (end) {
             RowEnd.Chevron -> Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            is RowEnd.Toggle -> { Spacer(Modifier.width(8.dp)); Switch(checked = end.on, onCheckedChange = end.onChange) }
-            is RowEnd.Checked -> if (end.on) Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            is RowEnd.Toggle -> { Spacer(Modifier.width(8.dp)); AppSwitch(checked = end.on, onCheckedChange = end.onChange) }
+            is RowEnd.Checked -> if (end.on) Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), tint = iconInk())
             RowEnd.None -> {}
         }
     }
@@ -241,7 +245,7 @@ fun AppAlertDialog(
                     }
                 }
                 androidx.compose.runtime.CompositionLocalProvider(
-                    androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.primary,
+                    androidx.compose.material3.LocalContentColor provides accentText(MaterialTheme.colorScheme.primary),
                     androidx.compose.material3.LocalTextStyle provides MaterialTheme.typography.labelLarge,
                 ) {
                     Row(
@@ -256,6 +260,22 @@ fun AppAlertDialog(
             }
         }
     }
+}
+
+/** 统一的开关：滑块圆点始终为纯白色（避免浅色强调色下 onPrimary 为黑色导致滑块变成黑圆）。 */
+@Composable
+fun AppSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        colors = androidx.compose.material3.SwitchDefaults.colors(
+            checkedThumbColor = androidx.compose.ui.graphics.Color.White,
+            checkedTrackColor = MaterialTheme.colorScheme.primary,
+            uncheckedThumbColor = androidx.compose.ui.graphics.Color.White,
+            uncheckedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        ),
+    )
 }
 
 /** 统一的滑块：圆形白色滑块头 + 圆头轨道（不用新版的竖条滑块头）。 */

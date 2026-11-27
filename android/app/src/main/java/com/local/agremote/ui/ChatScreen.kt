@@ -299,7 +299,7 @@ fun ChatScreen(
                     ) else {
                         // 项目里的新对话：“关于 书，我能帮你做些什么？”，项目名用强调色
                         val parts = tr("关于 {0}，我能帮你做些什么？").split("{0}")
-                        val ac = accent()
+                        val ac = accentText()
                         Text(
                             buildAnnotatedString {
                                 append(parts.first())
@@ -539,7 +539,7 @@ private fun OptionRow(title: String, desc: String, tag: String, checked: Boolean
             }
             if (desc.isNotBlank()) Text(desc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (checked) Icon(Icons.Rounded.Check, "已选", tint = MaterialTheme.colorScheme.primary)
+        if (checked) Icon(Icons.Rounded.Check, "已选", tint = iconInk())
     }
 }
 
@@ -703,7 +703,7 @@ private fun UserBubble(vm: AppViewModel, text: String, remote: List<com.local.ag
                     Text(
                         annotated,
                         Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = if ((bubbleBg.red * 0.299f + bubbleBg.green * 0.587f + bubbleBg.blue * 0.114f) > 0.5f) Color.Black else MaterialTheme.colorScheme.onPrimaryContainer,
                         style = bodyStyle,
                         maxLines = if (!canCollapse || animatingOrExpanded) Int.MAX_VALUE else 7,
                     )
@@ -1731,7 +1731,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 Spacer(Modifier.width(8.dp))
                                 FilledIconButton(onClick = { startVoiceMode() }, modifier = Modifier.size(44.dp),
                                     colors = IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
+                                        containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
                                     Icon(Icons.Rounded.GraphicEq, tr("实时语音"))
                                 }
                             }

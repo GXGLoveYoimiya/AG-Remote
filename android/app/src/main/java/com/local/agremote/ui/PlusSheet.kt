@@ -157,7 +157,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                             Row(Modifier.fillMaxWidth().clickable { vm.setPreset(id); page = "main" }.padding(horizontal = 20.dp, vertical = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically) {
                                 Text(presetLabel(vm, id), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                                if (on) Icon(Icons.Rounded.Check, "已选", tint = MaterialTheme.colorScheme.primary)
+                                if (on) Icon(Icons.Rounded.Check, "已选", tint = iconInk())
                             }
                         }
                     }
@@ -201,7 +201,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                             Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (skills.isNotEmpty()) {
                             Text("${tr("技能")}（${skills.size}）", Modifier.padding(horizontal = 4.dp),
-                                style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                style = MaterialTheme.typography.labelLarge, color = accentText(MaterialTheme.colorScheme.primary))
                             Group {
                                 skills.forEachIndexed { k, s ->
                                     if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -217,7 +217,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                         }
                         if (rules.isNotEmpty()) {
                             Text("${tr("规则")}（${rules.size}）", Modifier.padding(horizontal = 4.dp),
-                                style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                style = MaterialTheme.typography.labelLarge, color = accentText(MaterialTheme.colorScheme.primary))
                             Group {
                                 rules.forEachIndexed { k, r ->
                                     if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -275,7 +275,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                                             )
                                         }
                                         Spacer(Modifier.width(8.dp))
-                                        Switch(checked = srv.enabled, onCheckedChange = { vm.toggleMcp(srv.name, it) })
+                                        AppSwitch(checked = srv.enabled, onCheckedChange = { vm.toggleMcp(srv.name, it) })
                                     }
                                 }
                             }

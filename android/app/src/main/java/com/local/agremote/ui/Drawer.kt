@@ -127,7 +127,7 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                             DropdownMenuItem(
                                 text = { Text(h.name.ifBlank { h.host }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                 trailingIcon = {
-                                    if (h.id == activeHostId) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                    if (h.id == activeHostId) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = iconInk())
                                 },
                                 onClick = { pickHostMenu = false; vm.switchHost(h.id); onClose() },
                             )
@@ -206,10 +206,12 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
 /** 侧边栏里的一行：图标 + 文字，选中时灰色圆角底。 */
 @Composable
 private fun DrawerRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean = false, onClick: () -> Unit) {
+    val s = MaterialTheme.colorScheme.surface
+    val isLight = (s.red * 0.299f + s.green * 0.587f + s.blue * 0.114f) > 0.5f
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
         .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent)
         .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+        Icon(icon, null, Modifier.size(22.dp), tint = if (isLight) androidx.compose.ui.graphics.Color.Black else MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.width(14.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
