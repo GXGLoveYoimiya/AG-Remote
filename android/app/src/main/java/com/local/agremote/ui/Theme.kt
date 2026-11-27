@@ -94,6 +94,16 @@ val PRESET_COLORS = listOf(
 
 private fun bestOnColor(bg: Color): Color = if (bg.luminance() > 0.45f) Color(0xFF111111) else Color.White
 
+/** 浅色模式下自动加深过浅的主题色（通过 HSV 提高饱和度、适度压低明度，避免直接混黑发灰）。 */
+private fun vividForLight(c: Color): Color {
+    if (c.luminance() <= 0.55f) return c
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(c.toArgb(), hsv)
+    if (hsv[1] > 0.05f) hsv[1] = (hsv[1] + 0.42f).coerceIn(0.48f, 0.78f)
+    hsv[2] = (hsv[2] * 0.78f).coerceAtMost(0.80f)
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
+
 private fun hueShift(color: Color, degrees: Float): Color {
     val hsv = FloatArray(3)
     android.graphics.Color.colorToHSV(color.toArgb(), hsv)
@@ -376,6 +386,11 @@ fun accent(): Color = LocalAccent.current.takeOrElse { MaterialTheme.colorScheme
 
 @Composable
 fun onAccent(): Color = bestOnColor(accent())
+
+/** 浅色底上用主题色/强调色画文字时，过浅的颜色自动加深以保证清晰可读（按钮/进度条等保持原色）。 */
+@Composable
+fun accentText(c: Color = accent()): Color =
+    if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) vividForLight(c) else c
 
 /** 设置页里的主题风格 + 配色（深色模式在设置首页的“颜色模式”里）。 */
 @Composable

@@ -1908,7 +1908,11 @@ async function tick() {
   try {
     const list = await listConversations();
     const now = new Map(list.map(c => [c.id, `${c.status}|${c.steps}|${c.updated}|${c.title}|${c.pinned}|${c.archived}|${c.unread}|${c.waiting}`]));
-    const changed = list.filter(c => lastList.get(c.id) !== now.get(c.id)).map(c => c.id);
+    // 正在运行的对话（思考中/流式输出中）steps 数量和 updated 未必立刻变化，每轮都通知手机增量拉取实时思考与正文
+    const changed = list.filter(c =>
+      lastList.get(c.id) !== now.get(c.id) ||
+      c.status === 'running' || c.status === 'busy' || c.status === 'canceling'
+    ).map(c => c.id);
     const removed = [...lastList.keys()].some(k => !now.has(k));
     if (changed.length || removed) push({ type: 'changed', ids: changed });
     lastList = now;

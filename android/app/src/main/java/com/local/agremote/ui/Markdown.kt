@@ -144,16 +144,18 @@ fun Markdown(text: String, modifier: Modifier = Modifier, sizeSp: Float = 15.5f,
         segs.forEach { seg ->
             when (seg) {
                 is MdSeg.Prose -> MarkwonText(seg.text, Modifier.fillMaxWidth(), sizeSp, onLink)
-                is MdSeg.Code -> CodeBlockCard(seg.lang, seg.code)
+                is MdSeg.Code -> CodeBlockCard(seg.lang, seg.code, onLink)
             }
         }
     }
 }
 
 @Composable
-private fun CodeBlockCard(lang: String, code: String) {
+private fun CodeBlockCard(lang: String, code: String, onLink: ((String) -> Unit)? = null) {
     val ctx = LocalContext.current
     var copied by remember(code) { mutableStateOf(false) }
+    val isMd = remember(lang) { lang.equals("markdown", true) || lang.equals("md", true) }
+    var showSource by remember(code, isMd) { mutableStateOf(false) }
     LaunchedEffect(copied) {
         if (copied) {
             delay(1500)
@@ -182,6 +184,17 @@ private fun CodeBlockCard(lang: String, code: String) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (isMd) {
+                    Text(
+                        if (showSource) tr("预览") else tr("源码"),
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { showSource = !showSource }
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Row(
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -199,27 +212,36 @@ private fun CodeBlockCard(lang: String, code: String) {
                     Text(
                         if (copied) tr("已复制") else tr("复制"),
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (copied) accentText(MaterialTheme.colorScheme.primary) else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
-            val lines = remember(code) { code.split('\n') }
-            Box(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 6.dp)) {
-                SelectionContainer {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val codeStyle = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        lines.forEach { line ->
-                            Text(
-                                line.ifEmpty { " " },
-                                softWrap = true,
-                                style = codeStyle,
+            if (isMd && !showSource) {
+                MarkwonText(
+                    code,
+                    Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 4.dp),
+                    sizeSp = 14.5f,
+                    onLink = onLink,
+                )
+            } else {
+                val lines = remember(code) { code.split('\n') }
+                Box(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 6.dp)) {
+                    SelectionContainer {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val codeStyle = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
+                            lines.forEach { line ->
+                                Text(
+                                    line.ifEmpty { " " },
+                                    softWrap = true,
+                                    style = codeStyle,
+                                )
+                            }
                         }
                     }
                 }
@@ -406,7 +428,7 @@ private fun MarkwonText(text: String, modifier: Modifier = Modifier, sizeSp: Flo
     val appTypeface = LocalAppTypeface.current
     val cs = MaterialTheme.colorScheme
     val fg = cs.onSurface.toArgb()
-    val link = cs.primary.toArgb()
+    val link = accentText(cs.primary).toArgb()
     val linkBg = cs.primaryContainer.copy(alpha = 0.52f).toArgb()
     val codeBg = cs.surfaceContainerHighest.copy(alpha = 0.72f).toArgb()
     val dm = ctx.resources.displayMetrics

@@ -561,7 +561,7 @@ private fun UserBubble(vm: AppViewModel, text: String, remote: List<com.local.ag
             modifier = Modifier.widthIn(max = 320.dp),
         ) {
             var expanded by rememberSaveable(text.hashCode(), text.length) { mutableStateOf(false) }
-            val linkColor = MaterialTheme.colorScheme.primary
+            val linkColor = accentText(MaterialTheme.colorScheme.primary)
             val bodyStyle = MaterialTheme.typography.bodyLarge
             val annotated = remember(text, linkColor) {
                 val re = Regex("""https?://[^\s<>)\]"'，。；：！？、】）》]+""")
@@ -921,11 +921,12 @@ private fun ProcessBlock(vm: AppViewModel, chatId: String, r: ChatRow.Process) {
             Modifier.clip(RoundedCornerShape(10.dp)).clickable { open = !open }.padding(vertical = 4.dp, horizontal = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 正在思考时用强调色，其余时候是灰色
+            // 正在思考时用强调色（浅色底上文字自动加深），其余时候是灰色
             val tint = if (running) accent() else MaterialTheme.colorScheme.outline
+            val textTint = if (running) accentText() else MaterialTheme.colorScheme.outline
             Icon(Icons.Rounded.Lightbulb, null, Modifier.size(16.dp), tint = tint)
             Spacer(Modifier.width(4.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium, color = tint,
+            Text(label, style = MaterialTheme.typography.labelMedium, color = textTint,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
             Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.outline)
@@ -1837,7 +1838,7 @@ private fun QuotaRing(remaining: Double) {
     val color = when {
         used >= 85 -> MaterialTheme.colorScheme.error
         used >= 60 -> Color(0xFFF0A030)
-        else -> Color(0xFF3B82F6) // 用得少：蓝色
+        else -> Color(0xFF66D17A) // 用得少：浅绿色
     }
     CircularProgressIndicator(progress = { used / 100f }, modifier = Modifier.size(20.dp), color = color,
         trackColor = color.copy(alpha = 0.2f), strokeWidth = 2.5.dp, strokeCap = StrokeCap.Round, gapSize = 0.dp)

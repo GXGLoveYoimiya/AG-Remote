@@ -217,7 +217,7 @@ private fun AutomationEditor(vm: AppViewModel, a: Automation?, onClose: () -> Un
                 "hourly" -> TimeWheels(hour = null, minute = minute, onHour = {}, onMinute = { minute = it })
                 else -> TimeWheels(hour = hour, minute = minute, onHour = { hour = it }, onMinute = { minute = it })
             }
-            Text(tr("将会：") + cronText(cron()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            Text(tr("将会：") + cronText(cron()), style = MaterialTheme.typography.bodyMedium, color = accentText(MaterialTheme.colorScheme.primary))
             Button(
                 onClick = {
                     busy = true

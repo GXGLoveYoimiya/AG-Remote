@@ -1916,7 +1916,7 @@ private fun BrowserSyncHome(
         if (quickLinks.isNotEmpty()) {
             SectionLabel(tr("当前对话中的链接"))
             CardGroup {
-                quickLinks.take(8).forEachIndexed { i, u ->
+                quickLinks.forEachIndexed { i, u ->
                     if (i > 0) CardDivider()
                     // 点开；长按弹出“复制链接 / 删除”
                     var menu by remember(u) { mutableStateOf(false) }
