@@ -135,14 +135,14 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                                 tr("插件"),
                                 connectors?.let { l -> if (l.isEmpty()) tr("未安装") else l.joinToString("、") { it.name } } ?: "",
                             ) { page = "plugins" }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                             val srCount = skills.size + rules.size
                             NavItem(
                                 Icons.Rounded.AutoStories,
                                 tr("技能与规则"),
                                 if (srCount == 0) "" else "${skills.size} ${tr("技能")} · ${rules.size} ${tr("规则")}",
                             ) { page = "skills" }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                             NavItem(
                                 Icons.Rounded.Dns,
                                 tr("MCP服务"),
@@ -152,7 +152,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                     }
                     "preset" -> Group {
                         PRESETS.forEachIndexed { k, (id, _) ->
-                            if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                            if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                             val on = preset == id || (preset.isBlank() && id.endsWith("DEFAULT"))
                             Row(Modifier.fillMaxWidth().clickable { vm.setPreset(id); page = "main" }.padding(horizontal = 20.dp, vertical = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically) {
@@ -169,7 +169,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                                 Modifier.padding(8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             else -> Group {
                                 list.forEachIndexed { k, c ->
-                                    if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                                    if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                                     Row(Modifier.fillMaxWidth().clickable { vm.addMention(c); onClose() }
                                         .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                                         ConnectorLogo(vm, c.logo)
@@ -204,7 +204,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                                 style = MaterialTheme.typography.labelLarge, color = accentText(MaterialTheme.colorScheme.primary))
                             Group {
                                 skills.forEachIndexed { k, s ->
-                                    if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                                    if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                                     val (desc, _) = rememberGoogleTranslated(vm.zh(s.description), skillsTr)
                                     Column(Modifier.fillMaxWidth().clickable { onInsert("请使用 ${s.name} skill："); onClose() }
                                         .padding(horizontal = 20.dp, vertical = 12.dp)) {
@@ -220,7 +220,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                                 style = MaterialTheme.typography.labelLarge, color = accentText(MaterialTheme.colorScheme.primary))
                             Group {
                                 rules.forEachIndexed { k, r ->
-                                    if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                                    if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                                     Column(Modifier.fillMaxWidth().clickable { onInsert("请遵循 ${r.name} 规则："); onClose() }
                                         .padding(horizontal = 20.dp, vertical = 12.dp)) {
                                         Text(r.name, style = MaterialTheme.typography.titleSmall)
@@ -248,7 +248,7 @@ fun PlusSheet(vm: AppViewModel, onCamera: () -> Unit, onPhotos: () -> Unit, onFi
                             list.isEmpty() -> Text(tr("电脑端暂未配置 MCP 服务。"), Modifier.padding(8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             else -> Group {
                                 list.forEachIndexed { k, srv ->
-                                    if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                                    if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                                     Row(
                                         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically,

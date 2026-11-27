@@ -2556,8 +2556,8 @@ async function dl(){
         const c = list.find(x => x.id === id);
         const [{ steps, model }, queued, voiceChats] = await Promise.all([
           getSteps(id, offset, limit),
-          c && c.status !== 'idle' ? getPendingMessages(id) : Promise.resolve([]),
-          getVoiceChats(id),
+          limit === 0 ? getPendingMessages(id).catch(() => []) : Promise.resolve([]),
+          limit === 0 ? getVoiceChats(id) : Promise.resolve([]),
         ]);
         return send(res, 200, { conversation: c || null, steps, model, queued, voiceChats });
       }

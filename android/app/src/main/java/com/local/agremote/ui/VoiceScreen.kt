@@ -371,7 +371,7 @@ fun VoiceSettingsContent(vm: AppViewModel, inCall: Boolean = false) {
             ListRow(tr("语速"), value = speedLabel(s.speed), end = RowEnd.None, trailing = {
                 Box {
                     Icon(Icons.Rounded.UnfoldMore, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    DropdownMenu(expanded = speedMenu, onDismissRequest = { speedMenu = false }) {
+                    DropdownMenu(expanded = speedMenu, onDismissRequest = { speedMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
                         cfg.speeds.forEach { sp ->
                             DropdownMenuItem(text = { Text(speedLabel(sp)) }, onClick = { speedMenu = false; vm.saveVoice(speed = sp) },
                                 trailingIcon = { if (sp == s.speed) Icon(Icons.Rounded.Check, null) })

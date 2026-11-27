@@ -407,8 +407,7 @@ fun CommandPaletteDialog(
         ) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                tonalElevation = 6.dp,
+                color = sheetCardColor(),
                 shadowElevation = 12.dp,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -436,7 +435,7 @@ fun CommandPaletteDialog(
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
                                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                cursorBrush = SolidColor(accentText(MaterialTheme.colorScheme.primary)),
                             )
                         }
                         if (query.isNotEmpty()) {

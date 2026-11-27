@@ -133,7 +133,7 @@ private fun ProjectItem(vm: AppViewModel, p: Project, count: Int, onClick: () ->
             }
             if (count > 0) Text("$count", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(20.dp)) {
+        DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
             DropdownMenuItem(text = { Text(tr("重命名")) }, leadingIcon = { Icon(Icons.Rounded.Edit, null) },
                 onClick = { menu = false; renaming = true })
             DropdownMenuItem(text = { Text(tr("删除项目"), color = MaterialTheme.colorScheme.error) },

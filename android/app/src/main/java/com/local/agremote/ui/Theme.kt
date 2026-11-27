@@ -111,96 +111,70 @@ private fun hueShift(color: Color, degrees: Float): Color {
     return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
-/** 按 Material You (M3) Tonal Palette 规则，从任意种子色提取色相并按标准 Tone (0..100) 生成协调色阶，
- * 无论种子色本身多浅/多深，配色层次都与系统动态取色（dynamicColorScheme）完全一致。 */
-private fun m3Tone(hue: Float, sat: Float, tone: Float): Color {
-    val l = (tone / 100f).coerceIn(0f, 1f)
-    // 中间明度保持饱满，两端（接近纯白/纯黑）自动收低饱和度，贴近 HCT 观感
-    val s = (sat * (1f - kotlin.math.abs(l - 0.5f) * 0.45f)).coerceIn(0f, 0.92f)
-    val c = (1f - kotlin.math.abs(2f * l - 1f)) * s
-    val h6 = ((hue % 360f) + 360f) % 360f / 60f
-    val x = c * (1f - kotlin.math.abs(h6 % 2f - 1f))
-    val (r1, g1, b1) = when {
-        h6 < 1f -> Triple(c, x, 0f)
-        h6 < 2f -> Triple(x, c, 0f)
-        h6 < 3f -> Triple(0f, c, x)
-        h6 < 4f -> Triple(0f, x, c)
-        h6 < 5f -> Triple(x, 0f, c)
-        else -> Triple(c, 0f, x)
-    }
-    val m = l - c / 2f
-    return Color((r1 + m).coerceIn(0f, 1f), (g1 + m).coerceIn(0f, 1f), (b1 + m).coerceIn(0f, 1f), 1f)
-}
-
+/** 使用 Google 官方 Material Color Utilities 的 HCT + SchemeTonalSpot（与 Android 系统 Material You 完全同源的算法）。 */
+@android.annotation.SuppressLint("RestrictedApi")
 private fun materialSchemeFromSeed(seed: Color, dark: Boolean): ColorScheme {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(seed.toArgb(), hsv)
-    val h = hsv[0]
-    val primarySat = hsv[1].coerceIn(0.32f, 0.72f)
-    val secondarySat = (primarySat * 0.34f).coerceIn(0.12f, 0.26f)
-    val tertiaryH = (h + 60f) % 360f
-    val tertiarySat = (primarySat * 0.62f).coerceIn(0.24f, 0.52f)
-    val neutralSat = (primarySat * 0.12f).coerceIn(0.03f, 0.09f)
-    val neutralVarSat = (primarySat * 0.20f).coerceIn(0.06f, 0.14f)
-
+    val hct = com.google.android.material.color.utilities.Hct.fromInt(seed.toArgb())
+    val s = com.google.android.material.color.utilities.SchemeTonalSpot(hct, dark, 0.0)
+    val d = com.google.android.material.color.utilities.MaterialDynamicColors()
+    fun c(dc: com.google.android.material.color.utilities.DynamicColor) = Color(dc.getArgb(s))
     return if (!dark) {
-        val midPrimary = m3Tone(h, primarySat, 58f)
-        val midSecondary = m3Tone(h, secondarySat, 56f)
-        val midTertiary = m3Tone(tertiaryH, tertiarySat, 58f)
         lightColorScheme(
-            primary = midPrimary,
-            onPrimary = bestOnColor(midPrimary),
-            primaryContainer = m3Tone(h, primarySat, 93f),
-            onPrimaryContainer = m3Tone(h, primarySat, 14f),
-            secondary = midSecondary,
-            onSecondary = bestOnColor(midSecondary),
-            secondaryContainer = m3Tone(h, secondarySat, 94f),
-            onSecondaryContainer = m3Tone(h, secondarySat, 14f),
-            tertiary = midTertiary,
-            onTertiary = bestOnColor(midTertiary),
-            tertiaryContainer = m3Tone(tertiaryH, tertiarySat, 93f),
-            onTertiaryContainer = m3Tone(tertiaryH, tertiarySat, 14f),
-            background = m3Tone(h, neutralSat, 99f),
-            onBackground = m3Tone(h, neutralSat, 10f),
-            surface = m3Tone(h, neutralSat, 99f),
-            onSurface = m3Tone(h, neutralSat, 10f),
-            surfaceVariant = m3Tone(h, neutralVarSat, 93f),
-            onSurfaceVariant = m3Tone(h, neutralVarSat, 32f),
-            surfaceContainerLowest = Color.White,
-            surfaceContainerLow = m3Tone(h, neutralSat, 97f),
-            surfaceContainer = m3Tone(h, neutralSat, 95f),
-            surfaceContainerHigh = m3Tone(h, neutralSat, 93f),
-            surfaceContainerHighest = m3Tone(h, neutralSat, 91f),
-            outline = m3Tone(h, neutralVarSat, 54f),
-            outlineVariant = m3Tone(h, neutralVarSat, 84f),
+            primary = c(d.primary()),
+            onPrimary = c(d.onPrimary()),
+            primaryContainer = c(d.primaryContainer()),
+            onPrimaryContainer = c(d.onPrimaryContainer()),
+            inversePrimary = c(d.inversePrimary()),
+            secondary = c(d.secondary()),
+            onSecondary = c(d.onSecondary()),
+            secondaryContainer = c(d.secondaryContainer()),
+            onSecondaryContainer = c(d.onSecondaryContainer()),
+            tertiary = c(d.tertiary()),
+            onTertiary = c(d.onTertiary()),
+            tertiaryContainer = c(d.tertiaryContainer()),
+            onTertiaryContainer = c(d.onTertiaryContainer()),
+            background = c(d.background()),
+            onBackground = c(d.onBackground()),
+            surface = c(d.surface()),
+            onSurface = c(d.onSurface()),
+            surfaceVariant = c(d.surfaceVariant()),
+            onSurfaceVariant = c(d.onSurfaceVariant()),
+            surfaceContainerLowest = c(d.surfaceContainerLowest()),
+            surfaceContainerLow = c(d.surfaceContainerLow()),
+            surfaceContainer = c(d.surfaceContainer()),
+            surfaceContainerHigh = c(d.surfaceContainerHigh()),
+            surfaceContainerHighest = c(d.surfaceContainerHighest()),
+            outline = c(d.outline()),
+            outlineVariant = c(d.outlineVariant()),
         )
     } else {
         darkColorScheme(
-            primary = m3Tone(h, primarySat, 80f),
-            onPrimary = m3Tone(h, primarySat, 20f),
-            primaryContainer = m3Tone(h, primarySat, 30f),
-            onPrimaryContainer = m3Tone(h, primarySat, 90f),
-            secondary = m3Tone(h, secondarySat, 80f),
-            onSecondary = m3Tone(h, secondarySat, 20f),
-            secondaryContainer = m3Tone(h, secondarySat, 30f),
-            onSecondaryContainer = m3Tone(h, secondarySat, 90f),
-            tertiary = m3Tone(tertiaryH, tertiarySat, 80f),
-            onTertiary = m3Tone(tertiaryH, tertiarySat, 20f),
-            tertiaryContainer = m3Tone(tertiaryH, tertiarySat, 30f),
-            onTertiaryContainer = m3Tone(tertiaryH, tertiarySat, 90f),
-            background = m3Tone(h, neutralSat, 6f),
-            onBackground = m3Tone(h, neutralSat, 90f),
-            surface = m3Tone(h, neutralSat, 6f),
-            onSurface = m3Tone(h, neutralSat, 90f),
-            surfaceVariant = m3Tone(h, neutralVarSat, 30f),
-            onSurfaceVariant = m3Tone(h, neutralVarSat, 80f),
-            surfaceContainerLowest = m3Tone(h, neutralSat, 4f),
-            surfaceContainerLow = m3Tone(h, neutralSat, 10f),
-            surfaceContainer = m3Tone(h, neutralSat, 12f),
-            surfaceContainerHigh = m3Tone(h, neutralSat, 17f),
-            surfaceContainerHighest = m3Tone(h, neutralSat, 22f),
-            outline = m3Tone(h, neutralVarSat, 60f),
-            outlineVariant = m3Tone(h, neutralVarSat, 30f),
+            primary = c(d.primary()),
+            onPrimary = c(d.onPrimary()),
+            primaryContainer = c(d.primaryContainer()),
+            onPrimaryContainer = c(d.onPrimaryContainer()),
+            inversePrimary = c(d.inversePrimary()),
+            secondary = c(d.secondary()),
+            onSecondary = c(d.onSecondary()),
+            secondaryContainer = c(d.secondaryContainer()),
+            onSecondaryContainer = c(d.onSecondaryContainer()),
+            tertiary = c(d.tertiary()),
+            onTertiary = c(d.onTertiary()),
+            tertiaryContainer = c(d.tertiaryContainer()),
+            onTertiaryContainer = c(d.onTertiaryContainer()),
+            background = c(d.background()),
+            onBackground = c(d.onBackground()),
+            surface = c(d.surface()),
+            onSurface = c(d.onSurface()),
+            surfaceVariant = c(d.surfaceVariant()),
+            onSurfaceVariant = c(d.onSurfaceVariant()),
+            surfaceContainerLowest = c(d.surfaceContainerLowest()),
+            surfaceContainerLow = c(d.surfaceContainerLow()),
+            surfaceContainer = c(d.surfaceContainer()),
+            surfaceContainerHigh = c(d.surfaceContainerHigh()),
+            surfaceContainerHighest = c(d.surfaceContainerHighest()),
+            outline = c(d.outline()),
+            outlineVariant = c(d.outlineVariant()),
         )
     }
 }
@@ -347,11 +321,18 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
             miuixScheme(accent, dark)
         }
         else -> {
-            if (cfg.colorMode == "system" && hasDynamic) {
+            val base = if (cfg.colorMode == "system" && hasDynamic) {
                 if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
             } else {
                 materialSchemeFromSeed(Color(cfg.seedColor), dark)
             }
+            // Material You 统一降一阶：保留背景与聊天气泡（primaryContainer），其余深色(primary/accent)→中间色(primaryContainer)、中间色(secondaryContainer)→浅色(surfaceContainerHigh)
+            base.copy(
+                primary = base.primaryContainer,
+                onPrimary = base.onPrimaryContainer,
+                secondaryContainer = base.surfaceContainerHigh,
+                onSecondaryContainer = base.onSurface,
+            )
         }
     }
 
@@ -384,7 +365,7 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
             )
         }
     }
-    CompositionLocalProvider(LocalAccent provides accentColor, LocalAppTypeface provides typeface) {
+    CompositionLocalProvider(LocalAccent provides accentColor, LocalAppTypeface provides typeface, LocalIsMaterialYou provides (cfg.style == "material")) {
         MaterialTheme(colorScheme = scheme, content = content, typography = typography, shapes = androidx.compose.material3.Shapes(
             extraSmall = RoundedCornerShape(14.dp), // 输入框、菜单、提示条
             small = RoundedCornerShape(50),         // 选项按钮（FilterChip / AssistChip）做成胶囊
@@ -393,6 +374,7 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
 }
 
 private val LocalAccent = staticCompositionLocalOf { Color.Unspecified }
+val LocalIsMaterialYou = staticCompositionLocalOf { false }
 
 /** 导入的字体（null = 系统字体），给聊天正文这类原生 TextView 用。 */
 val LocalAppTypeface = staticCompositionLocalOf<android.graphics.Typeface?> { null }
@@ -402,7 +384,7 @@ val LocalAppTypeface = staticCompositionLocalOf<android.graphics.Typeface?> { nu
 fun accent(): Color = LocalAccent.current.takeOrElse { MaterialTheme.colorScheme.primary }
 
 @Composable
-fun onAccent(): Color = bestOnColor(accent())
+fun onAccent(): Color = if (LocalIsMaterialYou.current) MaterialTheme.colorScheme.onPrimaryContainer else bestOnColor(accent())
 
 /** 浅色底上用主题色/强调色画文字时，过浅的颜色自动加深以保证清晰可读（按钮/进度条等保持原色）。 */
 @Composable

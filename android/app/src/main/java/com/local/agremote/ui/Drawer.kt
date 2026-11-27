@@ -122,7 +122,7 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                             if (hosts.size > 1) Icon(Icons.Rounded.ExpandMore, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    DropdownMenu(pickHostMenu, { pickHostMenu = false }, shape = RoundedCornerShape(16.dp)) {
+                    DropdownMenu(pickHostMenu, { pickHostMenu = false }, shape = RoundedCornerShape(16.dp), containerColor = sheetCardColor()) {
                         hosts.forEach { h ->
                             DropdownMenuItem(
                                 text = { Text(h.name.ifBlank { h.host }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -189,11 +189,14 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                 else Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Settings, tr("设置")) }
             }
             Spacer(Modifier.weight(1f))
-            // 新建对话：右下角一颗小胶囊（照 Claude）
+            // 新建对话：右下角一颗小胶囊（Material You 下绑定中间色 primaryContainer，其余主题保持 primary）
+            val isM3 = LocalIsMaterialYou.current
             Button(onClick = { vm.newChat(); onClose() }, modifier = Modifier.height(46.dp),
                 contentPadding = PaddingValues(start = 16.dp, end = 20.dp),
-
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isM3) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
+                    contentColor = if (isM3) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
+                )) {
                 Icon(Icons.Rounded.Add, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(tr("新建对话"), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -282,7 +285,7 @@ fun ConvActionMenus(
     var deleting by remember(c.id) { mutableStateOf(false) }
     val projects by vm.projects.collectAsState()
 
-    DropdownMenu(expanded, onDismiss, shape = RoundedCornerShape(20.dp)) {
+    DropdownMenu(expanded, onDismiss, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
         if (showNewChat) {
             DropdownMenuItem(text = { Text(tr("新建对话")) }, leadingIcon = { Icon(Icons.Rounded.EditNote, null) },
                 onClick = { onDismiss(); vm.newChat() })
@@ -312,7 +315,7 @@ fun ConvActionMenus(
             leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.error) },
             onClick = { onDismiss(); deleting = true })
     }
-    DropdownMenu(moveMenu, { moveMenu = false }, shape = RoundedCornerShape(20.dp)) {
+    DropdownMenu(moveMenu, { moveMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
         val cur = projects.find { c.id in it.conversations }
         projects.filter { !it.sidecar }.forEach { p ->
             DropdownMenuItem(text = { Text(p.name) }, leadingIcon = { Icon(Icons.Rounded.Folder, null) },
@@ -322,7 +325,7 @@ fun ConvActionMenus(
         if (projects.none { !it.sidecar }) DropdownMenuItem(text = { Text(tr("还没有项目")) }, enabled = false, onClick = {})
         if (cur != null) DropdownMenuItem(text = { Text(tr("移出项目")) }, onClick = { moveMenu = false; vm.moveConversation(c.id, "") })
     }
-    DropdownMenu(copyMenu, { copyMenu = false }, shape = RoundedCornerShape(20.dp)) {
+    DropdownMenu(copyMenu, { copyMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
         DropdownMenuItem(text = { Text(tr("复制")) }, onClick = { copyMenu = false; vm.copyConversation(c.id) })
         DropdownMenuItem(text = { Text(tr("复制") + " · Title") }, onClick = { copyMenu = false; vm.copy(c.title) })
         DropdownMenuItem(text = { Text(tr("复制") + " · ID") }, onClick = { copyMenu = false; vm.copy(c.id) })

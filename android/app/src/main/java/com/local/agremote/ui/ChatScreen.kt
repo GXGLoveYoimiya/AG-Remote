@@ -489,7 +489,7 @@ internal fun ModelSheet(models: List<ModelInfo>, selected: String, onPick: (Stri
                     "main" -> {
                         Group {
                             main.forEachIndexed { k, (fam, levels) ->
-                                if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                                if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                                 OptionRow(fam, levels.first().desc, levels.first().tag, fam == cur?.family) { pickFamily(levels); onClose() }
                             }
                         }
@@ -500,13 +500,13 @@ internal fun ModelSheet(models: List<ModelInfo>, selected: String, onPick: (Stri
                     }
                     "levels" -> Group {
                         curLevels.forEachIndexed { k, m ->
-                            if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                            if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                             OptionRow(m.level, "", "", m.model == selected) { onPick(m.model); page = "main" }
                         }
                     }
                     "more" -> Group {
                         more.forEachIndexed { k, (fam, levels) ->
-                            if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerLow)
+                            if (k > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                             OptionRow(fam, levels.first().desc, levels.first().tag, fam == cur?.family) { pickFamily(levels); onClose() }
                         }
                     }
@@ -725,7 +725,7 @@ private fun UserBubble(vm: AppViewModel, text: String, remote: List<com.local.ag
                                 ),
                         )
                     }
-                    val subTint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+                    val subTint = iconInk()
                     Row(
                         Modifier
                             .align(Alignment.BottomEnd)
@@ -1448,14 +1448,23 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
         vm.clearDraft(id)
         vm.send(t.trim().ifBlank { "请看附件。" }) { }
     }
-    // 开始录音时输入框里已有的文字；识别结果接在它后面
-    var base by remember { mutableStateOf("") }
-    fun join(said: String) = if (base.isBlank()) said else base.trimEnd() + " " + said
+    // 开始录音时记录光标前后两段文字，识别结果精准插在闪烁光标位置后面，并把光标移到新插入文字末尾
+    var baseBefore by remember { mutableStateOf("") }
+    var baseAfter by remember { mutableStateOf("") }
+    fun join(said: String) = baseBefore + said + baseAfter
+    fun applyAtCursor(said: String) {
+        val merged = baseBefore + said + baseAfter
+        val cursor = (baseBefore.length + said.length).coerceIn(0, merged.length)
+        textState.edit {
+            replace(0, length, merged)
+            selection = androidx.compose.ui.text.TextRange(cursor)
+        }
+    }
 
     LaunchedEffect(id) {
         vm.sttResult.collect { (said, send) ->
-            // 停止时已经先填了临时结果，这里用最终结果替换
-            if (send) sendNow(join(said)) else setText(join(said))
+            // 停止时已经先填了临时结果，这里用最终结果替换并保持光标在新文字末尾
+            if (send) sendNow(join(said)) else applyAtCursor(said)
         }
     }
     val pendingDraft by vm.pendingDraft.collectAsState()
@@ -1468,15 +1477,20 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
         keyboard?.show()
     }
     fun stopKeep() {
-        // 先把已经识别出的部分放进输入框，不让它“消失”，最终结果回来再替换
-        if (sttText.isNotBlank()) setText(join(sttText))
+        // 先把已经识别出的部分插进光标位置，不让它“消失”，最终结果回来再替换
+        if (sttText.isNotBlank()) applyAtCursor(sttText)
         vm.stopVoice("keep")
     }
     val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) vm.startVoice() else Toast.makeText(ctx, "需要麦克风权限才能语音输入", Toast.LENGTH_SHORT).show()
     }
     fun startVoice() {
-        base = textState.text.toString()
+        val full = textState.text.toString()
+        val sel = textState.selection
+        val start = sel.min.coerceIn(0, full.length)
+        val end = sel.max.coerceIn(start, full.length)
+        baseBefore = full.substring(0, start)
+        baseAfter = full.substring(end)
         if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) vm.startVoice()
         else askMic.launch(Manifest.permission.RECORD_AUDIO)
     }
@@ -1587,6 +1601,9 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                 },
         ) {
             Column(Modifier.padding(8.dp)) {
+                val isM3 = LocalIsMaterialYou.current
+                val m3LightBg = MaterialTheme.colorScheme.surfaceContainerHigh
+                val m3LightFg = MaterialTheme.colorScheme.onSurface
                 val primary = @Composable {
                     FilledIconButton(
                         onClick = {
@@ -1598,10 +1615,15 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                         },
                         modifier = Modifier.size(44.dp).onGloballyPositioned { micBounds = it.boundsInRoot() },
                         colors = when {
-                            hasContent -> IconButtonDefaults.filledIconButtonColors(containerColor = accent(), contentColor = onAccent()) // 发送：强调色
-                            canStop -> IconButtonDefaults.filledIconButtonColors(
+                            hasContent -> if (isM3) IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                            else IconButtonDefaults.filledIconButtonColors(containerColor = accent(), contentColor = onAccent())
+                            canStop -> if (isM3) IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                            else IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
-                            else -> IconButtonDefaults.filledIconButtonColors(
+                            else -> if (isM3) IconButtonDefaults.filledIconButtonColors(containerColor = m3LightBg, contentColor = m3LightFg)
+                            else IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
                         },
                     ) {
@@ -1613,8 +1635,13 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                 }
 
                 val plusBtn = @Composable {
-                    // “+”有一个浅色圆底（和麦克风一致）
-                    FilledTonalIconButton(onClick = { plus = true }, modifier = Modifier.size(44.dp)) {
+                    // “+”有一个浅色圆底（Material You 下绑定浅色 surfaceContainerHigh）
+                    FilledTonalIconButton(
+                        onClick = { plus = true },
+                        modifier = Modifier.size(44.dp),
+                        colors = if (isM3) IconButtonDefaults.filledTonalIconButtonColors(containerColor = m3LightBg, contentColor = m3LightFg)
+                        else IconButtonDefaults.filledTonalIconButtonColors(),
+                    ) {
                         Icon(Icons.Rounded.Add, "添加到会话")
                     }
                 }
@@ -1669,7 +1696,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                     .onGloballyPositioned { inputBounds = it.boundsInRoot() }
                                     .focusRequester(focus).onFocusChanged { focused = it.isFocused },
                                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                cursorBrush = SolidColor(accentText(MaterialTheme.colorScheme.primary)),
                                 decorator = { inner ->
                                     Box {
                                         if (text.isEmpty()) {
@@ -1704,8 +1731,8 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 Surface(
                                     onClick = { if (expanded) onPickModel() },
                                     shape = RoundedCornerShape(50),
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    color = if (isM3) m3LightBg else MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = if (isM3) m3LightFg else MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.weight(1f, fill = false).graphicsLayer {
                                         translationX = -(1f - chipK) * 60.dp.toPx() // 从“+”底下滑出来
                                         alpha = chipK
@@ -1720,8 +1747,12 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                         // 唯一右侧操作组（麦克风/发送/停止）：始终固定在右下角
                         Row(Modifier.align(Alignment.BottomEnd).onSizeChanged { rightGroupW = it.width }, verticalAlignment = Alignment.CenterVertically) {
                             if (hasContent || canStop) {
-                                FilledTonalIconButton(onClick = { startVoice() },
-                                    modifier = Modifier.size(44.dp).onGloballyPositioned { extraMicBounds = it.boundsInRoot() }) {
+                                FilledTonalIconButton(
+                                    onClick = { startVoice() },
+                                    modifier = Modifier.size(44.dp).onGloballyPositioned { extraMicBounds = it.boundsInRoot() },
+                                    colors = if (isM3) IconButtonDefaults.filledTonalIconButtonColors(containerColor = m3LightBg, contentColor = m3LightFg)
+                                    else IconButtonDefaults.filledTonalIconButtonColors(),
+                                ) {
                                     Icon(Icons.Rounded.Mic, if (hasContent) "继续语音输入" else "语音输入")
                                 }
                                 Spacer(Modifier.width(8.dp))
@@ -1731,7 +1762,9 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 Spacer(Modifier.width(8.dp))
                                 FilledIconButton(onClick = { startVoiceMode() }, modifier = Modifier.size(44.dp),
                                     colors = IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
+                                        containerColor = if (isM3) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
+                                        contentColor = if (isM3) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
+                                    )) {
                                     Icon(Icons.Rounded.GraphicEq, tr("实时语音"))
                                 }
                             }
