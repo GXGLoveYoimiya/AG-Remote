@@ -24,7 +24,7 @@ const DATA = join(ROOT, 'data');
 const CONFIG_FILE = join(DATA, 'config.json');
 const DRAFTS_FILE = join(DATA, 'drafts.json');
 const PORT = Number(process.env.AGR_PORT || 5100);
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 let lastAdminDiscover = 0;
 const SVC = '/exa.language_server_pb.LanguageServerService/';
 

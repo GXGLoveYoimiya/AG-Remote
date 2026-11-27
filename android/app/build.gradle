@@ -12,8 +12,8 @@ android {
         manifestPlaceholders = [appLabel: findProperty('appLabel') ?: '@string/app_name']
         minSdk 29
         targetSdk 37
-        versionCode 2
-        versionName '1.1'
+        versionCode 3
+        versionName '1.2'
     }
 
     // 签名：密钥和密码在仓库外。按顺序找：环境变量 SIGN_PROPS → gradle 属性 signProps → 仓库上两级的 _toolchain。
