@@ -194,8 +194,8 @@ fun OverviewSheet(
                         if (i > 0) CardDivider()
                         val sub = listOfNotNull(
                             sa.typeName.takeIf { it.isNotBlank() && it != sa.role },
-                            "${sa.steps} 步",
-                            if (sa.killed) "已中止" else if (isRunning(sa.status)) "运行中" else "已完成",
+                            "${sa.steps} ${tr("步")}",
+                            if (sa.killed) tr("已中止") else if (isRunning(sa.status)) tr("运行中") else tr("已完成"),
                         ).joinToString(" · ")
                         ListRow(sa.role, Icons.Rounded.SmartToy, desc = sub, end = RowEnd.None,
                             trailing = { if (isRunning(sa.status)) StatusDot(true) }) { detail = OverviewDetail.Subagent(sa) }
@@ -248,11 +248,11 @@ private fun OverviewDetailSheet(
     val expandedCmds = remember { mutableStateMapOf<Int, Boolean>() }
 
     val title = when (detail) {
-        OverviewDetail.Review -> "Review · 文件变更"
-        OverviewDetail.Files -> "Files · 产物与文件"
-        OverviewDetail.Terminals -> "终端命令"
-        OverviewDetail.AllTasks -> "全部后台任务 (${ov.backgroundTasks.size})"
-        is OverviewDetail.Subagent -> "子代理 · ${detail.item.role}"
+        OverviewDetail.Review -> tr("文件变更")
+        OverviewDetail.Files -> tr("产物与文件")
+        OverviewDetail.Terminals -> tr("终端命令")
+        OverviewDetail.AllTasks -> "${tr("后台任务")} (${ov.backgroundTasks.size})"
+        is OverviewDetail.Subagent -> "${tr("子代理")} · ${detail.item.role}"
         is OverviewDetail.TaskLog -> detail.item.title
     }
 
@@ -286,7 +286,7 @@ private fun OverviewDetailSheet(
                             .map { p -> com.local.agremote.FileDiffItem(p, p.substringAfterLast('/'), p.substringBeforeLast('/', ""), false, "") }
                     }
                     if (list.isEmpty()) {
-                        EmptyBox("本次对话还没有修改文件")
+                        EmptyBox(tr("本次对话还没有修改文件"))
                     } else {
                         LazyColumn(
                             Modifier.weight(1f).noSheetOverscroll(),
@@ -347,7 +347,7 @@ private fun OverviewDetailSheet(
 
                 OverviewDetail.Files -> {
                     if (ov.artifacts.isEmpty()) {
-                        EmptyBox("本次对话还没有产物或文件")
+                        EmptyBox(tr("本次对话还没有产物或文件"))
                     } else {
                         LazyColumn(
                             Modifier.weight(1f).noSheetOverscroll(),
@@ -388,7 +388,7 @@ private fun OverviewDetailSheet(
                 OverviewDetail.Terminals -> {
                     val commands = remember(chat.steps) { chat.steps.filter { it.type == "run_command" && it.text.isNotBlank() }.reversed() }
                     if (commands.isEmpty()) {
-                        EmptyBox("本次对话还没有执行终端命令")
+                        EmptyBox(tr("本次对话还没有执行终端命令"))
                     } else {
                         LazyColumn(
                             Modifier.weight(1f).noSheetOverscroll(),
@@ -437,7 +437,7 @@ private fun OverviewDetailSheet(
 
                 OverviewDetail.AllTasks -> {
                     if (ov.backgroundTasks.isEmpty()) {
-                        EmptyBox("暂无后台任务")
+                        EmptyBox(tr("暂无后台任务"))
                     } else {
                         LazyColumn(
                             Modifier.weight(1f).noSheetOverscroll(),
@@ -498,7 +498,7 @@ private fun OverviewDetailSheet(
                         Surface(shape = RoundedCornerShape(20.dp), color = sheetCardColor()) {
                             Column(Modifier.fillMaxWidth().padding(12.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(if (task.running) "实时日志（运行中）" else "任务日志", Modifier.weight(1f),
+                                    Text(if (task.running) tr("实时日志（运行中）") else tr("任务日志"), Modifier.weight(1f),
                                         style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     val body = logText ?: ""
                                     if (body.isNotBlank()) {
@@ -509,7 +509,7 @@ private fun OverviewDetailSheet(
                                     null -> Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
                                         CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
                                     }
-                                    "" -> Text(task.progress.ifBlank { "暂无输出日志" }, style = MaterialTheme.typography.bodySmall,
+                                    "" -> Text(task.progress.ifBlank { tr("暂无输出日志") }, style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     else -> Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                                         Text(body, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp,
@@ -530,7 +530,7 @@ private fun OverviewDetailSheet(
                         null -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
                         }
-                        emptyList<Step>() -> EmptyBox("子代理暂无可显示的步骤")
+                        emptyList<Step>() -> EmptyBox(tr("子代理暂无可显示的步骤"))
                         else -> LazyColumn(
                             Modifier.weight(1f).noSheetOverscroll(),
                             contentPadding = PaddingValues(16.dp),
@@ -540,7 +540,7 @@ private fun OverviewDetailSheet(
                                 Surface(shape = RoundedCornerShape(20.dp), color = sheetCardColor(), modifier = Modifier.fillMaxWidth()) {
                                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(
-                                            when (st.kind) { "user" -> "任务指令"; "assistant" -> "子代理回复"; else -> st.title },
+                                            when (st.kind) { "user" -> tr("任务指令"); "assistant" -> tr("子代理回复"); else -> st.title },
                                             style = MaterialTheme.typography.labelMedium,
                                             color = accentText(MaterialTheme.colorScheme.primary),
                                             fontWeight = FontWeight.SemiBold,

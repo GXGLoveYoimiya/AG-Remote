@@ -189,13 +189,12 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
                 else Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Settings, tr("设置")) }
             }
             Spacer(Modifier.weight(1f))
-            // 新建对话：右下角一颗小胶囊（Material You 下绑定中间色 primaryContainer，其余主题保持 primary）
-            val isM3 = LocalIsMaterialYou.current
+            // 新建对话：右下角一颗小胶囊（Material You 下 primary 已在 Theme.kt 映射为中间色 primaryContainer）
             Button(onClick = { vm.newChat(); onClose() }, modifier = Modifier.height(46.dp),
                 contentPadding = PaddingValues(start = 16.dp, end = 20.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isM3) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
-                    contentColor = if (isM3) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 )) {
                 Icon(Icons.Rounded.Add, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(6.dp))

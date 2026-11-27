@@ -75,7 +75,7 @@ import com.local.agremote.MarketItem
 import com.local.agremote.Translator
 
 private fun scopeName(s: String) = when (s) {
-    "builtin" -> "内置"; "global" -> "全局"; "workspace" -> "工作区"; "project" -> "项目"; "plugin" -> "插件"
+    "builtin" -> I18n.t("内置"); "global" -> I18n.t("全局"); "workspace" -> I18n.t("工作区"); "project" -> I18n.t("项目"); "plugin" -> I18n.t("插件")
     else -> s
 }
 
@@ -137,7 +137,7 @@ fun CustomizationsScreen(vm: AppViewModel, onBack: () -> Unit) {
                         tint = if (translateOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
                     Text(if (translateOn) tr("显示原文") else tr("翻译"), maxLines = 1, softWrap = false,
-                        color = if (translateOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = if (translateOn) accentText(MaterialTheme.colorScheme.primary) else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
         }
     }) { pad ->
@@ -501,16 +501,16 @@ private fun CustomizationRow(c: Customization, rawDesc: String, globalTranslate:
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(c.name, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-            Text(listOf(scopeName(c.scope), if (c.status == "enabled") "已启用" else c.status).filter { it.isNotBlank() }.joinToString(" · "),
+            Text(listOf(scopeName(c.scope), if (c.status == "enabled") tr("已启用") else c.status).filter { it.isNotBlank() }.joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (c.status == "enabled") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                color = if (c.status == "enabled") accentText(MaterialTheme.colorScheme.primary) else MaterialTheme.colorScheme.error)
             if (canTr) {
                 Spacer(Modifier.width(6.dp))
                 if (translating) {
                     CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.8.dp)
                 } else {
                     Text(
-                        if (localTr) "原文" else "译",
+                        if (localTr) tr("原文") else tr("翻译"),
                         style = MaterialTheme.typography.labelSmall,
                         color = accentText(MaterialTheme.colorScheme.primary),
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { localTr = !localTr }

@@ -250,7 +250,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val ext = name.substringAfterLast('.', "ttf").lowercase().take(5)
                     val dir = java.io.File(ctx.filesDir, "fonts").apply { mkdirs() }
                     val out = java.io.File(dir, "custom_${System.currentTimeMillis()}.$ext")
-                    ctx.contentResolver.openInputStream(uri)!!.use { i -> out.outputStream().use { i.copyTo(it) } }
+                    val stream = ctx.contentResolver.openInputStream(uri) ?: return@runCatching null
+                    stream.use { i -> out.outputStream().use { i.copyTo(it) } }
                     val ok = runCatching { android.graphics.Typeface.createFromFile(out) }.getOrNull()
                         ?.let { it != android.graphics.Typeface.DEFAULT } == true
                     if (!ok) { out.delete(); null } else out.absolutePath to name.substringBeforeLast('.')

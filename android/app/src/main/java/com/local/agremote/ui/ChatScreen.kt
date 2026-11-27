@@ -1300,26 +1300,26 @@ private fun WaitingCard(vm: AppViewModel, hasWorkspace: Boolean, step: Step) {
 }
 
 private fun scopeLabel(scope: String) = when (scope) {
-    "PERMISSION_SCOPE_ONCE" -> "允许一次"
-    "PERMISSION_SCOPE_CONVERSATION" -> "本对话允许"
-    "PERMISSION_SCOPE_WORKSPACE" -> "本工作区允许"
-    "PERMISSION_SCOPE_PROJECT" -> "本项目允许"
-    "PERMISSION_SCOPE_GLOBAL" -> "始终允许"
+    "PERMISSION_SCOPE_ONCE" -> I18n.t("允许一次")
+    "PERMISSION_SCOPE_CONVERSATION" -> I18n.t("本对话允许")
+    "PERMISSION_SCOPE_WORKSPACE" -> I18n.t("本工作区允许")
+    "PERMISSION_SCOPE_PROJECT" -> I18n.t("本项目允许")
+    "PERMISSION_SCOPE_GLOBAL" -> I18n.t("全局允许")
     else -> scope.removePrefix("PERMISSION_SCOPE_").lowercase()
 }
 
 private fun waitingTitle(kind: String, action: String, step: Step) = when (kind) {
-    "runCommand" -> "agent 想运行命令"
+    "runCommand" -> I18n.t("agent 想运行命令")
     "permission" -> when (action) {
-        "command" -> "agent 想运行命令"
-        "read_file" -> "agent 想读取文件"
-        "write_file", "edit_file" -> "agent 想修改文件"
-        else -> "agent 请求权限"
+        "command" -> I18n.t("agent 想运行命令")
+        "read_file" -> I18n.t("agent 想读取文件")
+        "write_file", "edit_file" -> I18n.t("agent 想修改文件")
+        else -> I18n.t("agent 请求权限")
     }
-    "filePermission" -> "agent 想访问文件"
-    "askQuestion" -> "agent 有问题问你"
-    "openBrowserUrl" -> "agent 想打开网页"
-    else -> "等待你确认：${step.title}"
+    "filePermission" -> I18n.t("agent 想访问文件")
+    "askQuestion" -> I18n.t("agent 有问题问你")
+    "openBrowserUrl" -> I18n.t("agent 想打开网页")
+    else -> I18n.t("等待你确认") + "：${step.title}"
 }
 
 @Composable
@@ -1482,7 +1482,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
         vm.stopVoice("keep")
     }
     val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) vm.startVoice() else Toast.makeText(ctx, "需要麦克风权限才能语音输入", Toast.LENGTH_SHORT).show()
+        if (ok) vm.startVoice() else Toast.makeText(ctx, I18n.t("需要麦克风权限才能语音输入"), Toast.LENGTH_SHORT).show()
     }
     fun startVoice() {
         val full = textState.text.toString()
@@ -1601,9 +1601,6 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                 },
         ) {
             Column(Modifier.padding(8.dp)) {
-                val isM3 = LocalIsMaterialYou.current
-                val m3LightBg = MaterialTheme.colorScheme.surfaceContainerHigh
-                val m3LightFg = MaterialTheme.colorScheme.onSurface
                 val primary = @Composable {
                     FilledIconButton(
                         onClick = {
@@ -1615,15 +1612,10 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                         },
                         modifier = Modifier.size(44.dp).onGloballyPositioned { micBounds = it.boundsInRoot() },
                         colors = when {
-                            hasContent -> if (isM3) IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
-                            else IconButtonDefaults.filledIconButtonColors(containerColor = accent(), contentColor = onAccent())
-                            canStop -> if (isM3) IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
-                            else IconButtonDefaults.filledIconButtonColors(
+                            hasContent -> IconButtonDefaults.filledIconButtonColors(containerColor = accent(), contentColor = onAccent())
+                            canStop -> IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
-                            else -> if (isM3) IconButtonDefaults.filledIconButtonColors(containerColor = m3LightBg, contentColor = m3LightFg)
-                            else IconButtonDefaults.filledIconButtonColors(
+                            else -> IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
                         },
                     ) {
@@ -1635,12 +1627,10 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                 }
 
                 val plusBtn = @Composable {
-                    // “+”有一个浅色圆底（Material You 下绑定浅色 surfaceContainerHigh）
+                    // “+”有一个浅色圆底
                     FilledTonalIconButton(
                         onClick = { plus = true },
                         modifier = Modifier.size(44.dp),
-                        colors = if (isM3) IconButtonDefaults.filledTonalIconButtonColors(containerColor = m3LightBg, contentColor = m3LightFg)
-                        else IconButtonDefaults.filledTonalIconButtonColors(),
                     ) {
                         Icon(Icons.Rounded.Add, "添加到会话")
                     }
@@ -1731,8 +1721,8 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 Surface(
                                     onClick = { if (expanded) onPickModel() },
                                     shape = RoundedCornerShape(50),
-                                    color = if (isM3) m3LightBg else MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = if (isM3) m3LightFg else MaterialTheme.colorScheme.onSecondaryContainer,
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.weight(1f, fill = false).graphicsLayer {
                                         translationX = -(1f - chipK) * 60.dp.toPx() // 从“+”底下滑出来
                                         alpha = chipK
@@ -1750,8 +1740,6 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 FilledTonalIconButton(
                                     onClick = { startVoice() },
                                     modifier = Modifier.size(44.dp).onGloballyPositioned { extraMicBounds = it.boundsInRoot() },
-                                    colors = if (isM3) IconButtonDefaults.filledTonalIconButtonColors(containerColor = m3LightBg, contentColor = m3LightFg)
-                                    else IconButtonDefaults.filledTonalIconButtonColors(),
                                 ) {
                                     Icon(Icons.Rounded.Mic, if (hasContent) "继续语音输入" else "语音输入")
                                 }
@@ -1762,8 +1750,8 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                 Spacer(Modifier.width(8.dp))
                                 FilledIconButton(onClick = { startVoiceMode() }, modifier = Modifier.size(44.dp),
                                     colors = IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = if (isM3) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
-                                        contentColor = if (isM3) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary,
                                     )) {
                                     Icon(Icons.Rounded.GraphicEq, tr("实时语音"))
                                 }
@@ -1788,7 +1776,7 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
                                 val ai = assistantName(fullLabel)
-                                Text(if (id == null) "与${ai}对话" else "回复${ai}",
+                                Text(if (id == null) cjkSpace(tr("与{0}对话", ai)) else cjkSpace(tr("回复{0}", ai)),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -1826,9 +1814,9 @@ private fun InputBar(vm: AppViewModel, working: Boolean, id: String?, modelLabel
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 when {
-                                    leftIsCancel -> "松开以取消"
-                                    holdCancel -> "松开即停止"
-                                    else -> "松开以发送"
+                                    leftIsCancel -> tr("松开以取消")
+                                    holdCancel -> tr("松开即停止")
+                                    else -> tr("松开以发送")
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (leftIsCancel) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,

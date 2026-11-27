@@ -2270,7 +2270,7 @@ private fun ColumnScope.TabSwitcher(
     Column(Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = onNew, modifier = Modifier.height(42.dp), contentPadding = PaddingValues(start = 14.dp, end = 18.dp)) {
-                Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("新建标签页"))
+                Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("新建标签页"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.weight(1f))
             Text(tr("{0} 个标签页", tabs.size), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

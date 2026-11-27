@@ -293,6 +293,41 @@ private fun miuixScheme(accent: Color, dark: Boolean): ColorScheme {
     }
 }
 
+/**
+ * 读取系统当前取色种子：
+ * 1. 优先读系统调色板原始色值（system_palette / accent_color）；
+ * 2. 若系统未公开原始色值（如壁纸/ColorBlendr 注入），从 system_accent1_400 提取精确色相并还原为高明度鲜明种子色
+ *    （绕过 Material You TonalSpot 压低饱和度/明度导致的发灰发暗），再交由 Miuix / 默认主题按各自逻辑生成配色。
+ */
+@android.annotation.SuppressLint("RestrictedApi")
+private fun systemSeedColor(ctx: android.content.Context, dark: Boolean): Color {
+    runCatching {
+        val raw = android.provider.Settings.Secure.getString(ctx.contentResolver, "theme_customization_overlay_packages")
+        if (!raw.isNullOrBlank()) {
+            val obj = org.json.JSONObject(raw)
+            val hex = obj.optString("android.theme.customization.system_palette").ifBlank {
+                obj.optString("android.theme.customization.accent_color")
+            }.trim().removePrefix("#")
+            if (hex.length == 6 || hex.length == 8) {
+                val argb = (if (hex.length == 6) 0xFF000000L else 0L) or hex.toLong(16)
+                return Color(argb.toInt())
+            }
+        }
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        runCatching {
+            val base = ctx.getColor(android.R.color.system_accent1_400)
+            val hct = com.google.android.material.color.utilities.Hct.fromInt(base)
+            if (hct.chroma > 8.0) {
+                return Color(com.google.android.material.color.utilities.Hct.from(hct.hue, maxOf(hct.chroma, 62.0), 68.0).toInt())
+            }
+            return Color(base)
+        }
+        return (if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)).primary
+    }
+    return Color(PRESET_COLORS.first().first)
+}
+
 @Composable
 fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
     val ctx = LocalContext.current
@@ -306,18 +341,14 @@ fun AgAppTheme(cfg: ThemeConfig, content: @Composable () -> Unit) {
     var accentColor = Color.Unspecified
     val scheme = when (cfg.style) {
         "default" -> {
-            val accent = if (cfg.colorMode == "system" && hasDynamic) {
-                (if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)).primary
-            } else Color(cfg.seedColor)
+            val accent = if (cfg.colorMode == "system" && hasDynamic) systemSeedColor(ctx, dark) else Color(cfg.seedColor)
             // 默认风格：大部分地方用黑色（深色模式下是白色），强调色只留给发送按钮、思考中等少数地方（见 [accent]）
             val s = claudeScheme(accent, dark)
             accentColor = s.primary
             s.copy(primary = s.onSurface, onPrimary = s.surface)
         }
         "miuix" -> {
-            val accent = if (cfg.colorMode == "system" && hasDynamic) {
-                (if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)).primary
-            } else Color(cfg.seedColor)
+            val accent = if (cfg.colorMode == "system" && hasDynamic) systemSeedColor(ctx, dark) else Color(cfg.seedColor)
             miuixScheme(accent, dark)
         }
         else -> {
@@ -603,11 +634,13 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onSave: (Int) 
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(tr("饱和度"), Modifier.width(56.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr("饱和度"), Modifier.width(78.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             AppSlider(value = s, onValueChange = { s = it; syncHex() }, valueRange = 0f..1f, modifier = Modifier.weight(1f), color = preview)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(tr("亮度"), Modifier.width(56.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr("亮度"), Modifier.width(78.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             AppSlider(value = v, onValueChange = { v = it; syncHex() }, valueRange = 0.15f..1f, modifier = Modifier.weight(1f), color = preview)
         }
         Column(Modifier.bringIntoViewRequester(bottomPart), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -647,7 +680,7 @@ private fun CustomColorPicker(initial: Int, onCancel: () -> Unit, onSave: (Int) 
             FilledTonalButton(onClick = { onSave(previewArgb) }, modifier = Modifier.fillMaxWidth().height(44.dp),
                 colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface)) {
-                Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("保存到我的配色"))
+                Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("保存到我的配色"), maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height(8.dp))
         }

@@ -180,9 +180,9 @@ fun openExternally(ctx: Context, bytes: ByteArray, name: String, mime: String) {
         val uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)
         val i = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime.ifBlank { "*/*" })
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        val launch = if (mime == "application/vnd.android.package-archive") i else Intent.createChooser(i, "打开 $name").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val launch = if (mime == "application/vnd.android.package-archive") i else Intent.createChooser(i, I18n.t("选择打开应用")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         ctx.startActivity(launch)
-    }.onFailure { Toast.makeText(ctx, "没有能打开这个文件的应用", Toast.LENGTH_SHORT).show() }
+    }.onFailure { Toast.makeText(ctx, I18n.t("没有能打开这个文件的应用"), Toast.LENGTH_SHORT).show() }
 }
 
 /** 预览本地还没发出去的附件。 */

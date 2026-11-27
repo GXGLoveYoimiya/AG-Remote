@@ -672,7 +672,7 @@ fun openWebLink(ctx: android.content.Context, url: String) {
             intent.setPackage(null)
             ctx.startActivity(intent)
         }.onFailure {
-            android.widget.Toast.makeText(ctx, I18n.t("没有能打开这个链接的应用"), android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(ctx, I18n.t("没有可以打开这个链接的应用"), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }
@@ -689,6 +689,6 @@ fun openWebLinkChooser(ctx: android.content.Context, url: String) {
     runCatching {
         ctx.startActivity(chooser)
     }.onFailure {
-        android.widget.Toast.makeText(ctx, I18n.t("没有能打开这个链接的应用"), android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(ctx, I18n.t("没有可以打开这个链接的应用"), android.widget.Toast.LENGTH_SHORT).show()
     }
 }
