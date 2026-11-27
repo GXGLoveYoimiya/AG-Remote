@@ -178,8 +178,8 @@ function proxyAllowed(addr = '') {
   if (a === '127.0.0.1' || a === '::1') return true;
   const t = trustedIps.get(a);
   if (t && Date.now() - t < PROXY_TRUST_MS) return true;
-  // 重启桥接后 Tailscale 内已配对设备免受 407（ERR_PROXY_AUTH_UNSUPPORTED）误杀
-  return allowedRemote(a) && Array.isArray(config.devices) && config.devices.length > 0;
+  // 桥接重启后内存里的记录没了：已配对设备上次用过的 IP 也放行（存在配置里），免得 WebView 报 407
+  return allowedRemote(a) && (config.devices || []).some(d => d.ip === a);
 }
 
 function allowedRemote(addr = '') {
@@ -2163,6 +2163,7 @@ async function dl(){
     const dev = deviceOf(auth);
     if (!dev) return send(res, 401, { error: '未配对' });
     trustedIps.set(normIp(ip), Date.now());
+    if (dev.ip !== normIp(ip)) { dev.ip = normIp(ip); saveConfig(); }
     deviceSeen.set(deviceId(dev), { at: Date.now(), ip: normIp(ip) });
 
     if (path === '/api/events') {
@@ -2477,8 +2478,8 @@ async function dl(){
           } catch {}
         }
       }
+      if (!ok) return send(res, 403, { error: '不允许读这个文件' }); // 先判断权限，免得能借此探测任意路径是否存在
       if (!existsSync(f) || !statSync(f).isFile()) return send(res, 404, { error: '文件已删除' });
-      if (!ok) return send(res, 403, { error: '不允许读这个文件' });
       // 先看大小再读，免得把超大文件整个读进内存
       if (statSync(f).size > 50 << 20) return send(res, 413, { error: '文件太大' });
       const data = readFileSync(f);

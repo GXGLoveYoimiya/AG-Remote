@@ -1521,7 +1521,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val voiceCall = _voiceCall.asStateFlow()
     private var previewPlayer: android.media.MediaPlayer? = null
     private val _previewing = MutableStateFlow<String?>(null)
-    val previewing = _previewing.asStateFlow()
 
     fun loadVoiceConfig() {
         viewModelScope.launch { runCatching { api.voiceConfig() }.onSuccess { _voiceCfg.value = it } }

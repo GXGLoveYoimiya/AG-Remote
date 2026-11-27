@@ -32,9 +32,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MoreHoriz
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Build
-import android.util.Base64
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -191,15 +189,6 @@ private fun normalizeUrl(raw: String, pcHost: String): String {
         return withScheme.replace(Regex("^(https?://)(?:localhost|127\\.0\\.0\\.1)(?=[:/]|$)", RegexOption.IGNORE_CASE), "$1$pcHost")
     }
     return withScheme
-}
-
-private fun decodeFavicon(dataUrl: String): Bitmap? {
-    val i = dataUrl.indexOf("base64,")
-    if (i < 0) return null
-    return runCatching {
-        val bytes = Base64.decode(dataUrl.substring(i + 7), Base64.DEFAULT)
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-    }.getOrNull()
 }
 
 /**
@@ -432,7 +421,6 @@ fun BrowserDialog(
     // 网页开的弹窗（第三方账号登录等），关掉时置空，WebView 在 AndroidView 释放时销毁
     var popupView by remember { mutableStateOf<WebView?>(null) }
     var popupTitle by remember { mutableStateOf("") }
-    var lastSyncedPcUrl by remember { mutableStateOf("") }
     var userNavigated by remember { mutableStateOf(explicitUrl != null) }
     var localTabs by remember { mutableStateOf(initTabs.first) }
     var activeTabId by remember { mutableStateOf(initTabs.second) }
