@@ -1,5 +1,8 @@
 package com.local.agremote.ui
 
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.rounded.PhoneAndroid
@@ -574,11 +577,38 @@ fun BrowserDialog(
         pageTranslated = false
     }
 
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true),
+    val dialogSlide = remember { androidx.compose.animation.core.Animatable(1f) }
+    var closingDialog by remember { mutableStateOf(false) }
+    fun closeAnimated() {
+        if (closingDialog) return
+        closingDialog = true
+        dialogFocusRef[0]?.clearFocus(force = true)
+        scope.launch {
+            dialogSlide.animateTo(
+                1f,
+                androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            )
+            onClose()
+        }
+    }
+    LaunchedEffect(Unit) {
+        dialogSlide.animateTo(
+            0f,
+            androidx.compose.animation.core.tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        )
+    }
+
+    // 直接挂在主 Activity 的根 Box 顶层（不开独立 Dialog 窗口），彻底消除打开/关闭时状态栏图标变白闪烁的问题
+    Box(
+        Modifier
+            .fillMaxSize()
+            .zIndex(50f)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+            ),
     ) {
-        // 浏览器在单独的窗口里，要用这个窗口自己的焦点控制，外面那个管不到地址栏
         val dialogFocus = LocalFocusManager.current
         dialogFocusRef[0] = dialogFocus
         LaunchedEffect(viewMode, showTabs) {
@@ -593,23 +623,32 @@ fun BrowserDialog(
                 pv != null -> popupView = null
                 viewMode == "web" && wv != null && wv.canGoBack() -> wv.goBack()
                 viewMode == "web" && explicitUrl == null -> {
-                    webViewRef?.visibility = android.view.View.INVISIBLE
                     dialogFocus.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
                     viewMode = "live"
                 }
-                else -> onClose()
+                else -> closeAnimated()
             }
         }
 
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = (1f - dialogSlide.value).coerceIn(0f, 1f) * 0.22f }
+                .background(androidx.compose.ui.graphics.Color.Black),
+        )
         Column(
             Modifier
                 .fillMaxSize()
-                .background(surfaceColor),
+                .graphicsLayer { translationX = dialogSlide.value * size.width }
+                .background(surfaceColor)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding(),
         ) {
             // 顶栏（照 Claude）：左边关闭，中间模式切换，右边“⋯”菜单收起其余操作
             var topMenu by remember { mutableStateOf(false) }
             Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp)) {
-                IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterStart)) {
+                IconButton(onClick = { closeAnimated() }, modifier = Modifier.align(Alignment.CenterStart)) {
                     Icon(Icons.Rounded.Close, tr("关闭"))
                 }
                 Row(
@@ -634,31 +673,30 @@ fun BrowserDialog(
                     LaunchedEffect(modeSlide <= 0.01f) {
                         webViewRef?.visibility = if (modeSlide > 0.01f) android.view.View.VISIBLE else android.view.View.INVISIBLE
                     }
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.width(200.dp).height(38.dp),
+                    Box(
+                        modifier = Modifier
+                            .width(200.dp)
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .padding(3.dp),
                     ) {
-                        Box(Modifier.fillMaxSize().padding(3.dp)) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = sheetCardColor(),
-                                shadowElevation = 1.dp,
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(0.5f)
-                                    .graphicsLayer { translationX = modeSlide * size.width },
-                            ) {}
-                            Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-                                ModePill(tr("电脑实况"), viewMode == "live", Modifier.weight(1f)) {
-                                    dialogFocus.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
-                                    viewMode = "live"
-                                }
-                                ModePill(tr("网页浏览"), viewMode == "web", Modifier.weight(1f)) {
-                                    webEverMounted = true
-                                    viewMode = "web"
-                                    webViewRef?.visibility = android.view.View.VISIBLE
-                                }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(0.5f)
+                                .graphicsLayer { translationX = modeSlide * size.width }
+                                .background(sheetCardColor(), RoundedCornerShape(50)),
+                        )
+                        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                            ModePill(tr("电脑实况"), viewMode == "live", Modifier.weight(1f)) {
+                                dialogFocus.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
+                                viewMode = "live"
+                            }
+                            ModePill(tr("网页浏览"), viewMode == "web", Modifier.weight(1f)) {
+                                webEverMounted = true
+                                viewMode = "web"
+                                webViewRef?.visibility = android.view.View.VISIBLE
                             }
                         }
                     }
@@ -1257,44 +1295,74 @@ fun BrowserDialog(
                         TogglePill(selected = false, onClick = { qMenu = true },
                             modifier = Modifier.fillMaxWidth(),
                             label = { FitText(curLabel, maxSp = if (streamQ == "custom") 13f else 14f) })
-                        DropdownMenu(
-                            expanded = qMenu,
-                            onDismissRequest = { qMenu = false },
-                            offset = androidx.compose.ui.unit.DpOffset((-76).dp, 4.dp),
-                            modifier = Modifier.width(256.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            containerColor = sheetCardColor(),
-                        ) {
-                            vm.streamPresets.forEach { ps ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(tr(ps.label), style = MaterialTheme.typography.bodyLarge)
-                                            Text(tr(ps.desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    },
-                                    trailingIcon = { if (ps.key == streamQ) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)) },
-                                    onClick = { qMenu = false; vm.prefs.streamQuality = ps.key; streamQ = ps.key },
-                                )
+                        if (qMenu) {
+                            val marginPx = with(androidx.compose.ui.platform.LocalDensity.current) { 12.dp.roundToPx() }
+                            val yOffPx = with(androidx.compose.ui.platform.LocalDensity.current) { 6.dp.roundToPx() }
+                            val leftProvider = remember(marginPx, yOffPx) {
+                                object : androidx.compose.ui.window.PopupPositionProvider {
+                                    override fun calculatePosition(
+                                        anchorBounds: androidx.compose.ui.unit.IntRect,
+                                        windowSize: IntSize,
+                                        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+                                        popupContentSize: IntSize,
+                                    ): androidx.compose.ui.unit.IntOffset {
+                                        val maxX = (windowSize.width - popupContentSize.width - marginPx).coerceAtLeast(marginPx)
+                                        val x = anchorBounds.left.coerceIn(marginPx, maxX)
+                                        val y = (anchorBounds.bottom + yOffPx).coerceAtMost(
+                                            (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx),
+                                        )
+                                        return androidx.compose.ui.unit.IntOffset(x, y)
+                                    }
+                                }
                             }
-                            HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(tr("自定义"), style = MaterialTheme.typography.bodyLarge)
-                                        Text(
-                                            if (streamQ == "custom") {
+                            androidx.compose.ui.window.Popup(
+                                popupPositionProvider = leftProvider,
+                                onDismissRequest = { qMenu = false },
+                                properties = androidx.compose.ui.window.PopupProperties(focusable = true),
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = sheetCardColor(),
+                                    shadowElevation = 6.dp,
+                                    tonalElevation = 2.dp,
+                                ) {
+                                    Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(vertical = 6.dp)) {
+                                        @Composable
+                                        fun QualityMenuItem(title: String, desc: String, selected: Boolean, onClick: () -> Unit) {
+                                            Row(
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable(onClick = onClick)
+                                                    .padding(horizontal = 16.dp, vertical = 9.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Column(Modifier.weight(1f)) {
+                                                    Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+                                                    Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                                }
+                                                Spacer(Modifier.width(12.dp))
+                                                Box(Modifier.size(18.dp), contentAlignment = Alignment.Center) {
+                                                    if (selected) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp))
+                                                }
+                                            }
+                                        }
+                                        vm.streamPresets.forEach { ps ->
+                                            QualityMenuItem(tr(ps.label), tr(ps.desc), ps.key == streamQ) {
+                                                qMenu = false; vm.prefs.streamQuality = ps.key; streamQ = ps.key
+                                            }
+                                        }
+                                        HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                        QualityMenuItem(
+                                            title = tr("自定义"),
+                                            desc = if (streamQ == "custom") {
                                                 val resName = when (vm.prefs.streamCustomWidth) { 640 -> "360P"; 854 -> "480P"; 2560 -> "2K"; else -> "1080P" }
                                                 "$resName ${vm.prefs.streamCustomFps}Hz"
                                             } else tr("自定义分辨率与帧率"),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
+                                            selected = streamQ == "custom",
+                                        ) { qMenu = false; showCustomStream = true }
                                     }
-                                },
-                                trailingIcon = { if (streamQ == "custom") Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)) },
-                                onClick = { qMenu = false; showCustomStream = true },
-                            )
+                                }
+                            }
                         }
                     }
                     if (controlMode == "mouse") {
@@ -1843,32 +1911,9 @@ fun BrowserDialog(
                     val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                     val thumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    Box(
-                        Modifier.fillMaxWidth().height(10.dp).background(MaterialTheme.colorScheme.surface),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (controlMode != "view") {
-                            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(3.dp)) {
-                                val r = androidx.compose.ui.geometry.CornerRadius(size.height / 2f, size.height / 2f)
-                                drawRoundRect(color = trackColor, cornerRadius = r)
-                                val maxV = toolScroll.maxValue
-                                val vp = toolScroll.viewportSize
-                                val thumbFrac = if (maxV > 0 && vp > 0) (vp.toFloat() / (vp + maxV)).coerceIn(0.28f, 0.75f) else 0.4f
-                                val thumbW = size.width * thumbFrac
-                                val progress = if (maxV > 0) (toolScroll.value.toFloat() / maxV).coerceIn(0f, 1f) else 0f
-                                val thumbX = (size.width - thumbW) * progress
-                                drawRoundRect(
-                                    color = thumbColor,
-                                    topLeft = Offset(thumbX, 0f),
-                                    size = androidx.compose.ui.geometry.Size(thumbW, size.height),
-                                    cornerRadius = r,
-                                )
-                            }
-                        }
-                    }
                     Row(
                         Modifier.fillMaxWidth().height(48.dp).background(MaterialTheme.colorScheme.surface)
-                            .horizontalScroll(toolScroll).padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 8.dp),
+                            .horizontalScroll(toolScroll).padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 2.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -1937,6 +1982,29 @@ fun BrowserDialog(
                         }
                         }
                     }
+                    Box(
+                        Modifier.fillMaxWidth().height(12.dp).background(MaterialTheme.colorScheme.surface),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (controlMode != "view") {
+                            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(3.dp)) {
+                                val r = androidx.compose.ui.geometry.CornerRadius(size.height / 2f, size.height / 2f)
+                                drawRoundRect(color = trackColor, cornerRadius = r)
+                                val maxV = toolScroll.maxValue
+                                val vp = toolScroll.viewportSize
+                                val thumbFrac = if (maxV > 0 && vp > 0) (vp.toFloat() / (vp + maxV)).coerceIn(0.28f, 0.75f) else 0.4f
+                                val thumbW = size.width * thumbFrac
+                                val progress = if (maxV > 0) (toolScroll.value.toFloat() / maxV).coerceIn(0f, 1f) else 0f
+                                val thumbX = (size.width - thumbW) * progress
+                                drawRoundRect(
+                                    color = thumbColor,
+                                    topLeft = Offset(thumbX, 0f),
+                                    size = androidx.compose.ui.geometry.Size(thumbW, size.height),
+                                    cornerRadius = r,
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // 底部紧凑条：Gemini 浏览器动态（如果有 browser_subagent / 网页操作步骤）
@@ -1999,7 +2067,14 @@ private fun FitText(
 @Composable
 private fun ModePill(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
-        modifier = modifier.fillMaxHeight().clip(RoundedCornerShape(50)).clickable(onClick = onClick).padding(horizontal = 6.dp),
+        modifier = modifier
+            .fillMaxHeight()
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         FitText(

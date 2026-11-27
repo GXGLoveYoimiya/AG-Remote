@@ -182,6 +182,15 @@ private fun Root(vm: AppViewModel) {
                 Box(androidx.compose.ui.Modifier.fillMaxSize())
             }
         }
+        if (browserOpen) {
+            com.local.agremote.ui.BrowserDialog(
+                vm = vm,
+                chatId = chatState.id ?: "",
+                explicitUrl = browserExplicitUrl,
+                quickLinks = com.local.agremote.ui.extractConversationUrls(chatState.steps),
+                onClose = { vm.closeBrowser() },
+            )
+        }
     }
 
     if (showPalette) {
@@ -190,16 +199,6 @@ private fun Root(vm: AppViewModel) {
             onDismiss = { showPalette = false },
             onNavigate = { screen = it },
             onOpenOverview = { showOverview = true },
-        )
-    }
-
-    if (browserOpen) {
-        com.local.agremote.ui.BrowserDialog(
-            vm = vm,
-            chatId = chatState.id ?: "",
-            explicitUrl = browserExplicitUrl,
-            quickLinks = com.local.agremote.ui.extractConversationUrls(chatState.steps),
-            onClose = { vm.closeBrowser() },
         )
     }
 

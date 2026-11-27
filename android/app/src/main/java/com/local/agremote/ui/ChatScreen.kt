@@ -239,6 +239,10 @@ fun ChatScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                ),
                 navigationIcon = { IconButton(onClick = { focusManager.clearFocus(); onMenu() }) { Icon(Icons.Rounded.Menu, "对话列表") } },
                 title = {
                     // 项目里的对话：“项目 / 对话标题”；项目里的新对话：项目图标 + 项目名（照 Claude）
@@ -312,7 +316,7 @@ fun ChatScreen(
                 s.loading && s.steps.isEmpty() && s.pending == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 s.error != null && s.steps.isEmpty() -> Text(s.error ?: "", Modifier.align(Alignment.Center).padding(24.dp),
                     color = MaterialTheme.colorScheme.error)
-                else -> LazyColumn(state = listState, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                else -> LazyColumn(state = listState, contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxSize()) {
                     val chatId = s.id ?: ""
                     val hasWorkspace = !s.conv?.workspace.isNullOrBlank()
@@ -340,6 +344,21 @@ fun ChatScreen(
                     if (working) item(key = "working") { WorkingRow(s.conv?.status == "canceling") }
                     item(key = "bottom") { Spacer(Modifier.size(4.dp)) }
                 }
+            }
+            if (!empty) {
+                val surfaceCol = MaterialTheme.colorScheme.surface
+                Box(
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                0f to surfaceCol,
+                                1f to Color.Transparent,
+                            )
+                        ),
+                )
             }
         }
     }
