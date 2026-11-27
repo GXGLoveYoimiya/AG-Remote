@@ -723,12 +723,72 @@ async function annotate(id, b) {
   await rpc('UpdateConversationAnnotations', { cascadeId: id, annotations: ann, mergeAnnotations: true });
 }
 
-async function getSteps(id, offset = 0) {
+// 本地 transcript.jsonl 缓存：当 Antigravity 对超长对话做上下文压缩、清空早期步骤正文时，
+// 自动从 ~/.gemini/antigravity/brain/<id>/.system_generated/logs/transcript.jsonl 补全被裁剪的用户消息与回复。
+const transcriptCache = new Map();
+function readTranscriptMap(id) {
+  try {
+    if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const f = join(process.env.USERPROFILE || '', '.gemini', 'antigravity', 'brain', id, '.system_generated', 'logs', 'transcript.jsonl');
+    if (!existsSync(f)) return null;
+    const mtime = statSync(f).mtimeMs;
+    const hit = transcriptCache.get(id);
+    if (hit && hit.mtime === mtime) return hit.map;
+    const map = new Map();
+    const lines = readFileSync(f, 'utf8').split('\n');
+    for (const line of lines) {
+      if (!line) continue;
+      let o;
+      try { o = JSON.parse(line); } catch { continue; }
+      const idx = o.step_index;
+      if (typeof idx !== 'number') continue;
+      if (o.type === 'USER_INPUT') {
+        const raw = String(o.content || '');
+        const reqs = [...raw.matchAll(/<USER_REQUEST>\s*([\s\S]*?)\s*<\/USER_REQUEST>/g)].map(m => m[1].trim()).filter(Boolean);
+        const text = reqs.length ? reqs.join('\n\n') : (o.source === 'USER_EXPLICIT' ? raw.trim() : '');
+        if (!text) continue;
+        map.set(idx, {
+          i: idx, type: 'user_input', kind: 'user', status: 'done', title: '', text, sub: '', detail: '', thinking: '',
+          time: o.created_at || '', trajectoryId: '', attachments: [], mentions: [],
+        });
+      } else if (o.type === 'PLANNER_RESPONSE') {
+        const text = String(o.content || '').trim();
+        const thinking = String(o.thinking || '').trim();
+        if (!text && !thinking) continue;
+        map.set(idx, {
+          i: idx, type: 'planner_response', kind: text ? 'assistant' : 'thought', status: 'done', title: '', text, sub: '', detail: '', thinking,
+          time: o.created_at || '', trajectoryId: '', attachments: [], mentions: [],
+        });
+      }
+    }
+    if (transcriptCache.size >= 8) transcriptCache.delete(transcriptCache.keys().next().value);
+    transcriptCache.set(id, { mtime, map });
+    return map;
+  } catch {
+    return null;
+  }
+}
+
+async function getSteps(id, offset = 0, limit = 0) {
   const r = await rpc('GetCascadeTrajectorySteps', { cascadeId: id, stepOffset: offset }, 30000);
-  const raw = r.steps || [];
+  const allRaw = r.steps || [];
+  const raw = limit > 0 ? allRaw.slice(0, limit) : allRaw;
   // 这段步骤里最后一次回复用的模型（没有就是 ''，手机端沿用之前的）
   const lastModel = [...raw].reverse().find(s => s.metadata?.generatorModel)?.metadata.generatorModel || '';
-  return { steps: raw.map((s, k) => normalizeStep(s, offset + k)), model: lastModel };
+  const steps = raw.map((s, k) => normalizeStep(s, offset + k));
+  if (steps.some(s => s.kind === 'hidden' && (s.type === 'user_input' || s.type === 'planner_response'))) {
+    const tmap = readTranscriptMap(id);
+    if (tmap && tmap.size > 0) {
+      for (let k = 0; k < steps.length; k++) {
+        const st = steps[k];
+        if (st.kind === 'hidden' && (st.type === 'user_input' || st.type === 'planner_response')) {
+          const restored = tmap.get(st.i);
+          if (restored) steps[k] = restored;
+        }
+      }
+    }
+  }
+  return { steps, model: lastModel };
 }
 
 // ---------------- 模型 / 账户 ----------------
@@ -2119,7 +2179,11 @@ async function dl(){
       });
       return;
     }
-    if (path === '/api/conversations' && req.method === 'GET') return send(res, 200, { conversations: await listConversations() });
+    if (path === '/api/conversations' && req.method === 'GET') {
+      const all = await listConversations();
+      const limit = Math.max(0, parseInt(url.searchParams.get('limit') || '0', 10) || 0);
+      return send(res, 200, { conversations: limit > 0 ? all.slice(0, limit) : all, total: all.length });
+    }
     if (path === '/api/models') return send(res, 200, await listModels());
     // 批量翻译不常变的内容（插件简介、技能说明…），译文会存到硬盘
     if (path === '/api/translate/many' && req.method === 'POST') {
@@ -2467,10 +2531,11 @@ async function dl(){
       const [, id, action] = m;
       if (!action && req.method === 'GET') {
         const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10) || 0);
+        const limit = Math.max(0, parseInt(url.searchParams.get('limit') || '0', 10) || 0);
         const list = await listConversations();
         const c = list.find(x => x.id === id);
         const [{ steps, model }, queued, voiceChats] = await Promise.all([
-          getSteps(id, offset),
+          getSteps(id, offset, limit),
           c && c.status !== 'idle' ? getPendingMessages(id) : Promise.resolve([]),
           getVoiceChats(id),
         ]);

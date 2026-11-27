@@ -210,29 +210,10 @@ fun ChatScreen(
     val working = running || s.pending != null || (visible.lastOrNull()?.kind == "user" && s.conv?.status != "idle")
     val listState = remember(s.id) { LazyListState() }
 
-    // 跟着 listState 重建：换对话后 listState 是新的，不能还盯着旧列表判断“是否在底部”
-    val atBottom by remember(listState) { derivedStateOf { !listState.canScrollForward } }
-    var firstScroll by remember(s.id) { mutableStateOf(true) }
+    // reverseLayout = true：索引 0 就是最底部最新消息，头部补全历史零跳动、零弹跳
+    val atBottom by remember(listState) { derivedStateOf { !listState.canScrollBackward } }
     var prevQueuedCount by remember(s.id) { mutableIntStateOf(0) }
     var prevPending by remember(s.id) { mutableStateOf<String?>(null) }
-    var prevFirstVisibleKey by remember(s.id) { mutableStateOf<String?>(null) }
-    var prevRowKeys by remember(s.id) { mutableStateOf<List<String>>(emptyList()) }
-    LaunchedEffect(rows.size, rows.firstOrNull()?.key) {
-        val curKeys = rows.map { it.key }
-        val oldKeys = prevRowKeys
-        // 后台补全旧历史（头部插入了更早的消息）：保持当前阅读位置不跳动
-        if (oldKeys.isNotEmpty() && curKeys.size > oldKeys.size && curKeys.firstOrNull() != oldKeys.firstOrNull()) {
-            val anchorKey = prevFirstVisibleKey ?: oldKeys.firstOrNull()
-            val newIdx = anchorKey?.let { curKeys.indexOf(it) } ?: -1
-            if (newIdx > 0 && !atBottom && !listState.isScrollInProgress) {
-                listState.scrollToItem(newIdx, listState.firstVisibleItemScrollOffset)
-            }
-        }
-        prevRowKeys = curKeys
-    }
-    LaunchedEffect(listState.firstVisibleItemIndex, rows.size) {
-        prevFirstVisibleKey = rows.getOrNull(listState.firstVisibleItemIndex)?.key
-    }
     LaunchedEffect(visible.size, visible.lastOrNull()?.text?.length, visible.lastOrNull()?.status, s.pending, s.queued.size, working) {
         val newQueued = s.queued.size > prevQueuedCount
         val newPending = s.pending != null && s.pending != prevPending
@@ -240,9 +221,8 @@ fun ChatScreen(
         prevPending = s.pending
         if (visible.isEmpty() && s.pending == null && s.queued.isEmpty()) return@LaunchedEffect
         if (listState.isScrollInProgress) return@LaunchedEffect
-        if (firstScroll || atBottom || newPending || newQueued) {
-            listState.scrollToItem(listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
-            firstScroll = false
+        if (atBottom || newPending || newQueued) {
+            listState.scrollToItem(0)
         }
     }
 
@@ -334,40 +314,50 @@ fun ChatScreen(
                 s.loading && s.steps.isEmpty() && s.pending == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 s.error != null && s.steps.isEmpty() -> Text(s.error ?: "", Modifier.align(Alignment.Center).padding(24.dp),
                     color = MaterialTheme.colorScheme.error)
-                else -> LazyColumn(state = listState, contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxSize()) {
-                    val chatId = s.id ?: ""
-                    val hasWorkspace = !s.conv?.workspace.isNullOrBlank()
-                    if (s.loadingHistory) {
-                        item(key = "loading_history") {
-                            Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.2.dp)
+                else -> {
+                    val rowsRev = remember(rows) { rows.asReversed() }
+                    val queuedRev = remember(s.queued) { s.queued.asReversed() }
+                    LazyColumn(
+                        state = listState,
+                        reverseLayout = true,
+                        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Top),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        val chatId = s.id ?: ""
+                        val hasWorkspace = !s.conv?.workspace.isNullOrBlank()
+                        item(key = "bottom") { Spacer(Modifier.size(4.dp)) }
+                        if (working) item(key = "working") { WorkingRow(s.conv?.status == "canceling") }
+                        s.pending?.let { p -> item(key = "pending") { UserBubble(vm, p, local = s.pendingFiles, mentions = s.pendingMentions) } }
+                        items(queuedRev, key = { "q_" + it.id }) { q ->
+                            val busyNow = q.id in sendingQueuedIds
+                            UserBubble(
+                                vm, q.text,
+                                queued = true,
+                                queuedImmediate = q.immediate,
+                                sendingNow = busyNow,
+                                onSendNow = if (q.immediate) null else ({ vm.sendQueuedNow(q) }),
+                                onEditQueued = if (busyNow) null else ({ vm.editQueued(q) }),
+                                onDeleteQueued = if (busyNow) null else ({ vm.deleteQueued(q) }),
+                            )
+                        }
+                        items(rowsRev, key = { it.key }) { r ->
+                            when (r) {
+                                is ChatRow.Single -> StepItem(vm, chatId, hasWorkspace, r.step)
+                                is ChatRow.Process -> ProcessBlock(vm, chatId, r)
+                                is ChatRow.Answer -> AnswerBody(vm, r.step)
+                                is ChatRow.Voice -> VoiceChatBlock(vm, r.chat)
+                            }
+                        }
+                        if (s.hasMoreHistory) {
+                            item(key = "loading_history") {
+                                LaunchedEffect(chatId, s.steps.size) { vm.loadMoreHistory(chatId) }
+                                Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.2.dp)
+                                }
                             }
                         }
                     }
-                    items(rows, key = { it.key }) { r ->
-                        when (r) {
-                            is ChatRow.Single -> StepItem(vm, chatId, hasWorkspace, r.step)
-                            is ChatRow.Process -> ProcessBlock(vm, chatId, r)
-                            is ChatRow.Answer -> AnswerBody(vm, r.step)
-                            is ChatRow.Voice -> VoiceChatBlock(vm, r.chat)
-                        }
-                    }
-                    items(s.queued, key = { "q_" + it.id }) { q ->
-                        val busyNow = q.id in sendingQueuedIds
-                        UserBubble(
-                            vm, q.text,
-                            queued = true,
-                            queuedImmediate = q.immediate,
-                            sendingNow = busyNow,
-                            onSendNow = if (q.immediate) null else ({ vm.sendQueuedNow(q) }),
-                            onEditQueued = if (busyNow) null else ({ vm.editQueued(q) }),
-                            onDeleteQueued = if (busyNow) null else ({ vm.deleteQueued(q) }),
-                        )
-                    }
-                    s.pending?.let { p -> item(key = "pending") { UserBubble(vm, p, local = s.pendingFiles, mentions = s.pendingMentions) } }
-                    if (working) item(key = "working") { WorkingRow(s.conv?.status == "canceling") }
-                    item(key = "bottom") { Spacer(Modifier.size(4.dp)) }
                 }
             }
             if (!empty) {

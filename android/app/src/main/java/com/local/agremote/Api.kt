@@ -378,16 +378,24 @@ class Api(private val prefs: Prefs) {
         return o.getString("token")
     }
 
-    suspend fun conversations(): List<Conversation> {
-        val a = call(req("/api/conversations").build()).optJSONArray("conversations") ?: JSONArray()
-        return (0 until a.length()).map { parseConv(a.getJSONObject(it)) }
+    data class ConvListPage(val items: List<Conversation>, val total: Int)
+
+    suspend fun conversationsPage(limit: Int = 0): ConvListPage {
+        val path = if (limit > 0) "/api/conversations?limit=$limit" else "/api/conversations"
+        val o = call(req(path).build())
+        val a = o.optJSONArray("conversations") ?: JSONArray()
+        val items = (0 until a.length()).map { parseConv(a.getJSONObject(it)) }
+        return ConvListPage(items, o.optInt("total", items.size))
     }
+
+    suspend fun conversations(): List<Conversation> = conversationsPage(0).items
 
     data class ConvDetail(val conv: Conversation?, val steps: List<Step>, val model: String, val queued: List<QueuedMsg> = emptyList(),
                           val voiceChats: List<VoiceChatRec> = emptyList())
 
-    suspend fun conversation(id: String, offset: Int): ConvDetail {
-        val o = call(req("/api/conversations/$id?offset=$offset").build())
+    suspend fun conversation(id: String, offset: Int, limit: Int = 0): ConvDetail {
+        val qs = if (limit > 0) "offset=$offset&limit=$limit" else "offset=$offset"
+        val o = call(req("/api/conversations/$id?$qs").build())
         val c = o.optJSONObject("conversation")?.let { parseConv(it) }
         val a = o.optJSONArray("steps") ?: JSONArray()
         val q = o.optJSONArray("queued") ?: JSONArray()
@@ -841,7 +849,7 @@ class Api(private val prefs: Prefs) {
         permissionPreset = o.optString("permissionPreset"),
     )
 
-    private fun parseStep(o: JSONObject): Step {
+    internal fun parseStep(o: JSONObject): Step {
         val w = o.optJSONObject("waiting")?.let { wj ->
             val spec = wj.optJSONObject("spec") ?: JSONObject()
             val qs = wj.optJSONArray("questions") ?: JSONArray()

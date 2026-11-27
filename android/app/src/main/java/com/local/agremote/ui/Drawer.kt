@@ -138,6 +138,8 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
+        val listLoading by vm.listLoading.collectAsState()
+        val listHasMore by vm.listHasMore.collectAsState()
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 80.dp)) {
             item {
                 DrawerRow(Icons.Outlined.Inventory2, tr("项目")) { onOpen("projects") }
@@ -153,8 +155,23 @@ fun DrawerContent(vm: AppViewModel, onClose: () -> Unit, onOpen: (String) -> Uni
             items(active, key = { it.id }) { c ->
                 ConvItem(vm, c, selected = c.id == chat.id) { vm.openChat(c.id); onClose() }
             }
-            if (active.isEmpty()) item {
-                Text(tr("还没有对话"), Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (active.isEmpty() && listLoading) {
+                item(key = "drawer_loading") {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.2.dp)
+                    }
+                }
+            } else if (active.isEmpty()) {
+                item {
+                    Text(tr("还没有对话"), Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else if (listHasMore) {
+                item(key = "drawer_more") {
+                    androidx.compose.runtime.LaunchedEffect(active.size) { vm.loadMoreConversations() }
+                    Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.2.dp)
+                    }
+                }
             }
         }
         // 底部：头像（设置）+ 新建对话，压在一层渐变上，列表滑到下面时慢慢淡出（照 Claude）

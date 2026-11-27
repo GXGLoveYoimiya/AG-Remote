@@ -951,29 +951,50 @@ fun BrowserDialog(
                                         WebView(android.view.ContextThemeWrapper(c,
                                             if (isDark) android.R.style.Theme_Material_NoActionBar
                                             else android.R.style.Theme_Material_Light_NoActionBar)).apply {
-                                            // 下拉页面刷新：仅在页面顶部（scrollY == 0）单指竖直下拉时触发，不影响网页滚动和双指缩放
+                                            // 下拉页面刷新：同时校验 WebView 与触点所在 DOM 滚动容器均处于顶部（scrollTop <= 2），彻底避免 SPA 内嵌滚动页误触刷新
                                             val touchSlop = android.view.ViewConfiguration.get(c).scaledTouchSlop.toFloat()
+                                            val viewDensity = c.resources.displayMetrics.density.coerceAtLeast(1f)
                                             var startX = 0f; var startY = 0f
-                                            var tracking = false; var pulling = false; var hapticFired = false
+                                            var tracking = false; var atTop = false; var pulling = false; var hapticFired = false
                                             setOnTouchListener { v, ev ->
                                                 when (ev.actionMasked) {
                                                     android.view.MotionEvent.ACTION_DOWN -> {
-                                                        tracking = v.scrollY == 0 && !pullRefreshing
+                                                        val nativeTop = v.scrollY == 0 && !v.canScrollVertically(-1) && !pullRefreshing
+                                                        tracking = nativeTop
+                                                        atTop = false
                                                         pulling = false; hapticFired = false
                                                         startX = ev.rawX; startY = ev.rawY
+                                                        if (nativeTop) {
+                                                            val cssX = (ev.x / viewDensity).toInt()
+                                                            val cssY = (ev.y / viewDensity).toInt()
+                                                            (v as? WebView)?.evaluateJavascript(
+                                                                "(function(){if((window.scrollY||document.documentElement.scrollTop||document.body.scrollTop||0)>2)return '0';" +
+                                                                    "var e=document.elementFromPoint($cssX,$cssY);" +
+                                                                    "while(e&&e!==document.documentElement){if(e.scrollTop>2)return '0';e=e.parentElement;}" +
+                                                                    "return '1';})()",
+                                                            ) { res ->
+                                                                if (tracking) atTop = (res == "\"1\"" || res == "1")
+                                                            }
+                                                        }
                                                         false
                                                     }
                                                     android.view.MotionEvent.ACTION_POINTER_DOWN -> {
                                                         if (pulling) { pullOffset = 0f; pulling = false }
-                                                        tracking = false; false
+                                                        tracking = false; atTop = false; false
                                                     }
                                                     android.view.MotionEvent.ACTION_MOVE -> {
                                                         if (!tracking || ev.pointerCount > 1) return@setOnTouchListener false
-                                                        if (!pulling && v.scrollY > 0) { tracking = false; return@setOnTouchListener false }
+                                                        if (!pulling && (v.scrollY > 0 || v.canScrollVertically(-1))) {
+                                                            tracking = false; atTop = false; return@setOnTouchListener false
+                                                        }
                                                         val dx = ev.rawX - startX
                                                         val dy = ev.rawY - startY
                                                         if (!pulling) {
-                                                            if (dy > touchSlop && dy > kotlin.math.abs(dx) * 1.3f) {
+                                                            if (dy > touchSlop * 1.4f && dy > kotlin.math.abs(dx) * 1.5f) {
+                                                                if (!atTop) {
+                                                                    tracking = false
+                                                                    return@setOnTouchListener false
+                                                                }
                                                                 pulling = true
                                                                 // 通知 WebView 取消本次按下手势，避免吞掉 ACTION_UP 后 WebView 手势状态卡死无法交互
                                                                 val cancelEv = android.view.MotionEvent.obtain(ev).apply {
@@ -982,7 +1003,7 @@ fun BrowserDialog(
                                                                 v.onTouchEvent(cancelEv)
                                                                 cancelEv.recycle()
                                                             } else if (kotlin.math.abs(dx) > touchSlop || dy < -touchSlop) {
-                                                                tracking = false; return@setOnTouchListener false
+                                                                tracking = false; atTop = false; return@setOnTouchListener false
                                                             } else {
                                                                 return@setOnTouchListener false
                                                             }

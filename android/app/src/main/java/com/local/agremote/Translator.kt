@@ -47,7 +47,11 @@ object Translator {
         cache[k]?.let { return it }
         val a = api ?: throw IllegalStateException("还没连上电脑")
         val out = a.translate(text, googleTarget(targetLang))
-        cache[k] = out
+        if (out.isNotBlank()) {
+            cache[k] = out
+            kept[k] = out
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { save() }
+        }
         return out
     }
 
