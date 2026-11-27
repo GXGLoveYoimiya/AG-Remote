@@ -32,7 +32,7 @@ AG Remote 由两部分组成：
 - **内置浏览器**：
   - 多标签页（主页也算一个标签页），卡片式切换，左右滑动关闭，关闭可撤销；可一次性同步电脑上的标签页。
   - 地址栏输入网址直接打开，其他内容用所选搜索引擎搜索（Google、Bing、百度、DuckDuckGo、Yahoo、Yandex）。
-  - 网页翻译成当前界面语言，可显示原文；可设置某种语言总是翻译、从不翻译，或某个网站从不翻译。
+  - 网页翻译成当前界面语言，可显示原文。
   - 可选走电脑的网络或手机自己的网络。
 - **电脑实况**：连续视频流查看电脑上 Antigravity 的浏览器，四档画质可选，用虚拟鼠标操控。
 - **外观**：默认 Claude 风格主题，也可选 Material You、Miuix；自定义强调色（可保存自己的配色）；可导入自定义字体。
@@ -106,7 +106,7 @@ The phone and the PC connect over [Tailscale](https://tailscale.com/).
 - **Built-in browser**:
   - Tabs, including the home page as a tab. Switch between them with a card grid, swipe a card to close it, and undo a close. You can also copy the PC's tabs over once.
   - Type a URL to open it; anything else is searched with your chosen engine (Google, Bing, Baidu, DuckDuckGo, Yahoo, Yandex).
-  - Translate pages into the app's language and switch back to the original. Set a language to always or never translate, or never translate a site.
+  - Translate pages into the app's language and switch back to the original.
   - Browse through the PC's network or the phone's own.
 - **PC live view**: watch Antigravity's browser on the PC as a continuous video stream with four quality levels, and control it with a virtual mouse.
 - **Appearance**: a Claude-style default theme, plus Material You and Miuix. Choose a custom accent color and save your own palettes, or import a custom font.
