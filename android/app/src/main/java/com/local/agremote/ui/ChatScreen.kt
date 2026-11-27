@@ -215,6 +215,24 @@ fun ChatScreen(
     var firstScroll by remember(s.id) { mutableStateOf(true) }
     var prevQueuedCount by remember(s.id) { mutableIntStateOf(0) }
     var prevPending by remember(s.id) { mutableStateOf<String?>(null) }
+    var prevFirstVisibleKey by remember(s.id) { mutableStateOf<String?>(null) }
+    var prevRowKeys by remember(s.id) { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(rows.size, rows.firstOrNull()?.key) {
+        val curKeys = rows.map { it.key }
+        val oldKeys = prevRowKeys
+        // 后台补全旧历史（头部插入了更早的消息）：保持当前阅读位置不跳动
+        if (oldKeys.isNotEmpty() && curKeys.size > oldKeys.size && curKeys.firstOrNull() != oldKeys.firstOrNull()) {
+            val anchorKey = prevFirstVisibleKey ?: oldKeys.firstOrNull()
+            val newIdx = anchorKey?.let { curKeys.indexOf(it) } ?: -1
+            if (newIdx > 0 && !atBottom && !listState.isScrollInProgress) {
+                listState.scrollToItem(newIdx, listState.firstVisibleItemScrollOffset)
+            }
+        }
+        prevRowKeys = curKeys
+    }
+    LaunchedEffect(listState.firstVisibleItemIndex, rows.size) {
+        prevFirstVisibleKey = rows.getOrNull(listState.firstVisibleItemIndex)?.key
+    }
     LaunchedEffect(visible.size, visible.lastOrNull()?.text?.length, visible.lastOrNull()?.status, s.pending, s.queued.size, working) {
         val newQueued = s.queued.size > prevQueuedCount
         val newPending = s.pending != null && s.pending != prevPending
@@ -320,6 +338,13 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxSize()) {
                     val chatId = s.id ?: ""
                     val hasWorkspace = !s.conv?.workspace.isNullOrBlank()
+                    if (s.loadingHistory) {
+                        item(key = "loading_history") {
+                            Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.2.dp)
+                            }
+                        }
+                    }
                     items(rows, key = { it.key }) { r ->
                         when (r) {
                             is ChatRow.Single -> StepItem(vm, chatId, hasWorkspace, r.step)
@@ -953,10 +978,7 @@ private fun ProcessBlock(vm: AppViewModel, chatId: String, r: ChatRow.Process) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // 正在思考时用强调色（浅色底上文字自动加深），其余时候是灰色
-            val tint = if (running) accent() else MaterialTheme.colorScheme.outline
             val textTint = if (running) accentText() else MaterialTheme.colorScheme.outline
-            Icon(Icons.Rounded.Lightbulb, null, Modifier.size(16.dp), tint = tint)
-            Spacer(Modifier.width(4.dp))
             Text(label, style = MaterialTheme.typography.labelMedium, color = textTint,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
             Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, Modifier.size(16.dp),

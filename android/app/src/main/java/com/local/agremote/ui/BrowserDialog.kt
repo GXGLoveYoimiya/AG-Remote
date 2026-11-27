@@ -2,7 +2,10 @@ package com.local.agremote.ui
 
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.rounded.PhoneAndroid
@@ -223,6 +226,32 @@ fun BrowserDialog(
     val surfaceColor = MaterialTheme.colorScheme.surface
     val surfaceArgb = surfaceColor.toArgb()
     val isDark = surfaceColor.luminance() < 0.5f
+    val appLang = LocalAppLang.current
+    val sysTz = remember { java.util.TimeZone.getDefault().id.ifBlank { "UTC" } }
+    val (webPrimaryLang, webAcceptLang, webJsLangs) = remember(appLang) {
+        when (appLang) {
+            "zh-CN" -> Triple("zh-CN", "zh-CN,zh;q=0.9,en;q=0.5", "['zh-CN','zh','en']")
+            "zh-TW" -> Triple("zh-TW", "zh-TW,zh-Hant;q=0.9,zh;q=0.8,en;q=0.5", "['zh-TW','zh-Hant','zh','en']")
+            "zh-HK" -> Triple("zh-HK", "zh-HK,zh-Hant;q=0.9,zh;q=0.8,en;q=0.5", "['zh-HK','zh-Hant','zh','en']")
+            "ja" -> Triple("ja-JP", "ja-JP,ja;q=0.9,en;q=0.5", "['ja-JP','ja','en']")
+            "en" -> Triple("en-US", "en-US,en;q=0.9", "['en-US','en']")
+            "ko" -> Triple("ko-KR", "ko-KR,ko;q=0.9,en;q=0.5", "['ko-KR','ko','en']")
+            "es" -> Triple("es-ES", "es-ES,es;q=0.9,en;q=0.5", "['es-ES','es','en']")
+            "fr" -> Triple("fr-FR", "fr-FR,fr;q=0.9,en;q=0.5", "['fr-FR','fr','en']")
+            "de" -> Triple("de-DE", "de-DE,de;q=0.9,en;q=0.5", "['de-DE','de','en']")
+            "ru" -> Triple("ru-RU", "ru-RU,ru;q=0.9,en;q=0.5", "['ru-RU','ru','en']")
+            "pt" -> Triple("pt-BR", "pt-BR,pt;q=0.9,en;q=0.5", "['pt-BR','pt','en']")
+            else -> Triple("en-US", "en-US,en;q=0.9", "['en-US','en']")
+        }
+    }
+    val webLangHeaders = remember(webAcceptLang) { mapOf("Accept-Language" to webAcceptLang) }
+    val webLangJs = remember(webPrimaryLang, webJsLangs, sysTz) {
+        val tzSafe = sysTz.replace("'", "")
+        "try{Object.defineProperty(Navigator.prototype,'language',{get:()=>'$webPrimaryLang',configurable:true});" +
+            "Object.defineProperty(Navigator.prototype,'languages',{get:()=>$webJsLangs,configurable:true});" +
+            "const _d=Intl.DateTimeFormat;if(_d&&!_d._agPatched){const P=function(l,o){return new _d(l||'$webPrimaryLang',Object.assign({timeZone:'$tzSafe'},o||{}));};" +
+            "P.prototype=_d.prototype;P.supportedLocalesOf=_d.supportedLocalesOf.bind(_d);P._agPatched=true;Intl.DateTimeFormat=P;}}catch(e){}"
+    }
 
     // explicitUrl 非空（点链接进来）→ 默认网页浏览；点右上角图标进来 → 默认电脑实况
     // 手机浏览器独立管理自己的标签页（不自动和电脑同步）；关掉再打开、重启 App 都会恢复
@@ -455,9 +484,9 @@ fun BrowserDialog(
             loading = true
             progress = 10
             activeUrl = u
-            webViewRef?.loadUrl(u)
+            webViewRef?.loadUrl(u, webLangHeaders)
         } else {
-            webViewRef?.reload()
+            webViewRef?.loadUrl(u, webLangHeaders)
         }
         (dialogFocusRef[0] ?: focusManager).clearFocus(force = true)
     }
@@ -901,7 +930,18 @@ fun BrowserDialog(
                               // 而 app 的 XML 主题是深色 Theme.Material，所以这里按 app 当前主题包一层；切换主题时重建并重新加载
                               var pullOffset by remember { mutableFloatStateOf(0f) }
                               var pullRefreshing by remember { mutableStateOf(false) }
-                              LaunchedEffect(loading) { if (!loading) pullRefreshing = false }
+                              LaunchedEffect(loading, pullRefreshing) {
+                                  if (pullRefreshing && !loading) {
+                                      kotlinx.coroutines.delay(250)
+                                      if (!loading) pullRefreshing = false
+                                  }
+                              }
+                              LaunchedEffect(pullRefreshing) {
+                                  if (pullRefreshing) {
+                                      kotlinx.coroutines.delay(8000)
+                                      pullRefreshing = false
+                                  }
+                              }
                               val pullDensity = androidx.compose.ui.platform.LocalDensity.current
                               val triggerPx = with(pullDensity) { 68.dp.toPx() }
                               val maxPullPx = with(pullDensity) { 104.dp.toPx() }
@@ -935,6 +975,12 @@ fun BrowserDialog(
                                                         if (!pulling) {
                                                             if (dy > touchSlop && dy > kotlin.math.abs(dx) * 1.3f) {
                                                                 pulling = true
+                                                                // 通知 WebView 取消本次按下手势，避免吞掉 ACTION_UP 后 WebView 手势状态卡死无法交互
+                                                                val cancelEv = android.view.MotionEvent.obtain(ev).apply {
+                                                                    action = android.view.MotionEvent.ACTION_CANCEL
+                                                                }
+                                                                v.onTouchEvent(cancelEv)
+                                                                cancelEv.recycle()
                                                             } else if (kotlin.math.abs(dx) > touchSlop || dy < -touchSlop) {
                                                                 tracking = false; return@setOnTouchListener false
                                                             } else {
@@ -955,6 +1001,7 @@ fun BrowserDialog(
                                                         tracking = false; pulling = false; pullOffset = 0f
                                                         if (shouldReload) {
                                                             pullRefreshing = true
+                                                            loading = true
                                                             webError = null
                                                             (v as? WebView)?.reload()
                                                         }
@@ -1005,11 +1052,23 @@ fun BrowserDialog(
                                             if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                                                 WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, false)
                                             }
+                                            var lastLangLoadedUrl = ""
                                             webViewClient = object : WebViewClient() {
                                                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                                     val u = request?.url?.toString() ?: return false
-                                                    if (u.startsWith("http://") || u.startsWith("https://") ||
-                                                        u.startsWith("about:") || u.startsWith("blob:") ||
+                                                    if (u.startsWith("http://") || u.startsWith("https://")) {
+                                                        // 仅对用户点击的非重定向主文档 GET 附带 Accept-Language，防止重定向死循环卡住
+                                                        if (request.isForMainFrame && !request.isRedirect &&
+                                                            request.hasGesture() && request.method.equals("GET", ignoreCase = true) &&
+                                                            u != lastLangLoadedUrl
+                                                        ) {
+                                                            lastLangLoadedUrl = u
+                                                            view?.loadUrl(u, webLangHeaders)
+                                                            return true
+                                                        }
+                                                        return false
+                                                    }
+                                                    if (u.startsWith("about:") || u.startsWith("blob:") ||
                                                         u.startsWith("data:") || u.startsWith("javascript:")) {
                                                         return false
                                                     }
@@ -1019,13 +1078,14 @@ fun BrowserDialog(
                                                     }
                                                     // 跳 App（bilibili://、intent://…）：只放行你亲手点的；网页自己偷偷发起的跳转仍然拦截
                                                     if (request.hasGesture()) {
-                                                        openAppLink(ctx, u) { fallback -> view?.loadUrl(fallback) }
+                                                        openAppLink(ctx, u) { fallback -> view?.loadUrl(fallback, webLangHeaders) }
                                                     }
                                                     return true
                                                 }
                                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                                     // 当前是主页：还在收尾的旧页面（比如刚关掉的标签页）不要把网址写回来
                                                     if (activeUrl.isEmpty()) return
+                                                    view?.evaluateJavascript(webLangJs, null)
                                                     pageTranslated = false
                                                     loading = true
                                                     webError = null
@@ -1037,6 +1097,7 @@ fun BrowserDialog(
                                                 override fun onPageFinished(view: WebView?, url: String?) {
                                                     // 当前是主页：还在收尾的旧页面（比如刚关掉的标签页）不要把网址写回来
                                                     if (activeUrl.isEmpty()) return
+                                                    view?.evaluateJavascript(webLangJs, null)
                                                     loading = false
                                                     pageCommitted = true
                                                     progress = 100
@@ -1054,7 +1115,6 @@ fun BrowserDialog(
                                                     if (request?.isForMainFrame == true) {
                                                         loading = false
                                                         pageCommitted = true
-                                                        webError = error?.description?.toString()?.takeIf { it.isNotBlank() } ?: "网页加载失败"
                                                     }
                                                 }
                                             }
@@ -1120,7 +1180,7 @@ fun BrowserDialog(
                                             }
                                             setDownloadListener { url, _, _, _, _ -> openWebLink(ctx, url) }
                                             webViewRef = this
-                                            loadUrl(activeUrl)
+                                            loadUrl(activeUrl, webLangHeaders)
                                         }
                                     },
                                     update = { wv ->
@@ -1164,39 +1224,7 @@ fun BrowserDialog(
                                         }
                                     }
                                 }
-                                if (webError != null) {
-                                    Surface(
-                                        shape = RoundedCornerShape(16.dp),
-                                        color = MaterialTheme.colorScheme.errorContainer,
-                                        modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .padding(top = 12.dp, start = 16.dp, end = 16.dp),
-                                    ) {
-                                        Row(
-                                            Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        ) {
-                                            Text(
-                                                "加载失败：$webError",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.weight(1f, fill = false),
-                                            )
-                                            Text(tr("重试"),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.clickable {
-                                                    webError = null
-                                                    webViewRef?.reload()
-                                                },
-                                            )
-                                        }
-                                    }
-                                } else if (!pageCommitted) {
+                                if (!pageCommitted) {
                                     Surface(
                                         shape = RoundedCornerShape(18.dp),
                                         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
@@ -1251,6 +1279,9 @@ fun BrowserDialog(
                             .background(surfaceColor),
                     ) {
                 // 「电脑实况」顶部控制条：三个固定等宽按钮（不随语言/模式伸缩，永不滚到右侧三个点下方）+ 右侧同位置三个点
+                var qMenu by remember { mutableStateOf(false) }
+                var qAnchorX by remember { mutableIntStateOf(0) }
+                val barDensity = androidx.compose.ui.platform.LocalDensity.current
                 Row(
                     Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1263,6 +1294,8 @@ fun BrowserDialog(
                     TogglePill(
                         selected = controlMode != "view",
                         onClick = {
+                            qMenu = false
+                            showCursorSlider = false
                             controlMode = when (controlMode) {
                                 "mouse" -> "touch"
                                 "touch" -> "view"
@@ -1286,89 +1319,34 @@ fun BrowserDialog(
                         },
                     )
                     // 画质档位：流畅 / 平衡 / 清晰 / 极致清晰 / 自定义（切换后按新档位重连，并记住）
-                    Box(Modifier.weight(1f)) {
-                        var qMenu by remember { mutableStateOf(false) }
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .onGloballyPositioned { coords ->
+                                qAnchorX = coords.positionInParent().x.toInt() + with(barDensity) { 12.dp.roundToPx() }
+                            },
+                    ) {
                         val curLabel = if (streamQ == "custom") {
                             val resName = when (vm.prefs.streamCustomWidth) { 640 -> "360P"; 854 -> "480P"; 2560 -> "2K"; else -> "1080P" }
                             "$resName ${vm.prefs.streamCustomFps}Hz"
                         } else tr((vm.streamPresets.find { it.key == streamQ } ?: vm.streamPresets[1]).label)
-                        TogglePill(selected = false, onClick = { qMenu = true },
+                        TogglePill(
+                            selected = qMenu,
+                            onClick = {
+                                showCursorSlider = false
+                                qMenu = !qMenu
+                            },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { FitText(curLabel, maxSp = if (streamQ == "custom") 13f else 14f) })
-                        if (qMenu) {
-                            val marginPx = with(androidx.compose.ui.platform.LocalDensity.current) { 12.dp.roundToPx() }
-                            val yOffPx = with(androidx.compose.ui.platform.LocalDensity.current) { 6.dp.roundToPx() }
-                            val leftProvider = remember(marginPx, yOffPx) {
-                                object : androidx.compose.ui.window.PopupPositionProvider {
-                                    override fun calculatePosition(
-                                        anchorBounds: androidx.compose.ui.unit.IntRect,
-                                        windowSize: IntSize,
-                                        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
-                                        popupContentSize: IntSize,
-                                    ): androidx.compose.ui.unit.IntOffset {
-                                        val maxX = (windowSize.width - popupContentSize.width - marginPx).coerceAtLeast(marginPx)
-                                        val x = anchorBounds.left.coerceIn(marginPx, maxX)
-                                        val y = (anchorBounds.bottom + yOffPx).coerceAtMost(
-                                            (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx),
-                                        )
-                                        return androidx.compose.ui.unit.IntOffset(x, y)
-                                    }
-                                }
-                            }
-                            androidx.compose.ui.window.Popup(
-                                popupPositionProvider = leftProvider,
-                                onDismissRequest = { qMenu = false },
-                                properties = androidx.compose.ui.window.PopupProperties(focusable = true),
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = sheetCardColor(),
-                                    shadowElevation = 6.dp,
-                                    tonalElevation = 2.dp,
-                                ) {
-                                    Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(vertical = 6.dp)) {
-                                        @Composable
-                                        fun QualityMenuItem(title: String, desc: String, selected: Boolean, onClick: () -> Unit) {
-                                            Row(
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable(onClick = onClick)
-                                                    .padding(horizontal = 16.dp, vertical = 9.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                Column(Modifier.weight(1f)) {
-                                                    Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
-                                                    Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                                                }
-                                                Spacer(Modifier.width(12.dp))
-                                                Box(Modifier.size(18.dp), contentAlignment = Alignment.Center) {
-                                                    if (selected) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp))
-                                                }
-                                            }
-                                        }
-                                        vm.streamPresets.forEach { ps ->
-                                            QualityMenuItem(tr(ps.label), tr(ps.desc), ps.key == streamQ) {
-                                                qMenu = false; vm.prefs.streamQuality = ps.key; streamQ = ps.key
-                                            }
-                                        }
-                                        HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                        QualityMenuItem(
-                                            title = tr("自定义"),
-                                            desc = if (streamQ == "custom") {
-                                                val resName = when (vm.prefs.streamCustomWidth) { 640 -> "360P"; 854 -> "480P"; 2560 -> "2K"; else -> "1080P" }
-                                                "$resName ${vm.prefs.streamCustomFps}Hz"
-                                            } else tr("自定义分辨率与帧率"),
-                                            selected = streamQ == "custom",
-                                        ) { qMenu = false; showCustomStream = true }
-                                    }
-                                }
-                            }
-                        }
+                            label = { FitText(curLabel, maxSp = if (streamQ == "custom") 13f else 14f) },
+                        )
                     }
                     if (controlMode == "mouse") {
                         TogglePill(
                             selected = showCursorSlider,
-                            onClick = { showCursorSlider = !showCursorSlider },
+                            onClick = {
+                                qMenu = false
+                                showCursorSlider = !showCursorSlider
+                            },
                             modifier = Modifier.weight(1f),
                             label = { FitText("${tr("尺寸")} ${String.format("%.1f", cursorScale)}×") },
                         )
@@ -1377,7 +1355,7 @@ fun BrowserDialog(
                     }
                     }
                     Box {
-                        IconButton(onClick = { topMenu = true }, modifier = Modifier.size(44.dp)) {
+                        IconButton(onClick = { qMenu = false; showCursorSlider = false; topMenu = true }, modifier = Modifier.size(44.dp)) {
                             Icon(Icons.Rounded.MoreVert, tr("更多操作"))
                         }
                         DropdownMenu(topMenu, { topMenu = false }, shape = RoundedCornerShape(20.dp), containerColor = sheetCardColor()) {
@@ -1460,6 +1438,72 @@ fun BrowserDialog(
                         .background(MaterialTheme.colorScheme.surfaceContainerLowest)
                         .onSizeChanged { boxSize = it },
                 ) {
+                    // 画质菜单：浮在画面区域内（不吞掉上方三个按钮的点击，点另外两个按钮可直接切换/反馈）
+                    if (qMenu) {
+                        var menuW by remember { mutableIntStateOf(0) }
+                        val marginPx = with(barDensity) { 12.dp.roundToPx() }
+                        val topOffPx = with(barDensity) { 6.dp.roundToPx() }
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .zIndex(11f)
+                                .clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { qMenu = false },
+                                ),
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = sheetCardColor(),
+                            shadowElevation = 6.dp,
+                            tonalElevation = 2.dp,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .zIndex(12f)
+                                .onSizeChanged { menuW = it.width }
+                                .offset {
+                                    val maxX = (boxSize.width - menuW - marginPx).coerceAtLeast(marginPx)
+                                    androidx.compose.ui.unit.IntOffset(qAnchorX.coerceIn(marginPx, maxX), topOffPx)
+                                },
+                        ) {
+                            Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(vertical = 6.dp)) {
+                                @Composable
+                                fun QualityMenuItem(title: String, desc: String, selected: Boolean, onClick: () -> Unit) {
+                                    Row(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .clickable(onClick = onClick)
+                                            .padding(horizontal = 16.dp, vertical = 9.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+                                            Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                        }
+                                        Spacer(Modifier.width(12.dp))
+                                        Box(Modifier.size(18.dp), contentAlignment = Alignment.Center) {
+                                            if (selected) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp))
+                                        }
+                                    }
+                                }
+                                vm.streamPresets.forEach { ps ->
+                                    QualityMenuItem(tr(ps.label), tr(ps.desc), ps.key == streamQ) {
+                                        qMenu = false; vm.prefs.streamQuality = ps.key; streamQ = ps.key
+                                    }
+                                }
+                                HorizontalDivider(Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                QualityMenuItem(
+                                    title = tr("自定义"),
+                                    desc = if (streamQ == "custom") {
+                                        val resName = when (vm.prefs.streamCustomWidth) { 640 -> "360P"; 854 -> "480P"; 2560 -> "2K"; else -> "1080P" }
+                                        "$resName ${vm.prefs.streamCustomFps}Hz"
+                                    } else tr("自定义分辨率与帧率"),
+                                    selected = streamQ == "custom",
+                                ) { qMenu = false; showCustomStream = true }
+                            }
+                        }
+                    }
                     // 光标大小：浮在画面上方的小卡片，不挤占画面（改动立即生效并保存）
                     if (controlMode == "mouse" && showCursorSlider) {
                         Surface(

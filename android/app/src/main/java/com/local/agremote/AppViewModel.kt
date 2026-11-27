@@ -31,6 +31,7 @@ data class ChatState(
     val steps: List<Step> = emptyList(),
     val queued: List<QueuedMsg> = emptyList(),
     val loading: Boolean = false,
+    val loadingHistory: Boolean = false,
     val error: String? = null,
     val model: String = "", // 这个对话最近一次回复用的模型
     val pending: String? = null, // 刚发出、电脑那边还没出现的消息
@@ -1001,8 +1002,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         userPicked = false
-        _chat.value = ChatState(id, conv = _list.value.find { it.id == id }?.copy(unread = false), loading = true)
-        reloadChat(id, full = true)
+        backfillJob?.cancel()
+        backfillJob = null
+        chatLoadedFrom = 0
+        val knownConv = _list.value.find { it.id == id }
+        _chat.value = ChatState(id, conv = knownConv?.copy(unread = false), loading = true)
+        val totalSteps = knownConv?.steps ?: 0
+        if (totalSteps > 80) {
+            // 优先秒开最新一屏（尾部 60 步），展示完立刻在后台无感补全历史消息
+            loadChatTailFirst(id, (totalSteps - 60).coerceAtLeast(0))
+        } else {
+            reloadChat(id, full = true)
+        }
         markViewed(id, force = true)
     }
 
@@ -1010,6 +1021,65 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var chatJobId: String? = null
     private var chatPending = false
     private var chatPendingFull = false
+    private var backfillJob: Job? = null
+    private var chatLoadedFrom: Int = 0
+
+    private fun loadChatTailFirst(id: String, tailOffset: Int) {
+        chatJob?.cancel()
+        chatJobId = id
+        chatPending = false; chatPendingFull = false
+        chatJob = viewModelScope.launch {
+            runCatching { api.conversation(id, tailOffset) }
+                .onSuccess { d ->
+                    val now = _chat.value
+                    if (now.id != id) return@launch
+                    chatLoadedFrom = tailOffset
+                    val model = d.model.ifBlank { now.model }
+                    val conv = d.conv ?: now.conv
+                    val autoRead = AppState.foreground && id !in manuallyUnread
+                    val finalConv = if (autoRead && conv?.unread == true) {
+                        markViewed(id, force = conv.status == "idle")
+                        conv.copy(unread = false)
+                    } else conv
+                    val filteredQueued = d.queued.filterNot { it.id in deletingQueuedIds }
+                    _chat.value = now.copy(
+                        conv = finalConv, steps = d.steps, queued = filteredQueued, voiceChats = d.voiceChats,
+                        loading = false, loadingHistory = tailOffset > 0, error = null, model = model,
+                    )
+                    if (!userPicked && pcModel.isBlank() && model.isNotBlank()) _selected.value = model
+                    // 后台静默补全前面所有历史步骤（顶部留轻量加载圈提示）
+                    backfillJob?.cancel()
+                    backfillJob = viewModelScope.launch {
+                        runCatching { api.conversation(id, 0) }
+                            .onSuccess { full ->
+                                val cur = _chat.value
+                                if (cur.id != id) return@onSuccess
+                                chatLoadedFrom = 0
+                                val fullModel = full.model.ifBlank { cur.model }
+                                val fullConv = full.conv ?: cur.conv
+                                val fullQueued = full.queued.filterNot { it.id in deletingQueuedIds }
+                                val totalUsers = full.steps.count { it.kind == "user" } + fullQueued.size
+                                val pending = cur.pending?.takeIf { totalUsers <= cur.pendingBase }
+                                val nextState = cur.copy(
+                                    conv = fullConv, steps = full.steps, queued = fullQueued, voiceChats = full.voiceChats,
+                                    pendingFiles = if (pending == null) emptyList() else cur.pendingFiles,
+                                    loading = false, loadingHistory = false, error = null, model = fullModel, pending = pending,
+                                )
+                                if (nextState != cur) _chat.value = nextState
+                            }
+                            .onFailure {
+                                val cur = _chat.value
+                                if (cur.id == id && cur.loadingHistory) _chat.value = cur.copy(loadingHistory = false)
+                            }
+                    }
+                }
+                .onFailure { e ->
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    // 尾部拉取异常时回退到全量加载
+                    reloadChat(id, full = true)
+                }
+        }
+    }
 
     /** 增量刷新：从第一个还没结束的步骤开始重新拉，前面已完成的保留。 */
     fun reloadChat(id: String, full: Boolean) {
@@ -1031,10 +1101,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (cur.id != id) return@launch
                 val firstOpen = if (isFull) 0 else cur.steps.indexOfFirst { it.status == "running" || it.status == "waiting" || it.status == "queued" }
                     .let { if (it < 0) cur.steps.size else it }
-                runCatching { api.conversation(id, firstOpen) }
+                val baseOffset = if (isFull) 0 else chatLoadedFrom
+                runCatching { api.conversation(id, baseOffset + firstOpen) }
                     .onSuccess { d ->
                         val now = _chat.value
                         if (now.id != id) return@launch
+                        if (isFull) {
+                            backfillJob?.cancel()
+                            chatLoadedFrom = 0
+                        }
                         val model = d.model.ifBlank { now.model }
                         val steps = now.steps.take(firstOpen) + d.steps
                         val totalUsers = steps.count { it.kind == "user" } + d.queued.size
@@ -1048,7 +1123,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         val filteredQueued = d.queued.filterNot { it.id in deletingQueuedIds }
                         val nextState = now.copy(conv = finalConv, steps = steps, queued = filteredQueued, voiceChats = d.voiceChats,
                             pendingFiles = if (pending == null) emptyList() else now.pendingFiles,
-                            loading = false, error = null, model = model, pending = pending)
+                            loading = false, loadingHistory = if (isFull) false else now.loadingHistory, error = null, model = model, pending = pending)
                         if (nextState != now) _chat.value = nextState
                         // 模型默认始终跟随电脑端同步；仅在还没拿到电脑端模型时才兜底用本对话历史模型
                         if (!userPicked && pcModel.isBlank() && model.isNotBlank()) _selected.value = model
