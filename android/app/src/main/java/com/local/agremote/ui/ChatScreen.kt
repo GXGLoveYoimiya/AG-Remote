@@ -130,6 +130,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -560,46 +561,86 @@ private fun UserBubble(vm: AppViewModel, text: String, remote: List<com.local.ag
             shape = RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp),
             modifier = Modifier.widthIn(max = 320.dp),
         ) {
-            SelectionContainer {
-                val linkColor = MaterialTheme.colorScheme.primary
-                val annotated = remember(text, linkColor) {
-                    val re = Regex("""https?://[^\s<>)\]"'，。；：！？、】）》]+""")
-                    buildAnnotatedString {
-                        var last = 0
-                        for (m in re.findAll(text)) {
-                            append(text.substring(last, m.range.first))
-                            var u = m.value
-                            var trail = ""
-                            while (u.isNotEmpty() && u.last() in charArrayOf('.', ',', ';', ':', '!', '?', ')', ']')) {
-                                trail = u.last() + trail
-                                u = u.dropLast(1)
-                            }
-                            if (u.startsWith("http://", true) || u.startsWith("https://", true)) {
-                                pushLink(
-                                    androidx.compose.ui.text.LinkAnnotation.Clickable(
-                                        tag = "url",
-                                        styles = androidx.compose.ui.text.TextLinkStyles(
-                                            style = SpanStyle(
-                                                color = linkColor,
-                                                textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-                                            ),
-                                        ),
-                                        linkInteractionListener = { vm.openLink(u) },
-                                    ),
-                                )
-                                append(u)
-                                pop()
-                                append(trail)
-                            } else {
-                                append(m.value)
-                            }
-                            last = m.range.last + 1
+            var expanded by remember(text) { mutableStateOf(false) }
+            var overflowed by remember(text) { mutableStateOf(false) }
+            val linkColor = MaterialTheme.colorScheme.primary
+            val annotated = remember(text, linkColor) {
+                val re = Regex("""https?://[^\s<>)\]"'，。；：！？、】）》]+""")
+                buildAnnotatedString {
+                    var last = 0
+                    for (m in re.findAll(text)) {
+                        append(text.substring(last, m.range.first))
+                        var u = m.value
+                        var trail = ""
+                        while (u.isNotEmpty() && u.last() in charArrayOf('.', ',', ';', ':', '!', '?', ')', ']')) {
+                            trail = u.last() + trail
+                            u = u.dropLast(1)
                         }
-                        if (last < text.length) append(text.substring(last))
+                        if (u.startsWith("http://", true) || u.startsWith("https://", true)) {
+                            pushLink(
+                                androidx.compose.ui.text.LinkAnnotation.Clickable(
+                                    tag = "url",
+                                    styles = androidx.compose.ui.text.TextLinkStyles(
+                                        style = SpanStyle(
+                                            color = linkColor,
+                                            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                                        ),
+                                    ),
+                                    linkInteractionListener = { vm.openLink(u) },
+                                ),
+                            )
+                            append(u)
+                            pop()
+                            append(trail)
+                        } else {
+                            append(m.value)
+                        }
+                        last = m.range.last + 1
+                    }
+                    if (last < text.length) append(text.substring(last))
+                }
+            }
+            Column(Modifier.animateContentSize()) {
+                SelectionContainer {
+                    Text(
+                        annotated,
+                        Modifier.padding(
+                            start = 14.dp,
+                            end = 14.dp,
+                            top = 10.dp,
+                            bottom = if (overflowed || expanded) 4.dp else 10.dp,
+                        ),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = if (expanded) Int.MAX_VALUE else 6,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { res -> if (!expanded && res.hasVisualOverflow) overflowed = true },
+                    )
+                }
+                if (overflowed || expanded) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { expanded = !expanded }
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val subTint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                        Text(
+                            if (expanded) tr("收起") else tr("展开全部"),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = subTint,
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Icon(
+                            if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                            if (expanded) tr("收起") else tr("展开全部"),
+                            Modifier.size(16.dp),
+                            tint = subTint,
+                        )
                     }
                 }
-                Text(annotated, Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.bodyLarge)
             }
         }
         if (queued) {

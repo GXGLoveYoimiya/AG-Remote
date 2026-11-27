@@ -3,6 +3,7 @@ package com.local.agremote.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
@@ -35,8 +36,10 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -157,6 +160,12 @@ private fun CodeBlockCard(lang: String, code: String) {
             copied = false
         }
     }
+    fun copyCode() {
+        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("code", code))
+        copied = true
+        if (Build.VERSION.SDK_INT < 33) Toast.makeText(ctx, I18n.t("已复制"), Toast.LENGTH_SHORT).show()
+    }
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         shape = RoundedCornerShape(14.dp),
@@ -168,7 +177,7 @@ private fun CodeBlockCard(lang: String, code: String) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    lang.ifBlank { "代码" },
+                    lang.ifBlank { tr("代码") },
                     Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -176,31 +185,26 @@ private fun CodeBlockCard(lang: String, code: String) {
                 Row(
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cm.setPrimaryClip(ClipData.newPlainText("code", code))
-                            copied = true
-                            if (Build.VERSION.SDK_INT < 33) Toast.makeText(ctx, "已复制", Toast.LENGTH_SHORT).show()
-                        }
+                        .clickable { copyCode() }
                         .padding(horizontal = 8.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         if (copied) Icons.Rounded.Check else Icons.Rounded.ContentCopy,
-                        "复制代码",
+                        tr("复制"),
                         Modifier.size(15.dp),
                         tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        if (copied) "已复制" else "复制",
+                        if (copied) tr("已复制") else tr("复制"),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
-            Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp)) {
+            Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 4.dp)) {
                 SelectionContainer {
                     Text(
                         code,
@@ -211,6 +215,34 @@ private fun CodeBlockCard(lang: String, code: String) {
                             color = MaterialTheme.colorScheme.onSurface,
                         ),
                     )
+                }
+            }
+            // 左下角：与对话回复底部同款的复制和分享图标按钮
+            Row(
+                Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { copyCode() }, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        if (copied) Icons.Rounded.Check else Icons.Rounded.ContentCopy,
+                        tr("复制"),
+                        Modifier.size(18.dp),
+                        tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, code)
+                        }
+                        val chooser = Intent.createChooser(send, I18n.t("分享"))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        runCatching { ctx.startActivity(chooser) }
+                    },
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Icon(Icons.Rounded.Share, tr("分享"), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.outline)
                 }
             }
         }

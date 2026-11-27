@@ -9,6 +9,7 @@ android {
 
     defaultConfig {
         applicationId findProperty('appId') ?: 'com.gxgloveyoimiya.agremote'
+        manifestPlaceholders = [appLabel: findProperty('appLabel') ?: '@string/app_name']
         minSdk 29
         targetSdk 37
         versionCode 2
