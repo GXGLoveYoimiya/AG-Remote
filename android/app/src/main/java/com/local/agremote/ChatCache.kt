@@ -36,6 +36,7 @@ class ChatCache(ctx: Context) {
             if (!f.isFile) return@withContext null
             runCatching {
                 val o = JSONObject(f.readText())
+                if (o.optInt("v", 1) < 2) return@withContext null
                 val a = o.optJSONArray("steps") ?: JSONArray()
                 val steps = (0 until a.length()).map { api.parseStep(a.getJSONObject(it)) }
                 CachedChat(
@@ -57,6 +58,7 @@ class ChatCache(ctx: Context) {
                 val arr = JSONArray()
                 entry.steps.forEach { arr.put(stepToJson(it)) }
                 val o = JSONObject()
+                    .put("v", 2)
                     .put("updated", entry.updated)
                     .put("totalSteps", entry.totalSteps)
                     .put("loadedFrom", entry.loadedFrom)
@@ -79,8 +81,8 @@ class ChatCache(ctx: Context) {
 
     private fun pruneOld() {
         val files = dir.listFiles()?.filter { it.name.endsWith(".json") } ?: return
-        if (files.size <= 30) return
-        files.sortedByDescending { it.lastModified() }.drop(30).forEach { runCatching { it.delete() } }
+        if (files.size <= 60) return
+        files.sortedByDescending { it.lastModified() }.drop(60).forEach { runCatching { it.delete() } }
     }
 
     private fun stepToJson(s: Step): JSONObject {

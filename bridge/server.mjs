@@ -177,7 +177,9 @@ function proxyAllowed(addr = '') {
   const a = normIp(addr);
   if (a === '127.0.0.1' || a === '::1') return true;
   const t = trustedIps.get(a);
-  return !!t && Date.now() - t < PROXY_TRUST_MS;
+  if (t && Date.now() - t < PROXY_TRUST_MS) return true;
+  // 重启桥接后 Tailscale 内已配对设备免受 407（ERR_PROXY_AUTH_UNSUPPORTED）误杀
+  return allowedRemote(a) && Array.isArray(config.devices) && config.devices.length > 0;
 }
 
 function allowedRemote(addr = '') {
@@ -2445,20 +2447,38 @@ async function dl(){
         res.writeHead(200, { 'Content-Type': m.mimeType || 'application/octet-stream', 'Content-Length': data.length, 'Cache-Control': 'max-age=86400' });
         return res.end(data);
       }
-      // 2) 文件：Antigravity 对话目录（brain）里的，或者这个对话的消息里引用到的
+      // 2) 文件：Antigravity 对话目录（brain）里的，或者这个对话的消息/工作区/历史记录里引用到的
       const f = String(url.searchParams.get('path') || '').replace(/\\/g, '/');
       const norm = f.toLowerCase();
+      if (!f || norm.includes('..')) return send(res, 403, { error: '不允许读这个文件' });
       const root = join(process.env.USERPROFILE || '', '.gemini', 'antigravity', 'brain').replace(/\\/g, '/').toLowerCase();
-      let ok = norm.startsWith(root + '/') && !norm.includes('/.system_generated/') && !norm.includes('..');
+      let ok = norm.startsWith(root + '/') && !norm.includes('/.system_generated/');
       if (!ok && cid) {
         const { steps } = await getSteps(cid, 0);
         ok = steps.some(st =>
-          (st.attachments || []).some(x => x.path && x.path.toLowerCase() === norm) ||
+          (st.attachments || []).some(x => x.path && x.path.replace(/\\/g, '/').toLowerCase() === norm) ||
           (st.kind === 'file' && st.text && st.text.replace(/\\/g, '/').toLowerCase() === norm) ||
-          fileRefs(st.text).some(x => x.path.toLowerCase() === norm));
+          fileRefs(st.text).some(x => x.path.replace(/\\/g, '/').toLowerCase() === norm));
       }
+      if (!ok && cid && /^[0-9a-f-]{36}$/i.test(cid)) {
+        // 兼容被上下文压缩的旧对话：检查本地 transcript.jsonl 是否提到该文件路径，或是否位于该对话工作区内
+        const tf = join(process.env.USERPROFILE || '', '.gemini', 'antigravity', 'brain', cid, '.system_generated', 'logs', 'transcript.jsonl');
+        if (existsSync(tf)) {
+          try {
+            const rawLower = readFileSync(tf, 'utf8').toLowerCase();
+            if (rawLower.includes(norm) || rawLower.includes(norm.replace(/\//g, '\\\\'))) ok = true;
+          } catch {}
+        }
+        if (!ok) {
+          try {
+            const conv = (await listConversations()).find(x => x.id === cid);
+            const ws = String(conv?.workspace || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+            if (ws && (norm === ws || norm.startsWith(ws + '/'))) ok = true;
+          } catch {}
+        }
+      }
+      if (!existsSync(f) || !statSync(f).isFile()) return send(res, 404, { error: '文件已删除' });
       if (!ok) return send(res, 403, { error: '不允许读这个文件' });
-      if (!existsSync(f) || !statSync(f).isFile()) return send(res, 404, { error: '文件不存在' });
       // 先看大小再读，免得把超大文件整个读进内存
       if (statSync(f).size > 50 << 20) return send(res, 413, { error: '文件太大' });
       const data = readFileSync(f);

@@ -214,6 +214,7 @@ fun BrowserDialog(
     chatId: String,
     explicitUrl: String?,
     quickLinks: List<String>,
+    visible: Boolean = true,
     onClose: () -> Unit,
 ) {
     val ctx = LocalContext.current
@@ -324,8 +325,8 @@ fun BrowserDialog(
     var streamQ by remember { mutableStateOf(vm.prefs.streamQuality) }
     var streamCustomVer by remember { mutableIntStateOf(0) }
     var showCustomStream by remember { mutableStateOf(false) }
-    LaunchedEffect(viewMode, captureCrop, livePaused, liveTick, streamQ, streamCustomVer) {
-        if (viewMode != "live") return@LaunchedEffect
+    LaunchedEffect(visible, viewMode, captureCrop, livePaused, liveTick, streamQ, streamCustomVer) {
+        if (!visible || viewMode != "live") return@LaunchedEffect
         if (!livePaused) {
             var failures = 0
             while (failures < 3) {
@@ -609,7 +610,7 @@ fun BrowserDialog(
     val dialogSlide = remember { androidx.compose.animation.core.Animatable(1f) }
     var closingDialog by remember { mutableStateOf(false) }
     fun closeAnimated() {
-        if (closingDialog) return
+        if (closingDialog || !visible) return
         closingDialog = true
         dialogFocusRef[0]?.clearFocus(force = true)
         scope.launch {
@@ -618,46 +619,50 @@ fun BrowserDialog(
                 androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing),
             )
             onClose()
+            closingDialog = false
         }
     }
-    LaunchedEffect(Unit) {
-        dialogSlide.animateTo(
-            0f,
-            androidx.compose.animation.core.tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        )
+    LaunchedEffect(visible) {
+        if (visible) {
+            closingDialog = false
+            dialogSlide.animateTo(
+                0f,
+                androidx.compose.animation.core.tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            )
+        } else if (dialogSlide.value < 1f) {
+            dialogSlide.animateTo(
+                1f,
+                androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            )
+        }
+    }
+    LaunchedEffect(visible, explicitUrl) {
+        if (visible && !explicitUrl.isNullOrBlank()) {
+            openUrl(explicitUrl)
+        }
     }
 
-    // 直接挂在主 Activity 的根 Box 顶层（不开独立 Dialog 窗口），彻底消除打开/关闭时状态栏图标变白闪烁的问题
+    val overlayActive = visible || dialogSlide.value < 0.99f
+    // 直接挂在主 Activity 的根 Box 顶层常驻保活：退出不销毁 WebView、重进不刷新，且彻底消除状态栏闪烁
     Box(
         Modifier
             .fillMaxSize()
-            .zIndex(50f)
-            .clickable(
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                indication = null,
-                onClick = {},
+            .zIndex(if (overlayActive) 50f else -1f)
+            .graphicsLayer { alpha = if (overlayActive) 1f else 0f }
+            .then(
+                if (overlayActive) Modifier.clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                ) else Modifier
             ),
     ) {
         val dialogFocus = LocalFocusManager.current
         dialogFocusRef[0] = dialogFocus
-        LaunchedEffect(viewMode, showTabs) {
-            if (viewMode != "web" || showTabs) dialogFocus.clearFocus(force = true) // 光标、拖动小水滴、键盘一起收起
+        LaunchedEffect(visible, viewMode, showTabs) {
+            if (!visible || viewMode != "web" || showTabs) dialogFocus.clearFocus(force = true) // 光标、拖动小水滴、键盘一起收起
         }
-        BackHandler {
-            val wv = webViewRef
-            val pv = popupView
-            when {
-                showTabs -> showTabs = false
-                pv != null && pv.canGoBack() -> pv.goBack()
-                pv != null -> popupView = null
-                viewMode == "web" && wv != null && wv.canGoBack() -> wv.goBack()
-                viewMode == "web" && explicitUrl == null -> {
-                    dialogFocus.clearFocus(force = true) // 退出地址栏编辑，光标和拖动小水滴一起消失
-                    viewMode = "live"
-                }
-                else -> closeAnimated()
-            }
-        }
+        BackHandler(enabled = visible) { closeAnimated() }
 
         Box(
             Modifier
@@ -951,59 +956,70 @@ fun BrowserDialog(
                                         WebView(android.view.ContextThemeWrapper(c,
                                             if (isDark) android.R.style.Theme_Material_NoActionBar
                                             else android.R.style.Theme_Material_Light_NoActionBar)).apply {
-                                            // 下拉页面刷新：同时校验 WebView 与触点所在 DOM 滚动容器均处于顶部（scrollTop <= 2），彻底避免 SPA 内嵌滚动页误触刷新
+                                            // 下拉页面刷新：先放行前一段滑动给网页，通过检测触点元素 getBoundingClientRect().top 是否随手指移动来判断页面是否真的已到顶无法再上滚
                                             val touchSlop = android.view.ViewConfiguration.get(c).scaledTouchSlop.toFloat()
-                                            val viewDensity = c.resources.displayMetrics.density.coerceAtLeast(1f)
+                                            val probeDist = touchSlop * 2.2f
                                             var startX = 0f; var startY = 0f
-                                            var tracking = false; var atTop = false; var pulling = false; var hapticFired = false
+                                            var tracking = false; var probeSent = false; var canPull = false; var pulling = false; var hapticFired = false
                                             setOnTouchListener { v, ev ->
                                                 when (ev.actionMasked) {
                                                     android.view.MotionEvent.ACTION_DOWN -> {
-                                                        val nativeTop = v.scrollY == 0 && !v.canScrollVertically(-1) && !pullRefreshing
+                                                        val inTopZone = v.height > 0 && ev.y <= v.height * 0.25f
+                                                        val nativeTop = inTopZone && v.scrollY == 0 && !v.canScrollVertically(-1) && !pullRefreshing
                                                         tracking = nativeTop
-                                                        atTop = false
+                                                        probeSent = false; canPull = false
                                                         pulling = false; hapticFired = false
                                                         startX = ev.rawX; startY = ev.rawY
-                                                        if (nativeTop) {
-                                                            val cssX = (ev.x / viewDensity).toInt()
-                                                            val cssY = (ev.y / viewDensity).toInt()
+                                                        if (nativeTop && v.width > 0 && v.height > 0) {
+                                                            val fx = (ev.x / v.width).coerceIn(0f, 1f)
+                                                            val fy = (ev.y / v.height).coerceIn(0f, 1f)
                                                             (v as? WebView)?.evaluateJavascript(
-                                                                "(function(){if((window.scrollY||document.documentElement.scrollTop||document.body.scrollTop||0)>2)return '0';" +
-                                                                    "var e=document.elementFromPoint($cssX,$cssY);" +
-                                                                    "while(e&&e!==document.documentElement){if(e.scrollTop>2)return '0';e=e.parentElement;}" +
-                                                                    "return '1';})()",
-                                                            ) { res ->
-                                                                if (tracking) atTop = (res == "\"1\"" || res == "1")
-                                                            }
+                                                                "(function(){var e=document.elementFromPoint(window.innerWidth*$fx,window.innerHeight*$fy);" +
+                                                                    "window.__agPtr={e:e,y:e?e.getBoundingClientRect().top:0};})()",
+                                                                null,
+                                                            )
                                                         }
                                                         false
                                                     }
                                                     android.view.MotionEvent.ACTION_POINTER_DOWN -> {
                                                         if (pulling) { pullOffset = 0f; pulling = false }
-                                                        tracking = false; atTop = false; false
+                                                        tracking = false; probeSent = false; canPull = false; false
                                                     }
                                                     android.view.MotionEvent.ACTION_MOVE -> {
                                                         if (!tracking || ev.pointerCount > 1) return@setOnTouchListener false
                                                         if (!pulling && (v.scrollY > 0 || v.canScrollVertically(-1))) {
-                                                            tracking = false; atTop = false; return@setOnTouchListener false
+                                                            tracking = false; return@setOnTouchListener false
                                                         }
                                                         val dx = ev.rawX - startX
                                                         val dy = ev.rawY - startY
                                                         if (!pulling) {
-                                                            if (dy > touchSlop * 1.4f && dy > kotlin.math.abs(dx) * 1.5f) {
-                                                                if (!atTop) {
-                                                                    tracking = false
-                                                                    return@setOnTouchListener false
+                                                            if (kotlin.math.abs(dx) > touchSlop * 1.5f || dy < -touchSlop) {
+                                                                tracking = false; return@setOnTouchListener false
+                                                            }
+                                                            if (!probeSent && dy > probeDist && dy > kotlin.math.abs(dx) * 1.6f) {
+                                                                probeSent = true
+                                                                (v as? WebView)?.evaluateJavascript(
+                                                                    "(function(){var p=window.__agPtr;var se=document.scrollingElement||document.documentElement;" +
+                                                                        "if((window.scrollY||se.scrollTop||document.body.scrollTop||0)>2)return '0';" +
+                                                                        "if(p&&p.e){if(Math.abs(p.e.getBoundingClientRect().top-p.y)>2)return '0';" +
+                                                                        "var el=p.e;while(el&&el!==document.documentElement){if(el.scrollTop>2)return '0';el=el.parentElement;}}" +
+                                                                        "return '1';})()",
+                                                                ) { res ->
+                                                                    if (tracking) {
+                                                                        if (res == "\"1\"" || res == "1") canPull = true
+                                                                        else tracking = false
+                                                                    }
                                                                 }
+                                                                return@setOnTouchListener false
+                                                            }
+                                                            if (canPull && dy > probeDist) {
                                                                 pulling = true
-                                                                // 通知 WebView 取消本次按下手势，避免吞掉 ACTION_UP 后 WebView 手势状态卡死无法交互
+                                                                startY = ev.rawY - touchSlop
                                                                 val cancelEv = android.view.MotionEvent.obtain(ev).apply {
                                                                     action = android.view.MotionEvent.ACTION_CANCEL
                                                                 }
                                                                 v.onTouchEvent(cancelEv)
                                                                 cancelEv.recycle()
-                                                            } else if (kotlin.math.abs(dx) > touchSlop || dy < -touchSlop) {
-                                                                tracking = false; atTop = false; return@setOnTouchListener false
                                                             } else {
                                                                 return@setOnTouchListener false
                                                             }
@@ -1104,8 +1120,8 @@ fun BrowserDialog(
                                                     return true
                                                 }
                                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                                                    // 当前是主页：还在收尾的旧页面（比如刚关掉的标签页）不要把网址写回来
-                                                    if (activeUrl.isEmpty()) return
+                                                    // 当前是主页，或正在用 about:blank 抹掉系统默认绿机器人报错页：不要动网址和 webError
+                                                    if (activeUrl.isEmpty() || url == "about:blank") return
                                                     view?.evaluateJavascript(webLangJs, null)
                                                     pageTranslated = false
                                                     loading = true
@@ -1116,8 +1132,8 @@ fun BrowserDialog(
                                                 }
                                                 override fun onPageCommitVisible(view: WebView?, url: String?) { pageCommitted = true }
                                                 override fun onPageFinished(view: WebView?, url: String?) {
-                                                    // 当前是主页：还在收尾的旧页面（比如刚关掉的标签页）不要把网址写回来
-                                                    if (activeUrl.isEmpty()) return
+                                                    // 当前是主页，或 about:blank 占位页：不要覆盖网址和标题
+                                                    if (activeUrl.isEmpty() || url == "about:blank") return
                                                     view?.evaluateJavascript(webLangJs, null)
                                                     loading = false
                                                     pageCommitted = true
@@ -1134,8 +1150,15 @@ fun BrowserDialog(
                                                     error: android.webkit.WebResourceError?,
                                                 ) {
                                                     if (request?.isForMainFrame == true) {
+                                                        val desc = error?.description?.toString().orEmpty()
                                                         loading = false
                                                         pageCommitted = true
+                                                        // 忽略重定向取消（ERR_ABORTED），其余真正失败时立即用 about:blank 抹掉系统绿机器人报错页
+                                                        if (desc.isNotBlank() && !desc.contains("ERR_ABORTED") && !desc.contains("ERR_CACHE_MISS")) {
+                                                            webError = desc
+                                                            view?.stopLoading()
+                                                            view?.loadUrl("about:blank")
+                                                        }
                                                     }
                                                 }
                                             }
@@ -1206,7 +1229,7 @@ fun BrowserDialog(
                                     },
                                     update = { wv ->
                                         wv.setBackgroundColor(surfaceArgb)
-                                        wv.visibility = if (pageSlide > 0.01f) android.view.View.VISIBLE else android.view.View.INVISIBLE
+                                        wv.visibility = if (overlayActive && pageSlide > 0.01f) android.view.View.VISIBLE else android.view.View.INVISIBLE
                                     },
                                     modifier = Modifier.fillMaxSize(),
                                     // 切深浅色重建、回到首页、关浏览器时，旧 WebView 在这里统一销毁（之前切主题会泄漏一个）
@@ -1245,7 +1268,59 @@ fun BrowserDialog(
                                         }
                                     }
                                 }
-                                if (!pageCommitted) {
+                                if (webError != null) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxSize()
+                                            .zIndex(4f)
+                                            .background(surfaceColor)
+                                            .padding(horizontal = 28.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                                        ) {
+                                            Icon(
+                                                Icons.Rounded.Language,
+                                                null,
+                                                Modifier.size(44.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                            )
+                                            Text(
+                                                tr("网页无法打开"),
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                            if (activeUrl.isNotBlank()) {
+                                                Text(
+                                                    activeUrl,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                )
+                                            }
+                                            Text(
+                                                webError ?: "",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.error,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Button(
+                                                onClick = {
+                                                    webError = null
+                                                    loading = true
+                                                    if (activeUrl.isNotBlank()) webViewRef?.loadUrl(activeUrl, webLangHeaders)
+                                                    else webViewRef?.reload()
+                                                },
+                                            ) { Text(tr("重试")) }
+                                        }
+                                    }
+                                } else if (!pageCommitted) {
                                     Surface(
                                         shape = RoundedCornerShape(18.dp),
                                         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),

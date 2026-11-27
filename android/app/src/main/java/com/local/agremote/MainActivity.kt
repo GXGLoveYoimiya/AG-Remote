@@ -182,12 +182,15 @@ private fun Root(vm: AppViewModel) {
                 Box(androidx.compose.ui.Modifier.fillMaxSize())
             }
         }
-        if (browserOpen) {
+        var browserMounted by remember { mutableStateOf(false) }
+        LaunchedEffect(browserOpen) { if (browserOpen) browserMounted = true }
+        if (browserMounted) {
             com.local.agremote.ui.BrowserDialog(
                 vm = vm,
                 chatId = chatState.id ?: "",
                 explicitUrl = browserExplicitUrl,
                 quickLinks = com.local.agremote.ui.extractConversationUrls(chatState.steps),
+                visible = browserOpen,
                 onClose = { vm.closeBrowser() },
             )
         }
